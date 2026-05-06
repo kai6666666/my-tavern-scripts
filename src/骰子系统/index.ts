@@ -353,15 +353,7 @@ import {
       // 8. 更新数据
       sheet.content[targetRowIndex + 1][targetColIndex] = newValue;
 
-      // 9. 使用 JSON.parse(JSON.stringify()) 去除 Proxy 层后导入
-      const cleanData = JSON.parse(JSON.stringify(data));
-      const importResult = await api.importTableAsJson(cleanData);
-
-      if (importResult === false) {
-        const error = '数据导入失败（返回 false）';
-        console.error(`[DICE]safeUpdateAttribute: ${error}`);
-        return { success: false, oldValue, newValue, error };
-      }
+      await saveDataOnly(data, [targetSheetKey]);
 
       console.info(`[DICE]safeUpdateAttribute: 成功修改 ${characterName}.${attrName}`);
       return { success: true, oldValue, newValue };
@@ -1934,6 +1926,7 @@ import {
   const STORAGE_KEY_DASHBOARD_ACTIVE = 'acu_dashboard_active';
   const STORAGE_KEY_INVENTORY_FILTERS = 'acu_inventory_filters_v1';
   const STORAGE_KEY_INVENTORY_FILTERS_COLLAPSED = 'acu_inventory_filters_collapsed_v1';
+  const STORAGE_KEY_INVENTORY_METADATA = 'acu_inventory_metadata_v1';
   const STORAGE_KEY_GACHA_ACTIVE_POOL_TAG = 'acu_gacha_active_pool_tag_v1';
   // [新增] 移植功能所需的存储键
   const STORAGE_KEY_TABLE_HEIGHTS = 'acu_table_heights_v19';
@@ -1969,7 +1962,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.7.0'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v5.35'; // 脚本版本号
+  const SCRIPT_VERSION = 'v5.40'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -6806,9 +6799,7 @@ import {
     return escapeHtml(icon);
   };
 
-  const renderGachaItemIconContent = (
-    item: Pick<GachaItemDefinition, 'name' | 'type' | 'icon' | 'iconUrl' | 'localIconKey'>,
-  ): string => {
+  const renderGachaItemIconContent = (item: Pick<GachaItemDefinition, 'name' | 'type' | 'icon' | 'iconUrl' | 'localIconKey'>): string => {
     const fallback = renderThemeIconContent(item.icon || getElementEmoji(item.name, item.type));
     if (item.localIconKey) {
       return `<span class="acu-gacha-image-icon acu-gacha-local-icon" data-gacha-local-icon-key="${escapeHtml(item.localIconKey)}">${fallback}</span>`;
@@ -14211,12 +14202,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   // [优化] 智能更新控制器：后端数据变动时，自动更新快照
   const UpdateController = {
     _lastValidationCount: 0,
-    _isRollingBack: false, // 防止回滚时触发递归
 
     handleUpdate: () => {
-      // 防止回滚操作触发递归
-      if (UpdateController._isRollingBack) return;
-
       // === 更新拦截逻辑（检查启用了 intercept 的规则） ===
       let newData: unknown = null;
       try {
@@ -14227,36 +14214,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           const violations = ValidationEngine.checkTableRules(snapshot, newData, rules);
 
           if (violations.length > 0) {
-            console.warn('[DICE]ACU 规则拦截触发，执行回滚:', violations);
-            UpdateController._isRollingBack = true;
-
-            // 获取 API 并回滚
-            const api = getCore().getDB();
-            if (api?.fillTable) {
-              try {
-                api.fillTable(snapshot);
-                if (window.toastr) {
-                  window.toastr.error(violations[0].message, '已回滚', {
-                    timeOut: 5000,
-                    positionClass: 'toast-bottom-right',
-                  });
-                }
-              } catch (fillError) {
-                console.error('[DICE]ACU fillTable 回滚失败:', fillError);
-                // 回滚失败时仍然显示规则拦截提示
-                if (window.toastr) {
-                  window.toastr.error(`规则拦截: ${violations[0].message}（回滚操作失败，请手动刷新）`, '错误', {
-                    timeOut: 7000,
-                    positionClass: 'toast-bottom-right',
-                  });
-                }
-              }
+            console.warn('[DICE]ACU 规则拦截触发，仅标注不回滚:', violations);
+            if (window.toastr) {
+              window.toastr.warning(violations[0].message, '验证提示', {
+                timeOut: 5000,
+                positionClass: 'toast-bottom-right',
+              });
             }
-
-            setTimeout(() => {
-              UpdateController._isRollingBack = false;
-            }, 500);
-            return;
           }
         }
       } catch (e) {
@@ -27962,18 +27926,253 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       });
   };
 
+  type DiffSheet = {
+    name?: unknown;
+    uid?: unknown;
+    content?: unknown[];
+  };
+
+  type DiffRow = unknown[];
+
+  type DiffRowMatch = {
+    index: number;
+    row: DiffRow;
+  };
+
+  type DiffRowMatcher = {
+    byKey: Map<string, DiffRowMatch[]>;
+    rows: DiffRow[];
+    usedIndices: Set<number>;
+  };
+
+  const asDiffRecord = (value: unknown): Record<string, unknown> | null => {
+    if (!value || typeof value !== 'object') return null;
+    return value as Record<string, unknown>;
+  };
+
+  const isDiffSheet = (value: unknown): value is DiffSheet => {
+    const record = asDiffRecord(value);
+    return Boolean(record && Array.isArray(record.content));
+  };
+
+  const normalizeDiffText = (value: unknown): string => String(value ?? '').trim().replace(/\s+/g, ' ');
+
+  const normalizeDiffHeader = (value: unknown): string => normalizeDiffText(value).toLowerCase();
+
+  const getDiffSheetIdentity = (sheet: unknown): { uid: string; name: string } => {
+    const record = asDiffRecord(sheet);
+    return {
+      uid: normalizeDiffText(record?.uid),
+      name: normalizeDiffText(record?.name),
+    };
+  };
+
+  const findDiffSnapshotEntry = (
+    snapshot: unknown,
+    sheetId: string,
+    currentSheet: unknown,
+  ): { key: string; sheet: DiffSheet } | null => {
+    const snapshotRecord = asDiffRecord(snapshot);
+    if (!snapshotRecord) return null;
+
+    const directSheet = snapshotRecord[sheetId];
+    if (isDiffSheet(directSheet)) return { key: sheetId, sheet: directSheet };
+
+    const currentIdentity = getDiffSheetIdentity(currentSheet);
+    const sheetKeys = Object.keys(snapshotRecord).filter(key => key.startsWith('sheet_'));
+
+    if (currentIdentity.uid) {
+      const matchedKey = sheetKeys.find(key => getDiffSheetIdentity(snapshotRecord[key]).uid === currentIdentity.uid);
+      const matchedSheet = matchedKey ? snapshotRecord[matchedKey] : null;
+      if (matchedKey && isDiffSheet(matchedSheet)) return { key: matchedKey, sheet: matchedSheet };
+    }
+
+    if (currentIdentity.name) {
+      const matchedKey = sheetKeys.find(key => getDiffSheetIdentity(snapshotRecord[key]).name === currentIdentity.name);
+      const matchedSheet = matchedKey ? snapshotRecord[matchedKey] : null;
+      if (matchedKey && isDiffSheet(matchedSheet)) return { key: matchedKey, sheet: matchedSheet };
+    }
+
+    return null;
+  };
+
+  const normalizeDiffRow = (row: unknown): DiffRow => (Array.isArray(row) ? row : []);
+
+  const getDiffSheetContent = (sheet: unknown): DiffRow[] => {
+    if (!isDiffSheet(sheet)) return [];
+    return sheet.content?.map(normalizeDiffRow) ?? [];
+  };
+
+  const getDiffHeaders = (sheet: unknown): DiffRow => getDiffSheetContent(sheet)[0] ?? [];
+
+  const getDiffRows = (sheet: unknown): DiffRow[] => getDiffSheetContent(sheet).slice(1);
+
+  const DIFF_ID_HEADER_KEYWORDS = [
+    '编码',
+    '编号',
+    '索引',
+    '名称',
+    '名字',
+    '姓名',
+    '地点',
+    '任务',
+    '物品',
+    '角色',
+    '条目',
+    'id',
+  ];
+
+  const getDiffPreferredColumns = (headers: DiffRow): number[] => {
+    const indices: number[] = [];
+    const add = (index: number): void => {
+      if (index >= 0 && !indices.includes(index)) indices.push(index);
+    };
+
+    headers.forEach((header, index) => {
+      const normalized = normalizeDiffHeader(header);
+      if (!normalized) return;
+      if (DIFF_ID_HEADER_KEYWORDS.some(keyword => normalized.includes(keyword.toLowerCase()))) add(index);
+    });
+
+    add(1);
+    add(0);
+    return indices;
+  };
+
+  const getDiffRowIdentityKeys = (headers: DiffRow, row: DiffRow): string[] => {
+    const keys: string[] = [];
+    const addKey = (key: string): void => {
+      if (key && !keys.includes(key)) keys.push(key);
+    };
+
+    getDiffPreferredColumns(headers).forEach(colIndex => {
+      const value = normalizeDiffText(row[colIndex]);
+      if (!value) return;
+      const headerKey = normalizeDiffHeader(headers[colIndex]);
+      if (headerKey) addKey(`h:${headerKey}:${value}`);
+      addKey(`c:${colIndex}:${value}`);
+    });
+
+    const fullRowKey = row
+      .slice(1)
+      .map(cell => normalizeDiffText(cell))
+      .join('\u0001');
+    if (fullRowKey.replace(/\u0001/g, '')) addKey(`full:${fullRowKey}`);
+
+    return keys;
+  };
+
+  const getDiffRowDisplayTitle = (headers: DiffRow, row: DiffRow, rowIndex: number): string => {
+    const preferred = getDiffPreferredColumns(headers).filter(index => index > 0);
+    for (const colIndex of preferred) {
+      const value = normalizeDiffText(row[colIndex]);
+      if (value) return value;
+    }
+    return normalizeDiffText(row[0]) || `行 ${rowIndex + 1}`;
+  };
+
+  const createDiffRowMatcher = (headers: DiffRow, rows: DiffRow[]): DiffRowMatcher => {
+    const byKey = new Map<string, DiffRowMatch[]>();
+    rows.forEach((row, index) => {
+      getDiffRowIdentityKeys(headers, row).forEach(key => {
+        const queue = byKey.get(key) ?? [];
+        queue.push({ index, row });
+        byKey.set(key, queue);
+      });
+    });
+    return { byKey, rows, usedIndices: new Set<number>() };
+  };
+
+  const takeDiffRowMatch = (matcher: DiffRowMatcher, headers: DiffRow, row: DiffRow, rowIndex: number): DiffRowMatch | null => {
+    for (const key of getDiffRowIdentityKeys(headers, row)) {
+      const queue = matcher.byKey.get(key);
+      while (queue?.length) {
+        const candidate = queue.shift();
+        if (candidate && !matcher.usedIndices.has(candidate.index)) {
+          matcher.usedIndices.add(candidate.index);
+          return candidate;
+        }
+      }
+    }
+
+    const positionalRow = matcher.rows[rowIndex];
+    if (positionalRow && !matcher.usedIndices.has(rowIndex)) {
+      matcher.usedIndices.add(rowIndex);
+      return { index: rowIndex, row: positionalRow };
+    }
+
+    return null;
+  };
+
+  const countRuntimeDataChanges = (snapshot: unknown, rawData: unknown): number => {
+    const rawRecord = asDiffRecord(rawData);
+    const snapshotRecord = asDiffRecord(snapshot);
+    if (!rawRecord || !snapshotRecord) return 0;
+
+    let changesCount = 0;
+    const matchedSnapshotKeys = new Set<string>();
+
+    for (const sheetId in rawRecord) {
+      if (!sheetId.startsWith('sheet_')) continue;
+      const newSheet = rawRecord[sheetId];
+      if (!isDiffSheet(newSheet)) continue;
+
+      const snapshotEntry = findDiffSnapshotEntry(snapshotRecord, sheetId, newSheet);
+      const oldSheet = snapshotEntry?.sheet;
+      if (snapshotEntry) matchedSnapshotKeys.add(snapshotEntry.key);
+
+      if (!oldSheet?.content) {
+        changesCount++;
+        continue;
+      }
+
+      const headers = getDiffHeaders(newSheet);
+      const oldHeaders = getDiffHeaders(oldSheet);
+      if (JSON.stringify(headers) !== JSON.stringify(oldHeaders)) {
+        changesCount++;
+        continue;
+      }
+
+      const newRows = getDiffRows(newSheet);
+      const oldRows = getDiffRows(oldSheet);
+      const matcher = createDiffRowMatcher(oldHeaders, oldRows);
+
+      newRows.forEach((row, rowIndex) => {
+        const matched = takeDiffRowMatch(matcher, headers, row, rowIndex);
+        if (!matched) {
+          changesCount++;
+          return;
+        }
+
+        const hasChange = row.some((cell, colIndex) => {
+          if (colIndex === 0) return false;
+          return String(cell ?? '') !== String(matched.row[colIndex] ?? '');
+        });
+        if (hasChange) changesCount++;
+      });
+
+      changesCount += oldRows.filter((_, rowIndex) => !matcher.usedIndices.has(rowIndex)).length;
+    }
+
+    for (const sheetId in snapshotRecord) {
+      if (sheetId.startsWith('sheet_') && !matchedSnapshotKeys.has(sheetId) && !rawRecord[sheetId]) changesCount++;
+    }
+
+    return changesCount;
+  };
+
   const generateDiffMap = currentData => {
     const lastData = loadSnapshot();
     const diffSet = new Set();
-    if (!lastData) return diffSet;
+    if (!lastData || !currentData) return diffSet;
 
     for (const sheetId in currentData) {
       const newSheet = currentData[sheetId];
-      const oldSheet = lastData[sheetId];
       if (!newSheet || !newSheet.name) continue;
       const tableName = newSheet.name;
+      const oldSheet = findDiffSnapshotEntry(lastData, sheetId, newSheet)?.sheet;
 
-      if (!oldSheet) {
+      if (!oldSheet?.content) {
         // 整个表是新的
         if (newSheet.content) {
           newSheet.content.forEach((row, rIdx) => {
@@ -27983,65 +28182,26 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         continue;
       }
 
-      const newRows = newSheet.content || [];
-      const oldRows = oldSheet.content || [];
-
-      // [优化] 构建快照的标题映射表
-      // 格式: { 标题 -> [{index, row}, ...] } (数组用于处理重复标题)
-      const oldRowMap = new Map();
-      oldRows.forEach((row, rIdx) => {
-        if (rIdx === 0) return; // 跳过表头
-        const title = String(row[1] ?? '').trim();
-        if (title) {
-          if (!oldRowMap.has(title)) {
-            oldRowMap.set(title, []);
-          }
-          oldRowMap.get(title).push({ index: rIdx, row: row });
-        }
-      });
-
-      // 记录哪些旧行索引被匹配了（用于空标题时的索引回退）
-      const matchedOldIndices = new Set();
+      const headers = getDiffHeaders(newSheet);
+      const oldHeaders = getDiffHeaders(oldSheet);
+      const newRows = getDiffRows(newSheet);
+      const oldRows = getDiffRows(oldSheet);
+      const matcher = createDiffRowMatcher(oldHeaders, oldRows);
 
       // 遍历当前数据
       newRows.forEach((row, rIdx) => {
-        if (rIdx === 0) return; // 跳过表头
-        const title = String(row[1] ?? '').trim();
+        const matched = takeDiffRowMatch(matcher, headers, row, rIdx);
 
-        let matchedOldRow = null;
-
-        if (title && oldRowMap.has(title)) {
-          // 标题匹配模式：从队列中取出第一个
-          const candidates = oldRowMap.get(title);
-          if (candidates.length > 0) {
-            const matched = candidates.shift(); // 消耗一个
-            matchedOldRow = matched.row;
-            matchedOldIndices.add(matched.index);
-            if (candidates.length === 0) {
-              oldRowMap.delete(title);
-            }
-          }
-        }
-
-        if (!matchedOldRow && !title) {
-          // 空标题时回退到索引匹配
-          const oldRow = oldRows[rIdx];
-          if (oldRow && !matchedOldIndices.has(rIdx)) {
-            matchedOldRow = oldRow;
-            matchedOldIndices.add(rIdx);
-          }
-        }
-
-        if (!matchedOldRow) {
+        if (!matched) {
           // 在快照中找不到匹配的行，标记整行为新增
-          diffSet.add(`${tableName}-row-${rIdx - 1}`);
+          diffSet.add(`${tableName}-row-${rIdx}`);
         } else {
           // 找到匹配，对比每个单元格
           row.forEach((cell, cIdx) => {
             if (cIdx === 0) return; // 跳过索引列
-            const oldCell = matchedOldRow[cIdx];
+            const oldCell = matched.row[cIdx];
             if (String(cell ?? '') !== String(oldCell ?? '')) {
-              diffSet.add(`${tableName}-${rIdx - 1}-${cIdx}`);
+              diffSet.add(`${tableName}-${rIdx}-${cIdx}`);
             }
           });
         }
@@ -28161,6 +28321,14 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     targetDocument.head.appendChild(styleEl);
   };
 
+  const cloneRuntimeDataValue = <T>(value: T): T => {
+    if (value === null || value === undefined) return value;
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value);
+    }
+    return JSON.parse(JSON.stringify(value)) as T;
+  };
+
   const getTableData = (options?: { silent?: boolean }) => {
     const api = getCore().getDB();
     if (!api || !api.exportTableAsJson) {
@@ -28168,7 +28336,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return null;
     }
     try {
-      const data = api.exportTableAsJson();
+      const data = cloneRuntimeDataValue(api.exportTableAsJson());
       if (data && !options?.silent) {
         const sheetCount = Object.keys(data).filter(k => k.startsWith('sheet_')).length;
         console.info(`[DICE]已加载表格数据，包含 ${sheetCount} 个工作表`);
@@ -28336,99 +28504,234 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     }
   };
 
+  const normalizeSheetKeys = (keys?: string[]): string[] | null => {
+    if (!Array.isArray(keys)) return null;
+    return Array.from(new Set(keys.map(key => String(key || '').trim()).filter(key => key.startsWith('sheet_'))));
+  };
+
+  const assertRuntimeCrudApi = () => {
+    const api = getCore().getDB();
+    const requiredMethods = ['exportTableAsJson', 'updateCell', 'updateRow', 'insertRow', 'deleteRow'];
+    const missing = requiredMethods.filter(method => typeof api?.[method] !== 'function');
+    if (missing.length > 0) {
+      throw new Error(`数据库本体版本过低，缺少新版表格 CRUD API：${missing.join(', ')}。请升级数据库本体后再保存。`);
+    }
+    return api;
+  };
+
+  const getSheetRows = sheet => (Array.isArray(sheet?.content) ? sheet.content.slice(1) : []);
+  const getSheetHeaders = sheet => (Array.isArray(sheet?.content?.[0]) ? sheet.content[0] : []);
+  const sameRow = (left, right): boolean => JSON.stringify(left || []) === JSON.stringify(right || []);
+  const sameHeaders = (left, right): boolean => JSON.stringify(getSheetHeaders(left)) === JSON.stringify(getSheetHeaders(right));
+  const getStableRowKeyForCrud = row => {
+    if (!Array.isArray(row)) return '';
+    const primary = String(row[1] ?? '').trim();
+    if (primary) return `title:${primary}`;
+    return `row:${JSON.stringify(row)}`;
+  };
+
+  const buildRowDataForCrud = (headers, row, changedColumns?: Set<number>) => {
+    const data = {};
+    headers.forEach((header, index) => {
+      if (index === 0) return;
+      if (!header) return;
+      if (changedColumns && !changedColumns.has(index)) return;
+      data[String(header)] = row?.[index] ?? '';
+    });
+    return data;
+  };
+
+  const findDeletionIndicesForCrud = (oldRows, desiredRows): number[] | null => {
+    if (desiredRows.length > oldRows.length) return null;
+    const desiredKeys = desiredRows.map(getStableRowKeyForCrud);
+    const keepIndices: number[] = [];
+    let searchFrom = 0;
+
+    for (const desiredKey of desiredKeys) {
+      let found = -1;
+      for (let index = searchFrom; index < oldRows.length; index++) {
+        if (getStableRowKeyForCrud(oldRows[index]) === desiredKey) {
+          found = index;
+          break;
+        }
+      }
+      if (found === -1) return null;
+      keepIndices.push(found);
+      searchFrom = found + 1;
+    }
+
+    const keepSet = new Set(keepIndices);
+    return oldRows.map((_, index) => index).filter(index => !keepSet.has(index));
+  };
+
+  const assertAppendOnlyRows = (oldRows, desiredRows): void => {
+    if (desiredRows.length < oldRows.length) return;
+    for (let index = 0; index < oldRows.length; index++) {
+      if (getStableRowKeyForCrud(oldRows[index]) !== getStableRowKeyForCrud(desiredRows[index])) {
+        throw new Error('当前变更包含中间插入或行重排，新版数据库 API 无法安全表达，已取消快捷保存。');
+      }
+    }
+  };
+
+  const applySheetDataViaCrud = async (api, sheetKey: string, desiredSheet, latestSheet) => {
+    if (!desiredSheet?.name || !Array.isArray(desiredSheet?.content)) {
+      throw new Error(`修改表不存在或格式非法：${sheetKey}`);
+    }
+    if (!latestSheet?.name || !Array.isArray(latestSheet?.content)) {
+      throw new Error(`表 "${desiredSheet.name || sheetKey}" 不存在，整表新增/恢复不支持快捷保存。`);
+    }
+    if (!sameHeaders(desiredSheet, latestSheet)) {
+      throw new Error(`表 "${desiredSheet.name || sheetKey}" 的结构已变化，结构级变更只标注，不支持快捷保存。`);
+    }
+
+    const tableName = desiredSheet.name;
+    const headers = getSheetHeaders(desiredSheet);
+    const desiredRows = getSheetRows(desiredSheet);
+    const oldRows = getSheetRows(latestSheet);
+
+    if (desiredRows.length > oldRows.length) {
+      assertAppendOnlyRows(oldRows, desiredRows);
+    }
+
+    let workingRows = oldRows.map(row => [...row]);
+    if (desiredRows.length < oldRows.length) {
+      const deleteIndices = findDeletionIndicesForCrud(oldRows, desiredRows);
+      if (!deleteIndices) {
+        throw new Error(`表 "${tableName}" 的行删除无法安全定位，已取消快捷保存。`);
+      }
+      for (const rowIndex of deleteIndices.sort((left, right) => right - left)) {
+        const result = await api.deleteRow({ tableName, rowIndex: rowIndex + 1, skipNotify: true });
+        if (result === false) throw new Error(`删除 "${tableName}" 第 ${rowIndex + 1} 行失败`);
+        workingRows.splice(rowIndex, 1);
+      }
+    }
+
+    if (desiredRows.length > workingRows.length) {
+      for (let index = workingRows.length; index < desiredRows.length; index++) {
+        const rowData = buildRowDataForCrud(headers, desiredRows[index]);
+        const result = await api.insertRow({ tableName, data: rowData, skipNotify: true });
+        if (result === false || result === -1) throw new Error(`向 "${tableName}" 追加新行失败`);
+        workingRows.push([...desiredRows[index]]);
+      }
+    }
+
+    for (let rowIndex = 0; rowIndex < desiredRows.length; rowIndex++) {
+      const desiredRow = desiredRows[rowIndex] || [];
+      const currentRow = workingRows[rowIndex] || [];
+      if (sameRow(currentRow, desiredRow)) continue;
+
+      const changedColumns = new Set<number>();
+      headers.forEach((_, colIndex) => {
+        if (colIndex === 0) return;
+        if (String(currentRow[colIndex] ?? '') !== String(desiredRow[colIndex] ?? '')) changedColumns.add(colIndex);
+      });
+      if (changedColumns.size === 0) continue;
+
+      if (changedColumns.size === 1) {
+        const [colIndex] = Array.from(changedColumns);
+        const result = await api.updateCell({
+          tableName,
+          rowIndex: rowIndex + 1,
+          colIdentifier: colIndex,
+          value: desiredRow[colIndex] ?? '',
+          skipNotify: true,
+        });
+        if (result === false) throw new Error(`更新 "${tableName}" 第 ${rowIndex + 1} 行第 ${colIndex + 1} 列失败`);
+      } else {
+        const rowData = buildRowDataForCrud(headers, desiredRow, changedColumns);
+        const result = await api.updateRow({ tableName, rowIndex: rowIndex + 1, data: rowData, skipNotify: true });
+        if (result === false) throw new Error(`更新 "${tableName}" 第 ${rowIndex + 1} 行失败`);
+      }
+      workingRows[rowIndex] = [...desiredRow];
+    }
+  };
+
+  const sanitizeRuntimeTableData = (tableData, modifiedSheetKeys?: string[], commitDeletes = false) => {
+    const sourceData = tableData && typeof tableData === 'object' ? tableData : {};
+    const dataToSave = {
+      mate: sourceData.mate ? cloneRuntimeDataValue(sourceData.mate) : { type: 'chatSheets', version: 1 },
+    };
+
+    Object.keys(sourceData).forEach(key => {
+      if (key.startsWith('sheet_')) {
+        dataToSave[key] = cloneRuntimeDataValue(sourceData[key]);
+      }
+    });
+
+    syncInventoryMetadataForRawData(dataToSave);
+
+    if (commitDeletes) {
+      const deletions = getPendingDeletions();
+      Object.keys(deletions).forEach(key => {
+        if (dataToSave[key]?.content) {
+          deletions[key]
+            .sort((left, right) => right - left)
+            .forEach(index => {
+              if (dataToSave[key].content[index + 1]) dataToSave[key].content.splice(index + 1, 1);
+            });
+        }
+      });
+    }
+
+    const explicitKeys = normalizeSheetKeys(modifiedSheetKeys);
+    const sheetKeysToSave = explicitKeys || Object.keys(dataToSave).filter(key => key.startsWith('sheet_'));
+    if (explicitKeys && explicitKeys.length === 0) {
+      return { dataToSave, sheetKeysToSave: [] };
+    }
+    return { dataToSave, sheetKeysToSave };
+  };
+
+  const applyRuntimeDataViaCrud = async (tableData, modifiedSheetKeys?: string[], options?: { commitDeletes?: boolean }) => {
+    const api = assertRuntimeCrudApi();
+    const isPartialSave = Array.isArray(modifiedSheetKeys);
+    const { dataToSave, sheetKeysToSave } = sanitizeRuntimeTableData(
+      tableData,
+      modifiedSheetKeys,
+      options?.commitDeletes === true,
+    );
+    if (sheetKeysToSave.length === 0) {
+      console.info('[DICE]ACU CRUD 保存跳过：没有有效修改表');
+      return dataToSave;
+    }
+
+    const latestData = getTableData({ silent: true });
+    if (!latestData) throw new Error('无法读取最新数据库基底，已取消保存以避免覆盖未保存表格');
+    if (!isPartialSave) {
+      const deletedSheetNames = Object.keys(latestData)
+        .filter(key => key.startsWith('sheet_') && !dataToSave[key])
+        .map(key => latestData[key]?.name || key);
+      if (deletedSheetNames.length > 0) {
+        throw new Error(`检测到整表删除：${deletedSheetNames.join('、')}。该结构级变更仅标注，不支持快捷保存。`);
+      }
+    }
+
+    for (const sheetKey of sheetKeysToSave) {
+      await applySheetDataViaCrud(api, sheetKey, dataToSave[sheetKey], latestData[sheetKey]);
+    }
+
+    api._notifyTableUpdate?.();
+    const refreshedData = getTableData({ silent: true }) || dataToSave;
+    cachedRawData = refreshedData;
+    return refreshedData;
+  };
+
   const saveDataToDatabase = async (tableData, skipRender = false, commitDeletes = false) => {
     if (isSaving) {
       console.warn('[DICE]保存操作正在进行中，跳过重复请求');
-      return; // 简单的防重入
+      return;
     }
-    console.info('[DICE]开始保存数据到数据库...');
+    console.info('[DICE]开始通过数据库 CRUD 保存数据...');
     isSaving = true;
     const { $ } = getCore();
     const $saveBtn = $('#acu-btn-save-global');
 
-    // UI 反馈
     if (!skipRender && $saveBtn.length) {
       $saveBtn.find('i').removeClass('fa-save').addClass('fa-spinner fa-spin');
       $saveBtn.prop('disabled', true);
     }
 
     try {
-      // 1. 简单浅拷贝，只取 sheet_ 开头的数据 (白名单机制 = 不卡顿)
-      const dataToSave = {};
-      // 补全 mate 防止校验报错
-      if (!tableData.mate) dataToSave.mate = { type: 'chatSheets', version: 1 };
-      else dataToSave.mate = tableData.mate;
-
-      Object.keys(tableData).forEach(k => {
-        if (k.startsWith('sheet_')) {
-          dataToSave[k] = tableData[k];
-        }
-      });
-
-      syncInventoryMetadataForRawData(dataToSave);
-
-      // 2. 处理删除 (如果有)
-      if (commitDeletes) {
-        const deletions = getPendingDeletions();
-        Object.keys(deletions).forEach(key => {
-          if (dataToSave[key] && dataToSave[key].content) {
-            deletions[key]
-              .sort((a, b) => b - a)
-              .forEach(idx => {
-                if (dataToSave[key].content[idx + 1]) dataToSave[key].content.splice(idx + 1, 1);
-              });
-          }
-        });
-      }
-
-      // 3. 验证数据并序列化
-      let jsonString;
-      try {
-        jsonString = JSON.stringify(dataToSave);
-        // 检查数据大小（约 20MB 限制）
-        const sizeInMB = new Blob([jsonString]).size / (1024 * 1024);
-        if (sizeInMB > 20) {
-          throw new Error(`数据太大 (${sizeInMB.toFixed(2)}MB)，超过 20MB 限制`);
-        }
-        console.info(`[DICE]数据序列化完成，大小: ${sizeInMB.toFixed(2)}MB`);
-      } catch (stringifyError) {
-        console.error('[DICE]ACU JSON 序列化失败:', stringifyError);
-        throw new Error(`数据序列化失败: ${stringifyError.message || stringifyError}`);
-      }
-
-      // 4. 直接调用 API 保存 (无中间商赚差价)
-      const api = getCore().getDB();
-      if (!api || !api.importTableAsJson) {
-        throw new Error('数据库 API 不可用');
-      }
-      const anchorIndex = findLatestDbMessageIndex();
-
-      try {
-        // 调用 importTableAsJson，它内部会调用 saveChat()
-        // 如果 saveChat() 失败，可能会抛出错误或显示 "Settings could not be saved" 提示
-        const result = await api.importTableAsJson(jsonString);
-        // 检查返回值，某些实现可能返回 false 表示失败
-        if (result === false) {
-          throw new Error('数据导入失败（返回 false）');
-        }
-        await relocateDbPayloadToAnchor(anchorIndex);
-        console.info('[DICE]数据已成功保存到数据库');
-      } catch (apiError) {
-        console.error('[DICE]ACU API 保存失败:', apiError);
-        // 检查是否是 "Settings could not be saved" 相关的错误
-        const errorMsg = apiError.message || String(apiError);
-        if (
-          errorMsg.includes('Settings could not be saved') ||
-          errorMsg.includes('server connection') ||
-          errorMsg.includes('data loss')
-        ) {
-          throw new Error('保存失败：服务器连接问题或数据过大，请检查网络连接或减少数据量');
-        }
-        throw new Error(`保存到数据库失败: ${errorMsg}`);
-      }
-
-      // 5. 更新本地状态
-      cachedRawData = dataToSave;
+      const dataToSave = await applyRuntimeDataViaCrud(tableData, undefined, { commitDeletes });
       saveSnapshot(dataToSave);
       hasUnsavedChanges = false;
       currentDiffMap = new Set();
@@ -28439,18 +28742,17 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         renderInterface();
       }
     } catch (e) {
-      const errorMessage = e.message || '保存出错，请检查数据格式和大小';
+      const errorMessage = e.message || '保存出错，请检查数据格式和数据库版本';
       console.error('[DICE]保存数据失败:', {
         error: e,
         message: errorMessage,
         stack: e.stack,
       });
       if (window.toastr) {
-        window.toastr.error(errorMessage, '保存失败', { timeOut: 5000 });
+        window.toastr.error(errorMessage, '保存失败', { timeOut: 7000 });
       } else {
         alert(`保存失败: ${errorMessage}`);
       }
-      // 重新抛出错误以便上层处理
       throw e;
     } finally {
       isSaving = false;
@@ -28462,119 +28764,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     }
   };
 
-  const cloneSaveDataValue = <T>(value: T): T => {
-    if (typeof structuredClone === 'function') {
-      return structuredClone(value);
-    }
-    return JSON.parse(JSON.stringify(value)) as T;
-  };
-
-  const getExplicitModifiedSheetKeys = (modifiedSheetKeys?: string[]): string[] | null => {
-    if (!Array.isArray(modifiedSheetKeys)) {
-      return null;
-    }
-    return Array.from(
-      new Set(modifiedSheetKeys.map(key => String(key || '').trim()).filter(key => key.startsWith('sheet_'))),
-    );
-  };
-
   const performSaveDataOnly = async (tableData, modifiedSheetKeys?: string[]) => {
     try {
-      const sourceData = tableData && typeof tableData === 'object' ? (tableData as Record<string, unknown>) : {};
-      const explicitModifiedSheetKeys = getExplicitModifiedSheetKeys(modifiedSheetKeys);
-
-      if (explicitModifiedSheetKeys && explicitModifiedSheetKeys.length === 0) {
-        console.info('[DICE]ACU saveDataOnly 跳过：没有有效修改表');
-        return tableData;
-      }
-
-      const latestData = explicitModifiedSheetKeys ? getTableData({ silent: true }) : null;
-      const latestRecord =
-        latestData && typeof latestData === 'object' ? (latestData as Record<string, unknown>) : null;
-      if (explicitModifiedSheetKeys && !latestRecord) {
-        throw new Error('无法读取最新数据库基底，已取消保存以避免覆盖未保存表格');
-      }
-      const baseData = latestRecord || sourceData;
-      const dataToSave: Record<string, unknown> = {};
-      const baseMate = baseData.mate;
-      if (baseMate && typeof baseMate === 'object') {
-        dataToSave.mate = cloneSaveDataValue(baseMate as Record<string, unknown>);
-      } else {
-        dataToSave.mate = { type: 'chatSheets', version: 1 };
-      }
-
-      Object.keys(baseData).forEach(k => {
-        if (k.startsWith('sheet_')) {
-          const sheetData = baseData[k];
-          if (sheetData && typeof sheetData === 'object') {
-            dataToSave[k] = cloneSaveDataValue(sheetData as Record<string, unknown>);
-          }
-        }
-      });
-
-      const sheetKeysToSave =
-        explicitModifiedSheetKeys || Object.keys(sourceData).filter(key => key.startsWith('sheet_'));
-      let mergedSheetCount = 0;
-
-      sheetKeysToSave.forEach(key => {
-        const sheetData = sourceData[key];
-        if (sheetData && typeof sheetData === 'object') {
-          dataToSave[key] = cloneSaveDataValue(sheetData as Record<string, unknown>);
-          mergedSheetCount++;
-        }
-      });
-
-      if (explicitModifiedSheetKeys && mergedSheetCount === 0) {
-        throw new Error(`修改表不存在：${explicitModifiedSheetKeys.join(', ')}`);
-      }
-
-      syncInventoryMetadataForRawData(dataToSave);
-
-      // 验证数据并序列化
-      let jsonString;
-      try {
-        jsonString = JSON.stringify(dataToSave);
-        // 检查数据大小（约 20MB 限制）
-        const sizeInMB = new Blob([jsonString]).size / (1024 * 1024);
-        if (sizeInMB > 20) {
-          throw new Error(`数据太大 (${sizeInMB.toFixed(2)}MB)，超过 20MB 限制`);
-        }
-      } catch (stringifyError) {
-        console.error('[DICE]ACU JSON 序列化失败:', stringifyError);
-        throw new Error(`数据序列化失败: ${stringifyError.message || stringifyError}`);
-      }
-
-      const api = getCore().getDB();
-      if (!api || !api.importTableAsJson) {
-        throw new Error('数据库 API 不可用');
-      }
-      const anchorIndex = findLatestDbMessageIndex();
-
-      try {
-        // 调用 importTableAsJson，它内部会调用 saveChat()
-        const result = await api.importTableAsJson(jsonString);
-        // 检查返回值，某些实现可能返回 false 表示失败
-        if (result === false) {
-          throw new Error('数据导入失败（返回 false）');
-        }
-        await relocateDbPayloadToAnchor(anchorIndex);
-      } catch (apiError) {
-        console.error('[DICE]ACU API 保存失败:', apiError);
-        // 检查是否是 "Settings could not be saved" 相关的错误
-        const errorMsg = apiError.message || String(apiError);
-        if (
-          errorMsg.includes('Settings could not be saved') ||
-          errorMsg.includes('server connection') ||
-          errorMsg.includes('data loss')
-        ) {
-          throw new Error('保存失败：服务器连接问题或数据过大，请检查网络连接或减少数据量');
-        }
-        throw new Error(`保存到数据库失败: ${errorMsg}`);
-      }
-
-      cachedRawData = dataToSave;
-      // 注意：不调用 saveSnapshot()，不更新 hasUnsavedChanges
-      return dataToSave;
+      return await applyRuntimeDataViaCrud(tableData, modifiedSheetKeys);
     } catch (e) {
       console.error('[DICE]ACU saveDataOnly error:', e, modifiedSheetKeys ? { modifiedSheetKeys } : undefined);
       throw e;
@@ -28606,7 +28798,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   // 注意：不调用 saveDataToDatabase（它会更新完整快照），只更新指定行的快照
   const saveRowInstantly = async (tableKey: string, rowIndex: number, newRowData: unknown[]): Promise<void> => {
     try {
-      // 1. 获取当前数据
       const rawData = cachedRawData || getTableData();
       if (!rawData || !rawData[tableKey]) {
         throw new Error(`表格 "${tableKey}" 不存在`);
@@ -28615,13 +28806,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         throw new Error(`表格 "${tableKey}" 内容为空`);
       }
 
-      // 2. 更新该行数据（rowIndex 是从0开始的行索引，content[0] 是表头）
       rawData[tableKey].content[rowIndex + 1] = newRowData;
 
-      // 3. 保存到数据库（不更新完整快照）
       await saveDataOnly(rawData, [tableKey]);
 
-      // 4. 只更新快照中这一行（关键：保留其他行的变更高亮）
       const snapshot = loadSnapshot();
       if (snapshot && snapshot[tableKey] && snapshot[tableKey].content) {
         snapshot[tableKey].content[rowIndex + 1] = [...newRowData];
@@ -29359,7 +29547,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               <div class="acu-rule-name">${escapeHtml(name)}</div>
               <div class="acu-rule-target">${escapeHtml(targetTable)}${isTableRule && ruleType !== 'sequence' ? ' (整表)' : '.' + escapeHtml(targetColumn)}</div>
             </div>
-            <div class="acu-rule-intercept" data-rule-id="${escapeHtml(finalRuleId)}" title="点击启用拦截（违反时回滚）"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="acu-rule-intercept" data-rule-id="${escapeHtml(finalRuleId)}" title="点击启用拦截提示（违反时标注）"><i class="fa-solid fa-shield-halved"></i></div>
             <button class="acu-rule-edit" data-rule-id="${escapeHtml(finalRuleId)}" title="编辑此规则" style="background:none;border:none;color:var(--text-sub);cursor:pointer;padding:4px;opacity:0.6;transition:all 0.2s;flex-shrink:0;"><i class="fa-solid fa-pen"></i></button>
             <div class="acu-rule-toggle active" title="点击切换启用/禁用">
               <i class="fa-solid fa-toggle-on"></i>
@@ -29992,8 +30180,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         // 添加到表末尾
         refSheet.content.push(newRow);
 
-        // 保存数据
-        await saveDataToDatabase(rawData, false, false);
+        await saveDataOnly(rawData, refSheetId ? [refSheetId] : undefined);
 
         // 关闭弹窗并重新渲染界面（会自动重新验证，所有相关错误会消失）
         closeDialog();
@@ -30032,6 +30219,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       try {
         const rawData = cachedRawData || getTableData();
         let updated = false;
+        let updatedSheetId = null;
 
         for (const sheetId in rawData) {
           if (rawData[sheetId]?.name === error.tableName) {
@@ -30045,6 +30233,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               if (colIdx >= 0 && sheet.content && sheet.content[rowIdx]) {
                 sheet.content[rowIdx][colIdx] = newValue;
                 updated = true;
+                updatedSheetId = sheetId;
                 break;
               }
             }
@@ -30052,7 +30241,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         }
 
         if (updated) {
-          await saveDataToDatabase(rawData, false, false);
+          await saveDataOnly(rawData, updatedSheetId ? [updatedSheetId] : undefined);
           closeDialog();
           renderInterface();
         } else {
@@ -30382,7 +30571,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     let actionBtns = '';
 
     if (ruleType === 'tableReadonly') {
-      // 表只读规则：显示修改概览，提供恢复整表功能
+      // 表只读规则：仅显示修改概览，不提供整表恢复快捷操作
       let changeCount = 0;
       let changeDetails = [];
 
@@ -30427,7 +30616,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             <i class="fa-solid fa-lock"></i>
             <span>表只读保护</span>
           </div>
-          <div class="acu-smart-fix-rule-desc">此表被设置为只读，但检测到有修改。</div>
+          <div class="acu-smart-fix-rule-desc">此表被设置为只读，但检测到有修改；当前仅标注，不提供整表回滚。</div>
         </div>
         <div class="acu-smart-fix-table-summary">
           <div class="acu-smart-fix-stat">
@@ -30449,10 +30638,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           }
         </div>
       `;
-      actionBtns = `
-        <button class="acu-dialog-btn" id="smart-fix-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-        <button class="acu-dialog-btn acu-btn-revert" id="smart-fix-restore-table"><i class="fa-solid fa-rotate-left"></i> 恢复整表</button>
-      `;
+      actionBtns = `<button class="acu-dialog-btn" id="smart-fix-cancel"><i class="fa-solid fa-times"></i> 关闭</button>`;
     } else if (ruleType === 'rowLimit') {
       // 行数限制规则：显示超出的行，提供删除功能
       const minRows = rule.config?.min;
@@ -30511,7 +30697,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             isTooFew
               ? `
             <div class="acu-smart-fix-hint">
-              <i class="fa-solid fa-info-circle"></i> 需要添加 ${minRows - currentRowCount} 行才能满足最小行数要求
+              <i class="fa-solid fa-info-circle"></i> 当前少于最小行数；该情况仅标注，不自动追加空行
             </div>
           `
               : ''
@@ -30721,18 +30907,18 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       `;
 
       if (fixSuggestions.length > 0) {
-        // 检测是否有配对表
-        const pairedTable =
-          rule.config?.pairedTable ||
-          (error.tableName === '总结表' ? '总体大纲' : error.tableName === '总体大纲' ? '总结表' : null);
-        const pairedTableAttr = pairedTable ? `data-paired-table="${escapeHtml(pairedTable)}"` : '';
+        const pairedTable = rule.config?.pairedTable || null;
 
-        actionBtns = `
-          <button class="acu-dialog-btn" id="smart-fix-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-          <button class="acu-dialog-btn acu-btn-confirm" id="smart-fix-fix-sequence" data-table="${escapeHtml(error.tableName)}" data-column="${escapeHtml(rule.targetColumn)}" data-prefix="${escapeHtml(prefix)}" data-start="${startFrom}" ${pairedTableAttr}>
-            <i class="fa-solid fa-magic"></i> 自动修复 ${fixSuggestions.length} 处
-          </button>
-        `;
+        if (pairedTable) {
+          actionBtns = `<button class="acu-dialog-btn" id="smart-fix-cancel"><i class="fa-solid fa-times"></i> 关闭</button>`;
+        } else {
+          actionBtns = `
+            <button class="acu-dialog-btn" id="smart-fix-cancel"><i class="fa-solid fa-times"></i> 取消</button>
+            <button class="acu-dialog-btn acu-btn-confirm" id="smart-fix-fix-sequence" data-table="${escapeHtml(error.tableName)}" data-column="${escapeHtml(rule.targetColumn)}" data-prefix="${escapeHtml(prefix)}" data-start="${startFrom}">
+              <i class="fa-solid fa-magic"></i> 自动修复 ${fixSuggestions.length} 处
+            </button>
+          `;
+        }
       } else {
         actionBtns = `<button class="acu-dialog-btn" id="smart-fix-cancel"><i class="fa-solid fa-times"></i> 关闭</button>`;
       }
@@ -30759,31 +30945,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     dialog.on('click', '#smart-fix-cancel', closeDialog);
     setupOverlayClose(dialog, 'acu-validation-modal-overlay', closeDialog);
 
-    // 恢复整表
-    dialog.on('click', '#smart-fix-restore-table', async function () {
-      if (!snapshot) {
-        if (window.toastr) window.toastr.warning('无快照数据');
-        return;
-      }
-
-      try {
-        // 恢复指定表的数据
-        for (const sheetId in rawData) {
-          if (rawData[sheetId]?.name === error.tableName && snapshot[sheetId]) {
-            rawData[sheetId] = JSON.parse(JSON.stringify(snapshot[sheetId]));
-            break;
-          }
-        }
-
-        await saveDataToDatabase(rawData, false, false);
-        closeDialog();
-        renderInterface();
-      } catch (e) {
-        console.error('[DICE]ACU 恢复表失败:', e);
-        if (window.toastr) window.toastr.error('恢复失败: ' + (e.message || '未知错误'));
-      }
-    });
-
     // 自动修复序列递增
     dialog.on('click', '#smart-fix-fix-sequence', async function () {
       const $btn = $(this);
@@ -30794,6 +30955,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const pairedTableName = $btn.data('paired-table') || null;
 
       try {
+        if (pairedTableName) {
+          if (window.toastr) window.toastr.warning('配对表序列修复可能涉及插入/重排，当前仅标注不自动修复');
+          return;
+        }
         $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> 修复中...');
 
         // 找到目标表
@@ -30871,8 +31036,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             rawData,
           );
 
-          // 保存数据
-          await saveDataToDatabase(rawData, false, false);
+          await saveDataOnly(rawData, [targetSheetId, pairedSheetId].filter(Boolean));
           closeDialog();
           renderInterface();
         } else {
@@ -30918,8 +31082,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             }
           }
 
-          // 保存数据
-          await saveDataToDatabase(rawData, false, false);
+          await saveDataOnly(rawData, targetSheetId ? [targetSheetId] : undefined);
           closeDialog();
           renderInterface();
         }
@@ -30936,15 +31099,21 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const tableName = $(this).data('table');
 
       try {
+        let targetSheetId = null;
         for (const sheetId in rawData) {
           if (rawData[sheetId]?.name === tableName) {
             // 保留表头(index 0)和前 startRow 行数据(index 1 到 startRow)
             rawData[sheetId].content = rawData[sheetId].content.slice(0, startRow + 1);
+            targetSheetId = sheetId;
             break;
           }
         }
+        if (!targetSheetId) {
+          if (window.toastr) window.toastr.warning('未找到目标表');
+          return;
+        }
 
-        await saveDataToDatabase(rawData, false, false);
+        await saveDataOnly(rawData, [targetSheetId]);
         closeDialog();
         renderInterface();
       } catch (e) {
@@ -35678,7 +35847,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                                             <div class="acu-rule-name">${escapeHtml(rule.name)}</div>
                                             <div class="acu-rule-target">${escapeHtml(rule.targetTable)}${rule.targetColumn ? '.' + escapeHtml(rule.targetColumn) : isTableRule ? ' (整表)' : ''}</div>
                                         </div>
-                                        <div class="acu-rule-intercept ${hasIntercept ? 'active' : ''}" data-rule-id="${escapeHtml(rule.id)}" title="${hasIntercept ? '点击关闭拦截' : '点击启用拦截（违反时回滚）'}"><i class="fa-solid fa-shield-halved"></i></div>
+                                        <div class="acu-rule-intercept ${hasIntercept ? 'active' : ''}" data-rule-id="${escapeHtml(rule.id)}" title="${hasIntercept ? '点击关闭拦截提示' : '点击启用拦截提示（违反时标注）'}"><i class="fa-solid fa-shield-halved"></i></div>
                                         <button class="acu-rule-edit" data-rule-id="${escapeHtml(rule.id)}" title="编辑此规则" style="background:none;border:none;color:var(--text-sub);cursor:pointer;padding:4px;opacity:0.6;transition:all 0.2s;flex-shrink:0;"><i class="fa-solid fa-pen"></i></button>
                                         <div class="acu-rule-toggle ${rule.enabled ? 'active' : ''}" title="点击切换启用/禁用">
                                             <i class="fa-solid ${rule.enabled ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
@@ -36164,9 +36333,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
       if (ValidationRuleManager.toggleRuleIntercept(ruleId, !isCurrentlyActive)) {
         if (isCurrentlyActive) {
-          $btn.removeClass('active').attr('title', '点击启用拦截（违反时回滚）');
+          $btn.removeClass('active').attr('title', '点击启用拦截提示（违反时标注）');
         } else {
-          $btn.addClass('active').attr('title', '点击关闭拦截');
+          $btn.addClass('active').attr('title', '点击关闭拦截提示');
         }
       }
     });
@@ -36189,7 +36358,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               <div class="acu-rule-name">${escapeHtml(rule.name)}</div>
               <div class="acu-rule-target">${escapeHtml(rule.targetTable)}${rule.targetColumn ? '.' + escapeHtml(rule.targetColumn) : isTableRule ? ' (整表)' : ''}</div>
             </div>
-            <div class="acu-rule-intercept ${hasIntercept ? 'active' : ''}" data-rule-id="${escapeHtml(rule.id)}" title="${hasIntercept ? '点击关闭拦截' : '点击启用拦截（违反时回滚）'}"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="acu-rule-intercept ${hasIntercept ? 'active' : ''}" data-rule-id="${escapeHtml(rule.id)}" title="${hasIntercept ? '点击关闭拦截提示' : '点击启用拦截提示（违反时标注）'}"><i class="fa-solid fa-shield-halved"></i></div>
             <button class="acu-rule-edit" data-rule-id="${escapeHtml(rule.id)}" title="编辑此规则" style="background:none;border:none;color:var(--text-sub);cursor:pointer;padding:4px;opacity:0.6;transition:all 0.2s;flex-shrink:0;"><i class="fa-solid fa-pen"></i></button>
             <div class="acu-rule-toggle ${rule.enabled ? 'active' : ''}" title="点击切换启用/禁用">
               <i class="fa-solid ${rule.enabled ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
@@ -36834,13 +37003,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   let viewportInputMutationDocument: Document | null = null;
   let viewportInputTargetsRaf: number | null = null;
 
-  const VIEWPORT_BOTTOM_ANCHOR_SELECTORS = [
-    '#send_form',
-    '#form_sheld',
-    '#send_textarea',
-    '#chat_input',
-    '#send_but',
-  ] as const;
+  const VIEWPORT_BOTTOM_ANCHOR_SELECTORS = ['#send_form', '#form_sheld', '#send_textarea', '#chat_input', '#send_but'] as const;
   const VIEWPORT_BOTTOM_REFRESH_EVENTS = [
     'input',
     'change',
@@ -36894,9 +37057,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const rect = el.getBoundingClientRect();
         const isComposerElement = VIEWPORT_COMPOSER_ELEMENT_IDS.has(el.id) || el.tagName.toLowerCase() === 'textarea';
         const minTopRatio = isComposerElement ? 0.2 : 0.45;
-        const maxHeight = isComposerElement
-          ? Math.max(520, viewportHeight * 0.75)
-          : Math.max(220, viewportHeight * 0.4);
+        const maxHeight = isComposerElement ? Math.max(520, viewportHeight * 0.75) : Math.max(220, viewportHeight * 0.4);
         if (rect.width <= 0 || rect.height <= 0) return false;
         if (viewportHeight <= 0) return rect.bottom > 0;
         if (rect.top < viewportTop || rect.bottom > viewportBottom + 80) return false;
@@ -37261,12 +37422,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             if (transformResult.totalApplied > 0) {
               console.info(`[DICE]自动替换完成，共影响 ${transformResult.totalApplied} 处数据`);
 
-              // 如果转换成功，需要保存到数据库
-              // 使用 saveDataOnly 避免触发快照更新和界面重渲染（因为后面会继续渲染）
-              // 注意：saveDataOnly 可能会触发 UpdateController.handleUpdate()，但由于 isAutoTransforming 标志，不会再次触发转换
-              // 不等待保存完成，让它在后台执行，避免阻塞界面渲染
               saveDataOnly(rawData, transformResult.modifiedSheetKeys).catch(err => {
                 console.warn('[DICE]自动转换后保存数据失败:', err);
+              }).finally(() => {
+                isAutoTransforming = false;
               });
             }
             if (transformResult.errors.length > 0) {
@@ -37274,7 +37433,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             } else if (transformResult.totalApplied === 0) {
               console.info('[DICE]自动转换执行完成，但没有匹配到需要转换的数据');
             }
-            isAutoTransforming = false; // 清除标志
+            if (transformResult.totalApplied === 0) {
+              isAutoTransforming = false;
+            }
           } else {
             isAutoTransforming = false; // 清除标志
           }
@@ -37528,76 +37689,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       let validationErrorCount = 0;
       if (rawData) {
         const snapshot = loadSnapshot();
-        if (snapshot) {
-          for (const sheetId in rawData) {
-            if (!sheetId.startsWith('sheet_')) continue;
-            const newSheet = rawData[sheetId];
-            const oldSheet = snapshot[sheetId];
-            if (!newSheet?.content) continue;
-            const newRows = newSheet.content.slice(1);
-            const oldRows = oldSheet?.content?.slice(1) || [];
-
-            // [优化] 使用标题匹配计算变更数量（与detectChanges保持一致）
-            const oldRowsByTitle = new Map<string, Array<{ index: number; row: (typeof oldRows)[0] }>>();
-            oldRows.forEach((row, rIdx) => {
-              const title = String(row[1] ?? '').trim();
-              if (!oldRowsByTitle.has(title)) {
-                oldRowsByTitle.set(title, []);
-              }
-              oldRowsByTitle.get(title)!.push({ index: rIdx, row });
-            });
-
-            newRows.forEach((row, rowIdx) => {
-              const title = String(row[1] ?? '').trim();
-              let oldRow: (typeof oldRows)[0] | undefined;
-
-              if (title && oldRowsByTitle.has(title)) {
-                const queue = oldRowsByTitle.get(title)!;
-                if (queue.length > 0) {
-                  const matched = queue.shift()!;
-                  oldRow = matched.row;
-                }
-              } else if (!title) {
-                oldRow = oldRows[rowIdx];
-              }
-
-              if (!oldRow) {
-                changesCount++; // 新增行
-              } else {
-                // 检查是否有字段变化
-                let hasChange = false;
-                row.forEach((cell, colIdx) => {
-                  if (colIdx === 0) return;
-                  if (String(cell ?? '') !== String(oldRow![colIdx] ?? '')) hasChange = true;
-                });
-                if (hasChange) changesCount++;
-              }
-            });
-
-            // 计算删除的行数（使用标题计数差值）
-            const newTitleCounts = new Map<string, number>();
-            const oldTitleCounts = new Map<string, number>();
-            newRows.forEach(row => {
-              const title = String(row[1] ?? '').trim();
-              if (title) newTitleCounts.set(title, (newTitleCounts.get(title) || 0) + 1);
-            });
-            oldRows.forEach(row => {
-              const title = String(row[1] ?? '').trim();
-              if (title) oldTitleCounts.set(title, (oldTitleCounts.get(title) || 0) + 1);
-            });
-            oldTitleCounts.forEach((oldCount, title) => {
-              const newCount = newTitleCounts.get(title) || 0;
-              if (oldCount > newCount) changesCount += oldCount - newCount;
-            });
-            // 空标题行的删除
-            const emptyOldCount = oldRows.filter(r => !String(r[1] ?? '').trim()).length;
-            const emptyNewCount = newRows.filter(r => !String(r[1] ?? '').trim()).length;
-            if (emptyOldCount > emptyNewCount) changesCount += emptyOldCount - emptyNewCount;
-          }
-          for (const sheetId in snapshot) {
-            if (sheetId.startsWith('sheet_') && !rawData[sheetId]) changesCount++;
-          }
-        }
+        changesCount = countRuntimeDataChanges(snapshot, rawData);
         // 计算验证错误数量
         validationErrorCount = ValidationEngine.getErrorCount(rawData);
       }
@@ -38125,48 +38217,44 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     // 收集所有变更
     const changes = [];
+    const matchedSnapshotKeys = new Set<string>();
 
     for (const sheetId in rawData) {
       if (!sheetId.startsWith('sheet_')) continue;
       const newSheet = rawData[sheetId];
-      const oldSheet = snapshot[sheetId];
       if (!newSheet?.name || !newSheet?.content) continue;
+      const snapshotEntry = findDiffSnapshotEntry(snapshot, sheetId, newSheet);
+      const oldSheet = snapshotEntry?.sheet;
+      if (snapshotEntry) matchedSnapshotKeys.add(snapshotEntry.key);
 
       const tableName = newSheet.name;
       const headers = newSheet.content[0] || [];
+      if (!oldSheet?.content) {
+        changes.push({
+          type: 'table_added',
+          tableName,
+          tableKey: sheetId,
+        });
+        continue;
+      }
+      if (JSON.stringify(headers) !== JSON.stringify(oldSheet.content[0] || [])) {
+        changes.push({
+          type: 'table_structure_changed',
+          tableName,
+          tableKey: sheetId,
+        });
+        continue;
+      }
       const newRows = newSheet.content.slice(1);
-      const oldRows = oldSheet?.content?.slice(1) || [];
-
-      // [优化] 使用标题匹配检测修改和新增
-      // 构建快照数据的标题映射表（队列模式处理重复标题）
-      const oldRowsByTitle = new Map<string, Array<{ index: number; row: (typeof oldRows)[0] }>>();
-      oldRows.forEach((row, rIdx) => {
-        const title = String(row[1] ?? '').trim();
-        if (!oldRowsByTitle.has(title)) {
-          oldRowsByTitle.set(title, []);
-        }
-        oldRowsByTitle.get(title)!.push({ index: rIdx, row });
-      });
+      const oldRows = oldSheet.content.slice(1) || [];
+      const oldHeaders = oldSheet.content[0] || headers;
+      const rowMatcher = createDiffRowMatcher(oldHeaders, oldRows.map(normalizeDiffRow));
 
       newRows.forEach((row, rowIdx) => {
-        const title = String(row[1] ?? '').trim();
-
-        // 尝试通过标题匹配找到对应的旧行
-        let oldRow: (typeof oldRows)[0] | undefined;
-        let oldRowIndex: number | undefined;
-
-        if (title && oldRowsByTitle.has(title)) {
-          const queue = oldRowsByTitle.get(title)!;
-          if (queue.length > 0) {
-            const matched = queue.shift()!; // 队列消耗模式
-            oldRow = matched.row;
-            oldRowIndex = matched.index;
-          }
-        } else if (!title) {
-          // 空标题回退到索引匹配
-          oldRow = oldRows[rowIdx];
-          oldRowIndex = rowIdx;
-        }
+        const safeRow = normalizeDiffRow(row);
+        const matched = takeDiffRowMatch(rowMatcher, headers, safeRow, rowIdx);
+        const oldRow = matched?.row;
+        const rowTitle = getDiffRowDisplayTitle(headers, safeRow, rowIdx);
 
         if (!oldRow) {
           // 整行新增
@@ -38176,8 +38264,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             tableKey: sheetId,
             rowIndex: rowIdx,
             headers,
-            row,
-            title: row[1] || `行 ${rowIdx + 1}`,
+            row: safeRow,
+            title: rowTitle,
           });
         } else {
           // 检查单元格变化，收集同一行的所有修改
@@ -38187,9 +38275,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             oldValue: string;
             newValue: string;
           }> = [];
-          row.forEach((cell, colIdx) => {
+          safeRow.forEach((cell, colIdx) => {
             if (colIdx === 0) return; // 跳过索引列
-            const oldVal = String(oldRow![colIdx] ?? '');
+            const oldVal = String(oldRow[colIdx] ?? '');
             const newVal = String(cell ?? '');
             if (oldVal !== newVal) {
               rowChanges.push({
@@ -38213,7 +38301,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               header: c.header,
               oldValue: c.oldValue,
               newValue: c.newValue,
-              rowTitle: row[1] || `行 ${rowIdx + 1}`,
+              rowTitle,
             });
           } else if (rowChanges.length > 1) {
             // 多字段修改，合并为一条
@@ -38223,89 +38311,40 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               tableKey: sheetId,
               rowIndex: rowIdx,
               headers,
-              row,
+              row: safeRow,
               oldRow,
               changedFields: rowChanges,
-              rowTitle: row[1] || `行 ${rowIdx + 1}`,
+              rowTitle,
             });
           }
         }
       });
 
-      // [优化] 使用标题匹配检测删除的行
-      // 构建当前数据的标题计数
-      const newTitleCounts = new Map();
-      newRows.forEach((row, rIdx) => {
-        const title = String(row[1] ?? '').trim();
-        if (title) {
-          newTitleCounts.set(title, (newTitleCounts.get(title) || 0) + 1);
-        }
-      });
-
-      // 构建快照数据的标题计数
-      const oldTitleCounts = new Map();
-      oldRows.forEach((row, rIdx) => {
-        const title = String(row[1] ?? '').trim();
-        if (title) {
-          oldTitleCounts.set(title, (oldTitleCounts.get(title) || 0) + 1);
-        }
-      });
-
-      // 找出被删除的行：在快照中存在但在当前数据中不存在（或数量减少）
-      const processedTitles = new Set();
       oldRows.forEach((oldRow, rIdx) => {
-        const title = String(oldRow[1] ?? '').trim();
-
-        if (!title) {
-          // 空标题：用索引判断
-          if (rIdx >= newRows.length) {
-            changes.push({
-              type: 'row_deleted',
-              tableName,
-              tableKey: sheetId,
-              rowIndex: rIdx,
-              headers,
-              row: oldRow,
-              title: `行 ${rIdx + 1}`,
-            });
-          }
-        } else if (!processedTitles.has(title)) {
-          processedTitles.add(title);
-          const oldCount = oldTitleCounts.get(title) || 0;
-          const newCount = newTitleCounts.get(title) || 0;
-          const deletedCount = oldCount - newCount;
-
-          if (deletedCount > 0) {
-            // 找到该标题在快照中的所有行，取最后deletedCount个作为删除
-            const matchingOldRows = oldRows
-              .map((r, i) => ({ row: r, index: i }))
-              .filter(item => String(item.row[1] ?? '').trim() === title);
-
-            const deletedRows = matchingOldRows.slice(-deletedCount);
-            deletedRows.forEach(item => {
-              changes.push({
-                type: 'row_deleted',
-                tableName,
-                tableKey: sheetId,
-                rowIndex: item.index,
-                headers,
-                row: item.row,
-                title: title,
-              });
-            });
-          }
-        }
+        if (rowMatcher.usedIndices.has(rIdx)) return;
+        const safeOldRow = normalizeDiffRow(oldRow);
+        changes.push({
+          type: 'row_deleted',
+          tableName,
+          tableKey: sheetId,
+          rowIndex: rIdx,
+          headers,
+          row: safeOldRow,
+          title: getDiffRowDisplayTitle(oldHeaders, safeOldRow, rIdx),
+        });
       });
     }
 
     // 检测整个表被删除
-    for (const sheetId in snapshot) {
-      if (!sheetId.startsWith('sheet_')) continue;
-      if (!rawData[sheetId]) {
-        const oldSheet = snapshot[sheetId];
+    const snapshotRecord = asDiffRecord(snapshot);
+    if (snapshotRecord) {
+      for (const sheetId in snapshotRecord) {
+        if (!sheetId.startsWith('sheet_')) continue;
+        if (matchedSnapshotKeys.has(sheetId) || rawData[sheetId]) continue;
+        const oldSheet = snapshotRecord[sheetId];
         changes.push({
           type: 'table_deleted',
-          tableName: oldSheet?.name || sheetId,
+          tableName: getDiffSheetIdentity(oldSheet).name || sheetId,
           tableKey: sheetId,
         });
       }
@@ -38313,6 +38352,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     // 获取数据验证模式状态
     const isValidationMode = Store.get(STORAGE_KEY_VALIDATION_MODE, false);
+    const hasStructuralChanges = changes.some(
+      change =>
+        change.type === 'table_deleted' ||
+        change.type === 'table_added' ||
+        change.type === 'table_structure_changed',
+    );
 
     // 根据模式渲染不同的标题和按钮
     const panelTitle = isValidationMode ? '数据验证' : '完整审核';
@@ -38328,8 +38373,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                 <div class="acu-header-actions">
                     ${getTutorialButtonHtml('changes', '查看审核面板教程')}
                     <span class="acu-changes-batch-actions" style="display:flex;align-items:center;gap:8px;">
-                    ${!isValidationMode ? '<button class="acu-changes-batch-btn acu-batch-accept" title="接受全部变更"><i class="fa-solid fa-check-double"></i></button>' : ''}
-                    <button class="acu-changes-batch-btn acu-batch-reject" title="${isValidationMode ? '全部回滚' : '拒绝全部变更'}"><i class="fa-solid fa-rotate-left"></i></button>
+                    ${!isValidationMode && !hasStructuralChanges ? '<button class="acu-changes-batch-btn acu-batch-accept" title="接受全部变更"><i class="fa-solid fa-check-double"></i></button>' : ''}
+                    ${!hasStructuralChanges ? `<button class="acu-changes-batch-btn acu-batch-reject" title="${isValidationMode ? '全部回滚' : '拒绝全部变更'}"><i class="fa-solid fa-rotate-left"></i></button>` : ''}
                     <button class="acu-changes-batch-btn acu-simple-mode-toggle ${isValidationMode ? 'active' : ''}" title="${toggleTitle}">
                         <i class="fa-solid ${isValidationMode ? 'fa-filter-circle-xmark' : 'fa-filter'}"></i>
                     </button>
@@ -38394,10 +38439,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                          data-rule-data="${ruleData}">
                         <span class="acu-change-badge" style="background:var(--acu-hl-manual-bg);color:var(--acu-hl-manual);">!</span>
                         ${error.rowTitle && error.rowIndex >= 0 ? `<div class="acu-validation-row-title" style="font-size:11px;color:var(--acu-text-sub);margin-bottom:2px;">${escapeHtml(error.rowTitle)}</div>` : ''}
-                        <span class="acu-change-title">${escapeHtml(error.columnName || '整行')}${error.currentValue ? `: ${escapeHtml(error.currentValue.length > 15 ? error.currentValue.substring(0, 15) + '...' : error.currentValue)}` : ''}</span>
+                        <span class="acu-change-title">${escapeHtml(error.columnName || (error.rowIndex < 0 ? '整表' : '整行'))}${error.currentValue ? `: ${escapeHtml(error.currentValue.length > 15 ? error.currentValue.substring(0, 15) + '...' : error.currentValue)}` : ''}</span>
                         <span class="acu-validation-error-msg">${escapeHtml(error.errorMessage.length > 25 ? error.errorMessage.substring(0, 25) + '...' : error.errorMessage)}</span>
                         <div class="acu-change-actions">
-                            <button class="acu-change-action-btn acu-action-reject" title="回滚"><i class="fa-solid fa-rotate-left"></i></button>
+                            ${error.rowIndex >= 0 ? '<button class="acu-change-action-btn acu-action-reject" title="回滚"><i class="fa-solid fa-rotate-left"></i></button>' : ''}
                             <button class="acu-change-action-btn acu-action-edit" title="编辑"><i class="fa-solid fa-pen"></i></button>
                         </div>
                     </div>`;
@@ -38462,7 +38507,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                             <span class="acu-change-title" style="text-decoration:line-through;opacity:0.6;">${escapeHtml(change.title)}</span>
                             <div class="acu-change-actions">
                                 <button class="acu-change-action-btn acu-action-accept" title="接受删除"><i class="fa-solid fa-check"></i></button>
-                                <button class="acu-change-action-btn acu-action-restore" title="恢复此行"><i class="fa-solid fa-undo"></i></button>
+                                <button class="acu-change-action-btn acu-action-restore" title="恢复此行到表尾"><i class="fa-solid fa-undo"></i></button>
                             </div>
                         </div>`;
             } else if (change.type === 'cell_modified') {
@@ -38518,15 +38563,26 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                                 <button class="acu-change-action-btn acu-action-edit" title="编辑"><i class="fa-solid fa-pen"></i></button>
                             </div>
                         </div>`;
-            } else if (change.type === 'table_deleted') {
+            } else if (
+              change.type === 'table_deleted' ||
+              change.type === 'table_added' ||
+              change.type === 'table_structure_changed'
+            ) {
+              const structuralText =
+                change.type === 'table_deleted'
+                  ? '整表已删除（仅标注）'
+                  : change.type === 'table_added'
+                    ? '新增整表（仅标注）'
+                    : '表结构已变化（仅标注）';
+              const structuralBadge =
+                change.type === 'table_deleted' ? '删' : change.type === 'table_added' ? '新' : '构';
               html += `<div class="acu-change-item acu-change-deleted"
-                            data-change-type="table_deleted"
+                            data-change-type="${change.type}"
                             data-table-key="${change.tableKey}">
-                            <span class="acu-change-badge acu-badge-deleted">删</span>
-                            <span class="acu-change-title" style="text-decoration:line-through;opacity:0.6;">整表已删除</span>
+                            <span class="acu-change-badge acu-badge-deleted">${structuralBadge}</span>
+                            <span class="acu-change-title" style="opacity:0.6;">${escapeHtml(structuralText)}</span>
                             <div class="acu-change-actions">
-                                <button class="acu-change-action-btn acu-action-accept" title="接受"><i class="fa-solid fa-check"></i></button>
-                                <button class="acu-change-action-btn acu-action-restore" title="恢复整表"><i class="fa-solid fa-undo"></i></button>
+                                <span class="acu-change-field-count">无快捷操作</span>
                             </div>
                         </div>`;
             }
@@ -38570,6 +38626,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const rowIndex = parseInt($item.data('row'), 10);
         const columnName = $item.data('column');
 
+        if (rowIndex < 0) {
+          if (window.toastr) window.toastr.warning('整表级验证项仅标注，不支持快捷回滚');
+          return;
+        }
+
         const snapshot = loadSnapshot();
         if (!snapshot) {
           if (window.toastr) window.toastr.warning('无快照数据可恢复');
@@ -38585,7 +38646,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               if (colIdx >= 0 && snapshot[sheetId].content?.[rowIndex + 1]) {
                 const snapshotValue = snapshot[sheetId].content[rowIndex + 1][colIdx];
                 rawData[sheetId].content[rowIndex + 1][colIdx] = snapshotValue;
-                await saveDataToDatabase(rawData, false, false);
+                await saveDataOnly(rawData, [sheetId]);
                 renderInterface();
                 return;
               }
@@ -38768,6 +38829,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const snapshot = loadSnapshot();
         const rawData = cachedRawData || getTableData();
         if (!snapshot || !rawData) return;
+        if (['table_deleted', 'table_added', 'table_structure_changed'].includes(changeType)) {
+          if (window.toastr) window.toastr.warning('整表/结构级变更仅标注，不支持快捷接受');
+          return;
+        }
 
         if (changeType === 'cell_modified') {
           // 接受单元格修改：将新值写入快照
@@ -38793,9 +38858,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           if (snapshot[tableKey]?.content?.[rowIndex + 1]) {
             snapshot[tableKey].content.splice(rowIndex + 1, 1);
           }
-        } else if (changeType === 'table_deleted') {
-          // 接受整表删除：从快照中删除该表
-          delete snapshot[tableKey];
         }
 
         saveSnapshot(snapshot);
@@ -38872,14 +38934,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               rawData[tableKey] = JSON.parse(JSON.stringify(snapshot[tableKey]));
               rawData[tableKey].content = [snapshot[tableKey].content[0]];
             }
-            // 插入到正确位置
-            rawData[tableKey].content.splice(rowIndex + 1, 0, restoredRow);
+            rawData[tableKey].content.push(restoredRow);
           }
         } else if (changeType === 'table_deleted') {
-          // 恢复整个表：从快照中取回
-          if (snapshot[tableKey]) {
-            rawData[tableKey] = JSON.parse(JSON.stringify(snapshot[tableKey]));
-          }
+          if (window.toastr) window.toastr.warning('整表级变更仅标注，不支持快捷恢复');
+          return;
         }
 
         // [修复] 使用轻量级保存，只保存数据，不更新快照
@@ -38936,6 +38995,22 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       .on('click', async function () {
         const rawData = cachedRawData || getTableData();
         if (!rawData) return;
+        const snapshot = loadSnapshot();
+        const hasStructuralDiff =
+          snapshot &&
+          (Object.keys(snapshot).some(key => key.startsWith('sheet_') && !rawData[key]) ||
+            Object.keys(rawData).some(key => key.startsWith('sheet_') && !snapshot[key]) ||
+            Object.keys(rawData).some(
+              key =>
+                key.startsWith('sheet_') &&
+                snapshot[key]?.content &&
+                rawData[key]?.content &&
+                JSON.stringify(snapshot[key].content[0] || []) !== JSON.stringify(rawData[key].content[0] || []),
+            ));
+        if (hasStructuralDiff) {
+          if (window.toastr) window.toastr.warning('存在整表/结构级变更，批量接受已跳过；请先处理可安全的行/格变更');
+          return;
+        }
 
         // 将当前数据完整保存为新快照
         saveSnapshot(JSON.parse(JSON.stringify(rawData)));
@@ -38952,6 +39027,22 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const snapshot = loadSnapshot();
         if (!snapshot) {
           if (window.toastr) window.toastr.warning('无快照数据');
+          return;
+        }
+        const rawData = cachedRawData || getTableData();
+        const hasStructuralDiff =
+          rawData &&
+          (Object.keys(snapshot).some(key => key.startsWith('sheet_') && !rawData[key]) ||
+            Object.keys(rawData).some(key => key.startsWith('sheet_') && !snapshot[key]) ||
+            Object.keys(rawData).some(
+              key =>
+                key.startsWith('sheet_') &&
+                snapshot[key]?.content &&
+                rawData[key]?.content &&
+                JSON.stringify(snapshot[key].content[0] || []) !== JSON.stringify(rawData[key].content[0] || []),
+            ));
+        if (hasStructuralDiff) {
+          if (window.toastr) window.toastr.warning('存在整表/结构级变更，批量拒绝已跳过；请逐项处理可安全的行/格变更');
           return;
         }
 
@@ -39094,78 +39185,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const updateChangesCount = rawData => {
     const { $ } = getCore();
     const snapshot = loadSnapshot();
-    let changesCount = 0;
-
-    if (snapshot && rawData) {
-      for (const sheetId in rawData) {
-        if (!sheetId.startsWith('sheet_')) continue;
-        const newSheet = rawData[sheetId];
-        const oldSheet = snapshot[sheetId];
-        if (!newSheet?.content) continue;
-        const newRows = newSheet.content.slice(1);
-        const oldRows = oldSheet?.content?.slice(1) || [];
-
-        // [优化] 使用标题匹配计算变更数量（与detectChanges保持一致）
-        const oldRowsByTitle = new Map<string, Array<{ index: number; row: (typeof oldRows)[0] }>>();
-        oldRows.forEach((row, rIdx) => {
-          const title = String(row[1] ?? '').trim();
-          if (!oldRowsByTitle.has(title)) {
-            oldRowsByTitle.set(title, []);
-          }
-          oldRowsByTitle.get(title)!.push({ index: rIdx, row });
-        });
-
-        newRows.forEach((row, rowIdx) => {
-          const title = String(row[1] ?? '').trim();
-          let oldRow: (typeof oldRows)[0] | undefined;
-
-          if (title && oldRowsByTitle.has(title)) {
-            const queue = oldRowsByTitle.get(title)!;
-            if (queue.length > 0) {
-              const matched = queue.shift()!;
-              oldRow = matched.row;
-            }
-          } else if (!title) {
-            oldRow = oldRows[rowIdx];
-          }
-
-          if (!oldRow) {
-            changesCount++; // 新增行
-          } else {
-            // 检查是否有字段变化
-            let hasChange = false;
-            row.forEach((cell, colIdx) => {
-              if (colIdx === 0) return;
-              if (String(cell ?? '') !== String(oldRow![colIdx] ?? '')) hasChange = true;
-            });
-            if (hasChange) changesCount++;
-          }
-        });
-
-        // 计算删除的行数（使用标题计数差值）
-        const newTitleCounts = new Map<string, number>();
-        const oldTitleCounts = new Map<string, number>();
-        newRows.forEach(row => {
-          const title = String(row[1] ?? '').trim();
-          if (title) newTitleCounts.set(title, (newTitleCounts.get(title) || 0) + 1);
-        });
-        oldRows.forEach(row => {
-          const title = String(row[1] ?? '').trim();
-          if (title) oldTitleCounts.set(title, (oldTitleCounts.get(title) || 0) + 1);
-        });
-        oldTitleCounts.forEach((oldCount, title) => {
-          const newCount = newTitleCounts.get(title) || 0;
-          if (oldCount > newCount) changesCount += oldCount - newCount;
-        });
-        // 空标题行的删除
-        const emptyOldCount = oldRows.filter(r => !String(r[1] ?? '').trim()).length;
-        const emptyNewCount = newRows.filter(r => !String(r[1] ?? '').trim()).length;
-        if (emptyOldCount > emptyNewCount) changesCount += emptyOldCount - emptyNewCount;
-      }
-      for (const sheetId in snapshot) {
-        if (sheetId.startsWith('sheet_') && !rawData[sheetId]) changesCount++;
-      }
-    }
+    const changesCount = countRuntimeDataChanges(snapshot, rawData);
 
     // 获取验证错误数量
     const validationErrorCount = rawData ? ValidationEngine.getErrorCount(rawData) : 0;
@@ -40152,6 +40172,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   type InventoryMenuScope = 'card' | 'summary' | 'meta' | 'field';
   type InventoryMetadataScope = Record<string, InventoryMetadataRecord>;
   type InventoryMetadataRoot = Record<string, InventoryMetadataScope>;
+  type InventoryMetadataStore = Record<string, InventoryMetadataRoot>;
   type GachaShardWallet = Record<GachaRarity, number>;
   type GachaCatalog = {
     version: number;
@@ -40603,9 +40624,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   };
 
   const getVisibleGachaPoolConfigDefinitions = (rawData = getRuntimeGachaRawData()): GachaPoolDefinition[] =>
-    getAllGachaPoolConfigDefinitions(rawData).filter(
-      pool => pool.id === GACHA_ALL_POOL_TAG || pool.visibleInTabs !== false,
-    );
+    getAllGachaPoolConfigDefinitions(rawData).filter(pool => pool.id === GACHA_ALL_POOL_TAG || pool.visibleInTabs !== false);
 
   const getGachaAllExpandablePoolTags = (rawData = getRuntimeGachaRawData()): GachaPoolTag[] => {
     return getAllGachaPoolConfigDefinitions(rawData)
@@ -40631,8 +40650,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       ...updates,
       id,
       builtin: existing.builtin,
-      visibleInTabs: id === GACHA_ALL_POOL_TAG ? true : (updates.visibleInTabs ?? existing.visibleInTabs),
-      includeInAll: id === GACHA_ALL_POOL_TAG ? false : (updates.includeInAll ?? existing.includeInAll),
+      visibleInTabs: id === GACHA_ALL_POOL_TAG ? true : updates.visibleInTabs ?? existing.visibleInTabs,
+      includeInAll: id === GACHA_ALL_POOL_TAG ? false : updates.includeInAll ?? existing.includeInAll,
       name: updates.name !== undefined ? normalizeGachaPoolName(updates.name, id) : existing.name,
     };
     saveGachaPoolSettings(pools);
@@ -41391,10 +41410,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         if (!rawPool || typeof rawPool !== 'object') return null;
         const record = rawPool as Record<string, unknown>;
         const rawId = normalizeGachaPoolId(record.id || record.tag || record.name);
-        const rawName = normalizeGachaPoolName(
-          record.name || record.label || rawId,
-          rawId || GACHA_CUSTOM_ONLY_POOL_TAG,
-        );
+        const rawName = normalizeGachaPoolName(record.name || record.label || rawId, rawId || GACHA_CUSTOM_ONLY_POOL_TAG);
         const shouldUseNameAsCustomId =
           rawId &&
           rawId !== GACHA_ALL_POOL_TAG &&
@@ -41468,7 +41484,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         builtin: existing?.builtin === true,
         visibleInTabs: pool.visibleInTabs !== false,
         includeInAll: pool.includeInAll === true,
-        order: Number.isFinite(Number(pool.order)) ? Number(pool.order) : (existing?.order ?? 999),
+        order: Number.isFinite(Number(pool.order)) ? Number(pool.order) : existing?.order ?? 999,
       });
     });
     saveGachaPoolSettings(Array.from(byId.values()));
@@ -41846,8 +41862,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const customIds = new Set(getCustomGachaItemDefinitions(rawData).map(item => item.id));
       return allItems.filter(item => customIds.has(item.id));
     }
-    const activeTags =
-      normalizedPoolId === GACHA_ALL_POOL_TAG ? getGachaAllExpandablePoolTags(rawData) : [normalizedPoolId];
+    const activeTags = normalizedPoolId === GACHA_ALL_POOL_TAG ? getGachaAllExpandablePoolTags(rawData) : [normalizedPoolId];
     return allItems.filter(item => item.poolTags.some(tag => activeTags.includes(tag)));
   };
 
@@ -41878,9 +41893,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const isPoolExport = Boolean(normalizedPoolId);
     const json = exportGachaCatalogJson(rawData, normalizedPoolId);
     const hasExportableItems = getGachaCatalogItemsForExport(rawData, normalizedPoolId).length > 0;
-    const blob = new Blob([json], {
-      type: hasExportableItems || isPoolExport ? 'application/json' : 'application/jsonc',
-    });
+    const blob = new Blob([json], { type: hasExportableItems || isPoolExport ? 'application/json' : 'application/jsonc' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -42164,7 +42177,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       console.warn('[DICE][GACHA]跳过扭蛋状态数据库保存：当前表格数据缺少 sheet_* 工作表');
       return;
     }
-    await performSaveDataOnly(rawData, safeModifiedSheetKeys);
+    await saveDataOnly(rawData, safeModifiedSheetKeys);
     if (state) saveStoredGachaStateSnapshot(state);
   };
 
@@ -42836,10 +42849,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const totalShards = getTotalGachaShards(state);
     const poolDefinitions = getVisibleGachaPoolConfigDefinitions(rawData);
 
-    const poolButtonsHtml = poolDefinitions
-      .map(pool => {
-        const isActive = activePoolTag === pool.id;
-        return `
+    const poolButtonsHtml = poolDefinitions.map(pool => {
+      const isActive = activePoolTag === pool.id;
+      return `
         <button
           class="acu-gacha-pool-tab acu-gacha-pool-btn ${isActive ? 'active' : ''}"
           type="button"
@@ -42852,8 +42864,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           <span>${escapeHtml(pool.name)}</span>
         </button>
       `;
-      })
-      .join('');
+    }).join('');
 
     return `
       <div class="acu-gacha-shell acu-theme-${config.theme} ${horizontalScrollbarClass}">
@@ -43429,7 +43440,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       .map(pool => {
         const isAllPool = pool.id === GACHA_ALL_POOL_TAG;
         const poolItems = isAllPool ? allPoolItems : itemDefinitions.filter(item => item.poolTags.includes(pool.id));
-        const countText = isAllPool ? `${poolItems.length} 个候选` : `${counts.get(pool.id) || 0} 个物品`;
+        const countText = isAllPool
+          ? `${poolItems.length} 个候选`
+          : `${counts.get(pool.id) || 0} 个物品`;
         const visible = isAllPool || pool.visibleInTabs !== false;
         const includeInAll = pool.includeInAll === true;
         const canDeletePool = canDeleteGachaPoolDefinition(pool);
@@ -43552,9 +43565,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const getCurrentSettingsItemFiltersActive = () =>
       Boolean(
         settingsItemFilters.search ||
-        settingsItemFilters.source !== 'all' ||
-        settingsItemFilters.status !== 'all' ||
-        settingsItemFilters.sort !== 'default',
+          settingsItemFilters.source !== 'all' ||
+          settingsItemFilters.status !== 'all' ||
+          settingsItemFilters.sort !== 'default',
       );
     const toSettingsSourceFilter = (value: unknown): GachaSettingsItemSourceFilter => {
       const text = String(value || '');
@@ -43603,9 +43616,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         $menu.find('.acu-gacha-settings-filter-menu-label').text(getGachaSettingsFilterLabel(field, value));
         $menu.find('.acu-gacha-settings-filter-option').each(function () {
           const active = String($(this).data('filter-value') || '') === value;
-          $(this)
-            .toggleClass('active', active)
-            .attr('aria-checked', active ? 'true' : 'false');
+          $(this).toggleClass('active', active).attr('aria-checked', active ? 'true' : 'false');
         });
       };
       syncMenu('source', settingsItemFilters.source, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.source);
@@ -43634,8 +43645,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const items = $section.find('.acu-gacha-settings-item').toArray() as HTMLElement[];
       let visibleCount = 0;
       items.forEach(item => {
-        const searchMatched =
-          !settingsItemFilters.search || String(item.dataset.search || '').includes(settingsItemFilters.search);
+        const searchMatched = !settingsItemFilters.search || String(item.dataset.search || '').includes(settingsItemFilters.search);
         const sourceMatched =
           settingsItemFilters.source === 'all' || String(item.dataset.source || '') === settingsItemFilters.source;
         const statusMatched =
@@ -43906,8 +43916,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         ? $(this).closest('.acu-gacha-settings-items-section')
         : overlay.find('.acu-gacha-settings-items-section').first();
       const selectedPoolId = normalizeGachaPoolId($itemSection.data('pool-id'));
-      const initialPoolId =
-        selectedPoolId && selectedPoolId !== GACHA_ALL_POOL_TAG ? selectedPoolId : GACHA_CUSTOM_ONLY_POOL_TAG;
+      const initialPoolId = selectedPoolId && selectedPoolId !== GACHA_ALL_POOL_TAG ? selectedPoolId : GACHA_CUSTOM_ONLY_POOL_TAG;
       void showGachaItemEditorDialog(null, initialPoolId);
     });
 
@@ -44035,12 +44044,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       })
       .join('');
     const rarityOptionsHtml = GACHA_RARITY_ORDER.map(
-      rarity =>
-        `<option value="${escapeHtml(rarity)}" ${item.quality === rarity ? 'selected' : ''}>${escapeHtml(rarity)}</option>`,
+      rarity => `<option value="${escapeHtml(rarity)}" ${item.quality === rarity ? 'selected' : ''}>${escapeHtml(rarity)}</option>`,
     ).join('');
     const targetOptionsHtml = GACHA_REWARD_TARGETS.map(
-      target =>
-        `<option value="${escapeHtml(target)}" ${item.rewardTarget === target ? 'selected' : ''}>${target === 'equipment' ? '装备' : '物品'}</option>`,
+      target => `<option value="${escapeHtml(target)}" ${item.rewardTarget === target ? 'selected' : ''}>${target === 'equipment' ? '装备' : '物品'}</option>`,
     ).join('');
 
     $('.acu-gacha-item-editor-overlay').remove();
@@ -44121,7 +44128,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         type: String(overlay.find('.acu-gacha-item-type').val() || item.type || '').trim(),
         icon: icon || undefined,
         iconUrl: previewObjectUrl || iconUrl || undefined,
-        localIconKey: previewObjectUrl || iconUrl || shouldClearLocalIcon ? undefined : item.localIconKey,
+        localIconKey: (previewObjectUrl || iconUrl || shouldClearLocalIcon) ? undefined : item.localIconKey,
       };
       const $preview = overlay.find('.acu-gacha-icon-editor-preview');
       $preview.html(renderGachaItemIconContent(previewItem));
@@ -44187,9 +44194,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         ensureGachaPoolsForTags(poolTags);
         const existingIds = new Set(getAllGachaItemDefinitions(rawData).map(candidate => candidate.id));
         if (existingItem) existingIds.delete(existingItem.id);
-        const id =
-          existingItem?.id ||
-          createUniqueGachaItemId(buildStableGachaCustomItemId({ name, quality, type }), existingIds);
+        const id = existingItem?.id || createUniqueGachaItemId(buildStableGachaCustomItemId({ name, quality, type }), existingIds);
         let localIconKey = existingItem?.localIconKey;
         const shouldClearLocalIcon = overlay.find('.acu-gacha-item-clear-local-icon').prop('checked') === true;
         const fileInput = overlay.find('.acu-gacha-item-icon-file')[0] as HTMLInputElement | undefined;
@@ -44457,19 +44462,53 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     }, GACHA_SHOP_UI_REFRESH_MS);
   };
 
+  const getInventoryMetadataContextKey = (): string => {
+    const contextKey = String(getCurrentContextFingerprint() || '').trim();
+    return contextKey || 'unknown_context';
+  };
+
+  const getInventoryMetadataStore = (): InventoryMetadataStore => {
+    const stored = Store.get(STORAGE_KEY_INVENTORY_METADATA, {});
+    return stored && typeof stored === 'object' ? (stored as InventoryMetadataStore) : {};
+  };
+
+  const saveInventoryMetadataStore = (store: InventoryMetadataStore) => {
+    Store.set(STORAGE_KEY_INVENTORY_METADATA, store);
+  };
+
+  const getLegacyInventoryMetadataRoot = (rawData): InventoryMetadataRoot | null => {
+    if (!rawData || typeof rawData !== 'object') return null;
+    const mate = (rawData as { mate?: unknown }).mate;
+    if (!mate || typeof mate !== 'object') return null;
+    const inventoryMeta = (mate as { inventoryMeta?: unknown }).inventoryMeta;
+    if (!inventoryMeta || typeof inventoryMeta !== 'object') return null;
+    return cloneRuntimeDataValue(inventoryMeta) as InventoryMetadataRoot;
+  };
+
+  const saveInventoryMetadataRoot = (root: InventoryMetadataRoot) => {
+    const store = getInventoryMetadataStore();
+    store[getInventoryMetadataContextKey()] = root;
+    saveInventoryMetadataStore(store);
+  };
+
   const getInventoryMetadataRoot = (rawData, createIfMissing = false): InventoryMetadataRoot => {
-    if (!rawData || typeof rawData !== 'object') return {};
-    if (!rawData.mate || typeof rawData.mate !== 'object') {
-      if (!createIfMissing) return {};
-      rawData.mate = { type: 'chatSheets', version: 1 };
+    const store = getInventoryMetadataStore();
+    const contextKey = getInventoryMetadataContextKey();
+    const storedRoot = store[contextKey];
+    if (storedRoot && typeof storedRoot === 'object') return storedRoot;
+
+    const legacyRoot = getLegacyInventoryMetadataRoot(rawData);
+    if (legacyRoot) {
+      store[contextKey] = legacyRoot;
+      saveInventoryMetadataStore(store);
+      return legacyRoot;
     }
-    const mate = rawData.mate as Record<string, unknown>;
-    const existing = mate.inventoryMeta;
-    if (!existing || typeof existing !== 'object') {
-      if (!createIfMissing) return {};
-      mate.inventoryMeta = {};
-    }
-    return mate.inventoryMeta as InventoryMetadataRoot;
+
+    if (!createIfMissing) return {};
+    const createdRoot: InventoryMetadataRoot = {};
+    store[contextKey] = createdRoot;
+    saveInventoryMetadataStore(store);
+    return createdRoot;
   };
 
   const getInventoryMetadataScopeKey = (tableKey: string, tableName: string): string => {
@@ -44506,6 +44545,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       acquiredAt: String(record.acquiredAt || '').trim(),
       acquiredAtLocation: String(record.acquiredAtLocation || '').trim(),
     };
+    saveInventoryMetadataRoot(root);
   };
 
   const getInventoryGlobalContext = rawData => {
@@ -44554,6 +44594,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (Object.keys(scope).length === 0) {
       delete root[scopeKey];
     }
+    saveInventoryMetadataRoot(root);
   };
 
   const getInventoryResult = rawData => {
@@ -44909,8 +44950,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         return;
       }
       if (!hasGachaRewardTable(rawData, item.rewardTarget)) {
-        if (window.toastr)
-          window.toastr.warning(`未找到${getGachaRewardTargetTableLabel(item.rewardTarget)}，暂时无法兑换`);
+        if (window.toastr) window.toastr.warning(`未找到${getGachaRewardTargetTableLabel(item.rewardTarget)}，暂时无法兑换`);
         return;
       }
       const state = touchGachaActivity(getGachaState(rawData, true));
@@ -45385,7 +45425,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return;
     }
     setInventoryMetadataForItem(context.rawData, context.item, nextRecord);
-    await saveDataOnly(context.rawData, context.item.tableKey ? [context.item.tableKey] : undefined);
     reopenInventoryItemDetail(rowIndex);
   };
 
@@ -49321,7 +49360,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             <div class="acu-cell-menu acu-theme-${config.theme}">
                 <div class="acu-cell-menu-item" id="act-edit"><i class="fa-solid fa-pen"></i> 编辑内容</div>
                 <div class="acu-cell-menu-item" id="act-edit-card"><i class="fa-solid fa-edit"></i> 整体编辑</div>
-                <div class="acu-cell-menu-item" id="act-insert"><i class="fa-solid fa-plus"></i> 在下方插入新行</div>
+                <div class="acu-cell-menu-item" id="act-insert"><i class="fa-solid fa-plus"></i> 在表尾新增行</div>
                 <div class="acu-cell-menu-item" id="act-copy"><i class="fa-solid fa-copy"></i> 复制内容</div>
                 <div class="acu-cell-menu-item" id="act-favorite"><i class="fa-solid fa-star"></i> 收藏此行</div>
                 ${lockMenuHtml}
@@ -49709,7 +49748,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       }
     });
 
-    // [新增] 插入新行功能 (修复版：增加立即重绘指令)
+    // [新增] 新增行功能：新版数据库 CRUD 仅支持追加到表尾
     menu.find('#act-insert').click(async () => {
       closeAll();
       // 1. 获取最新数据 (优先用缓存，没有则重新获取)
@@ -49724,12 +49763,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         // 智能填充序号 (简单的自增逻辑)
         if (colCount > 0) newRow[0] = String(sheet.content.length);
 
-        // 3. 插入数据 (rowIdx是当前行下标，+2 表示插入到当前行对应的 content 索引之后)
-        sheet.content.splice(rowIdx + 2, 0, newRow);
+        sheet.content.push(newRow);
 
-        // 4. 保存
-        // 先保存数据
-        await saveDataToDatabase(cachedRawData, false, true);
+        await saveDataOnly(cachedRawData, [tableKey]);
 
         // 【核心修复】保存后立即重绘界面，否则新行不会显示！
         renderInterface();
