@@ -1414,7 +1414,8 @@ export const MAIN_STYLES = `
             }
 
             /* --- [重设计] 叙事条目风格按钮 --- */
-            .acu-opt-btn {
+            .acu-opt-btn,
+            .acu-check-suggestion-btn {
                 background: var(--acu-opt-bright-bg, #ffffff);
                 border: 1px solid transparent;
                 padding: 3px 6px;
@@ -1434,22 +1435,63 @@ export const MAIN_STYLES = `
                 justify-content: flex-start;
                 opacity: 1;
             }
-            .acu-opt-btn:last-child {
+            .acu-opt-btn:last-child,
+            .acu-check-suggestion-btn:last-child {
                 border-bottom: none;
             }
-            .acu-opt-btn:hover {
+            .acu-opt-btn:hover,
+            .acu-check-suggestion-btn:hover {
                 background: var(--acu-table-hover);
                 color: var(--acu-accent);
                 border-color: var(--acu-accent);
                 transform: translateX(3px);
             }
-            .acu-opt-btn:active {
+            .acu-opt-btn:active,
+            .acu-check-suggestion-btn:active {
                 background: var(--acu-btn-active-bg);
                 color: var(--acu-btn-active-text);
             }
 
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-content {
+                padding: 12px;
+            }
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-grid {
+                display: block !important;
+                width: 100%;
+            }
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-panel {
+                margin: 0;
+                gap: 6px;
+                max-width: 100%;
+            }
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-row {
+                width: 100%;
+                min-height: 32px;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 8px 10px;
+            }
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-index {
+                flex: 0 0 auto;
+                color: var(--acu-accent);
+                font-weight: 700;
+                opacity: 0.9;
+            }
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-text {
+                flex: 1 1 auto;
+                min-width: 0;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .acu-wrapper.acu-dice-ui-root .acu-option-table-empty {
+                padding: 18px;
+                text-align: center;
+                color: var(--acu-text-sub);
+            }
+
             /* --- [新增] 折叠态样式 --- */
-            .acu-option-panel.collapsed .acu-opt-btn {
+            .acu-option-panel.collapsed .acu-opt-btn,
+            .acu-option-panel.collapsed .acu-check-suggestion-btn {
                 display: none;
             }
             .acu-option-panel.collapsed .acu-opt-header {

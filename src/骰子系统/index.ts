@@ -1576,6 +1576,7 @@ import {
   type AcuDiceTextareaElement = HTMLTextAreaElement & {
     _acuOriginalDiceText?: string | null;
     _acuOriginalTextareaText?: string | null;
+    _acuOriginalActionText?: string | null;
     _acuHasDiceData?: boolean;
     _acuValueIntercepted?: boolean;
     _acuHumanInputTrackingBound?: boolean;
@@ -1624,6 +1625,14 @@ import {
       .replace(/\n{2,}/g, '\n')
       .trim();
 
+  const escapeRegExpLiteral = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const stripKnownSystemActionText = (text: string, actionText?: unknown): string => {
+    const normalizedAction = normalizeTrackedText(actionText);
+    if (!normalizedAction) return text;
+    return normalizeTrackedText(text.replace(new RegExp(escapeRegExpLiteral(normalizedAction), 'g'), ' '));
+  };
+
   const extractExplicitHumanInputText = (text: string): string => {
     const matches = Array.from(text.matchAll(/<本轮用户输入>([\s\S]*?)<\/本轮用户输入>/gi))
       .map(match => normalizeTrackedText(match[1]))
@@ -1631,7 +1640,7 @@ import {
     return normalizeTrackedText(matches.join('\n'));
   };
 
-  const stripSystemInjectedContent = (text: unknown): string => {
+  const stripSystemInjectedContent = (text: unknown, systemActionText?: unknown): string => {
     const normalized = normalizeTrackedText(text);
     const explicitHumanInput = extractExplicitHumanInputText(normalized);
     let result = explicitHumanInput || normalized;
@@ -1640,6 +1649,7 @@ import {
     });
     if (!explicitHumanInput) {
       result = result.replace(HUMAN_INPUT_ACTION_PATTERN, ' ');
+      result = stripKnownSystemActionText(result, systemActionText);
     }
     result = result.replace(/\[投骰结果已隐藏\]/g, ' ');
     return normalizeTrackedText(result);
@@ -1651,8 +1661,8 @@ import {
     lastHumanInputActivityAt = Date.now();
   };
 
-  const capturePendingHumanInputSnapshot = (rawText?: unknown) => {
-    const sanitized = stripSystemInjectedContent(rawText) || lastHumanInputSnapshot;
+  const capturePendingHumanInputSnapshot = (rawText?: unknown, systemActionText?: unknown) => {
+    const sanitized = stripSystemInjectedContent(rawText, systemActionText) || lastHumanInputSnapshot;
     const now = Date.now();
     markHumanInputActivity();
     lastHumanInputSnapshot = sanitized;
@@ -1674,7 +1684,13 @@ import {
     if (!textarea || textarea._acuHumanInputTrackingBound) return;
 
     const updateSnapshot = (target: HTMLTextAreaElement) => {
-      lastHumanInputSnapshot = stripSystemInjectedContent(target.value);
+      const acuTextarea = target as AcuDiceTextareaElement;
+      if (acuTextarea._acuOriginalActionText && !target.value.includes(acuTextarea._acuOriginalActionText)) {
+        acuTextarea._acuOriginalActionText = null;
+        const { $ } = getCore();
+        $(target).removeData('acu-original-action-text');
+      }
+      lastHumanInputSnapshot = stripSystemInjectedContent(target.value, acuTextarea._acuOriginalActionText);
       markHumanInputActivity();
     };
 
@@ -1696,6 +1712,7 @@ import {
     const { $ } = getCore();
     const $ta = $('#send_textarea');
     if (!$ta.length) return;
+    const textarea = $ta[0] as AcuDiceTextareaElement;
 
     const normalizeTextareaContent = (text: unknown): string => {
       return String(text ?? '')
@@ -1704,6 +1721,19 @@ import {
         .replace(/\n[ \t]+/g, '\n')
         .replace(/\n{2,}/g, '\n')
         .trim();
+    };
+
+    const readStoredActionText = (): string =>
+      normalizeTextareaContent(textarea._acuOriginalActionText || $ta.data('acu-original-action-text') || '');
+    const storeActionText = (actionText: string) => {
+      const normalizedActionText = normalizeTextareaContent(actionText);
+      if (!normalizedActionText) {
+        $ta.removeData('acu-original-action-text');
+        textarea._acuOriginalActionText = null;
+        return;
+      }
+      $ta.data('acu-original-action-text', normalizedActionText);
+      textarea._acuOriginalActionText = normalizedActionText;
     };
 
     const normalizedNewContent = normalizeTextareaContent(newContent);
@@ -1717,6 +1747,36 @@ import {
 
     // 占位符识别正则
     const placeholderRegex = /\[投骰结果已隐藏\]/g;
+    const actionSlot = '\u0001ACU_ACTION_SLOT\u0001';
+    const diceSlot = '\u0000ACU_DICE_SLOT\u0000';
+    const joinInlineParts = (parts: string[]): string => normalizeTextareaContent(parts.filter(Boolean).join(' '));
+    const appendInlinePart = (text: string, part: string): string => joinInlineParts([text, part]);
+    const normalizeSlotSpacing = (text: string): string => {
+      let normalized = normalizeTextareaContent(text);
+      [actionSlot, diceSlot].forEach(slot => {
+        normalized = normalized.replace(new RegExp(`\\s*${escapeRegExpLiteral(slot)}\\s*`, 'g'), ` ${slot} `);
+      });
+      return normalizeTextareaContent(normalized);
+    };
+    const findStoredActionIndex = (text: string, actionText: string): number => {
+      if (!actionText) return -1;
+      const indexes: number[] = [];
+      let searchFrom = 0;
+      while (searchFrom <= text.length) {
+        const index = text.indexOf(actionText, searchFrom);
+        if (index < 0) break;
+        indexes.push(index);
+        searchFrom = index + Math.max(actionText.length, 1);
+      }
+      if (indexes.length === 0) return -1;
+      const diceIndex = text.indexOf(diceSlot);
+      if (diceIndex < 0) return indexes[indexes.length - 1];
+      return indexes.reduce((best, index) => {
+        const bestDistance = Math.abs(best + actionText.length - diceIndex);
+        const distance = Math.abs(index + actionText.length - diceIndex);
+        return distance < bestDistance ? index : best;
+      }, indexes[0]);
+    };
 
     // [修复] 如果配置启用隐藏，且是骰子结果，则使用占位符显示，但保存真实结果
     const diceCfg = getDiceConfig();
@@ -1728,12 +1788,16 @@ import {
       const finalDisplayVal =
         contentType === 'dice' && hideDiceResultFromUser ? '[投骰结果已隐藏]' : normalizedNewContent;
       setTextareaValueAndNotify($ta[0] as HTMLTextAreaElement, finalDisplayVal);
+      if (contentType === 'action') {
+        storeActionText(normalizedNewContent);
+      } else {
+        storeActionText('');
+      }
       // [修复] 始终保存真实结果到 data 属性（即使不隐藏也要保存，以便后续处理）
       if (contentType === 'dice') {
         $ta.data('acu-original-dice-text', normalizedNewContent);
         $ta.data('acu-original-textarea-text', normalizedNewContent);
         // [性能优化] 同时设置 DOM 属性作为缓存，避免 getter 中频繁调用 jQuery
-        const textarea = $ta[0] as AcuDiceTextareaElement;
         textarea._acuOriginalDiceText = normalizedNewContent;
         textarea._acuOriginalTextareaText = normalizedNewContent;
         textarea._acuHasDiceData = true;
@@ -1745,6 +1809,8 @@ import {
     let workingText = currentVal;
     let existingAction = '';
     let existingDiceBlocks: string[] = [];
+    let hasActionSlot = false;
+    let hasDiceSlot = false;
 
     // [修复] 0. 先检查是否有占位符（需要替换而不是添加）
     if (placeholderRegex.test(workingText)) {
@@ -1763,10 +1829,15 @@ import {
     }
 
     // 1. 提取 <meta:检定结果> 标签块（统一格式）
-    const metaMatches = workingText.match(metaCheckResultRegex);
-    if (metaMatches && metaMatches.length > 0) {
-      existingDiceBlocks = overwriteLastDiceResult ? [metaMatches[metaMatches.length - 1]] : [...metaMatches];
-      workingText = workingText.replace(metaCheckResultRegex, '\u0000').trim();
+    const metaMatches = Array.from(workingText.matchAll(metaCheckResultRegex));
+    if (metaMatches.length > 0) {
+      const lastMetaMatch = metaMatches[metaMatches.length - 1];
+      const lastMetaIndex = lastMetaMatch.index ?? 0;
+      existingDiceBlocks = [lastMetaMatch[0]];
+      workingText = normalizeSlotSpacing(
+        `${workingText.slice(0, lastMetaIndex)} ${diceSlot} ${workingText.slice(lastMetaIndex + lastMetaMatch[0].length)}`,
+      );
+      hasDiceSlot = true;
       console.log(
         '[DICE]ACU SmartInsert Found and extracted meta check result:',
         existingDiceBlocks[existingDiceBlocks.length - 1].substring(0, 50) + '...',
@@ -1774,67 +1845,78 @@ import {
     }
 
     // 2. 提取交互选项
-    const actionMatches = workingText.match(actionRegex);
-    if (actionMatches && actionMatches.length > 0) {
-      existingAction = actionMatches[actionMatches.length - 1];
-      workingText = workingText.replace(actionRegex, '\u0001').trim();
-      console.log('[DICE]ACU SmartInsert Found and extracted action:', existingAction);
-    }
-
-    // 3. 移除占位符，剩下的就是用户输入
-    let userInput = workingText
-      .replace(/[\u0000\u0001]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // [修复] 清理历史遗留的“骰子输出前缀碎片”
-    // 某些旧异常文本会形成："前缀文本 + <meta:检定结果>..."。
-    // 这里在插入新骰子结果时，若 userInput 只是新结果首行的前缀/近似前缀，则自动丢弃，避免重复。
-    if (contentType === 'dice' && normalizedNewContent.includes('<meta:检定结果>') && userInput) {
-      const diceBody = normalizeTextareaContent(
-        normalizedNewContent.replace(/<meta:检定结果>/g, '').replace(/<\/meta:检定结果>/g, ''),
-      );
-      const firstLine = (diceBody.split('\n')[0] || '').trim();
-      const normalizeFragment = (text: string): string => {
-        return String(text || '')
-          .replace(/\s+/g, '')
-          .replace(/[：:，。,！？!?.]+$/g, '')
-          .trim();
-      };
-      const userNorm = normalizeFragment(userInput);
-      const firstNorm = normalizeFragment(firstLine);
-      if (userNorm && firstNorm && (firstNorm.startsWith(userNorm) || userNorm.startsWith(firstNorm))) {
-        userInput = '';
+    const storedActionText = readStoredActionText();
+    if (storedActionText) {
+      const actionIndex = findStoredActionIndex(workingText, storedActionText);
+      if (actionIndex >= 0) {
+        existingAction = storedActionText;
+        workingText = normalizeSlotSpacing(
+          `${workingText.slice(0, actionIndex)} ${actionSlot} ${workingText.slice(actionIndex + storedActionText.length)}`,
+        );
+        hasActionSlot = true;
+        console.log('[DICE]ACU SmartInsert Found stored action:', existingAction);
       }
     }
 
-    // 4. 根据新内容类型，更新对应部分
-    if (contentType === 'dice') {
-      existingDiceBlocks = overwriteLastDiceResult
-        ? [normalizedNewContent]
-        : [...existingDiceBlocks, normalizedNewContent];
-    } else if (contentType === 'action') {
-      existingAction = normalizedNewContent;
+    const actionMatches = hasActionSlot ? [] : Array.from(workingText.matchAll(actionRegex));
+    if (actionMatches.length > 0) {
+      const lastActionMatch = actionMatches[actionMatches.length - 1];
+      const lastActionIndex = lastActionMatch.index ?? 0;
+      existingAction = lastActionMatch[0];
+      workingText = normalizeSlotSpacing(
+        `${workingText.slice(0, lastActionIndex)} ${actionSlot} ${workingText.slice(lastActionIndex + lastActionMatch[0].length)}`,
+      );
+      hasActionSlot = true;
+      console.log('[DICE]ACU SmartInsert Found and extracted action:', existingAction);
     }
 
-    // 5. 重新组合：用户输入 + 交互选项 + 骰子结果
-    const parts: string[] = [];
-    if (userInput) parts.push(userInput);
-    if (existingAction) parts.push(existingAction);
-    parts.push(...existingDiceBlocks.filter(Boolean));
+    // 3. 根据新内容类型，更新对应槽位。用户手写文本保留在原来的前后位置。
+    let nextAction = existingAction;
+    let diceSlotContent = joinInlineParts(existingDiceBlocks);
+    if (contentType === 'dice') {
+      diceSlotContent = overwriteLastDiceResult
+        ? normalizedNewContent
+        : joinInlineParts([...existingDiceBlocks, normalizedNewContent]);
+      if (!hasDiceSlot) {
+        workingText = appendInlinePart(workingText, normalizedNewContent);
+      }
+    } else if (contentType === 'action') {
+      nextAction = normalizedNewContent;
+      if (overwriteLastDiceResult && hasActionSlot) {
+        workingText = workingText.replace(actionSlot, nextAction);
+        hasActionSlot = false;
+      } else {
+        if (hasActionSlot) {
+          workingText = workingText.replace(actionSlot, existingAction);
+          hasActionSlot = false;
+        }
+        if (hasDiceSlot) {
+          workingText = workingText.replace(diceSlot, joinInlineParts([nextAction, diceSlot]));
+        } else {
+          workingText = appendInlinePart(workingText, nextAction);
+        }
+      }
+    }
 
-    const finalRealVal = normalizeTextareaContent(parts.join(' '));
+    if (hasActionSlot) {
+      workingText = workingText.replace(actionSlot, nextAction);
+    }
+    if (hasDiceSlot) {
+      workingText = workingText.replace(diceSlot, diceSlotContent);
+    }
+
+    const finalRealVal = normalizeTextareaContent(workingText);
     const finalDisplayVal = hideDiceResultFromUser
       ? normalizeTextareaContent(finalRealVal.replace(metaCheckResultRegex, '[投骰结果已隐藏]'))
       : finalRealVal;
     setTextareaValueAndNotify($ta[0] as HTMLTextAreaElement, finalDisplayVal);
+    storeActionText(nextAction);
 
     if (contentType === 'dice' || existingDiceBlocks.length > 0) {
       if (contentType === 'dice') {
         $ta.data('acu-original-dice-text', normalizedNewContent);
       }
       $ta.data('acu-original-textarea-text', finalRealVal);
-      const textarea = $ta[0] as AcuDiceTextareaElement;
       if (contentType === 'dice') {
         textarea._acuOriginalDiceText = normalizedNewContent;
       }
@@ -1987,7 +2069,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.7.0'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v5.52'; // 脚本版本号
+  const SCRIPT_VERSION = 'v5.60'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -6197,8 +6279,10 @@ import {
     if (rawData) {
       for (const key in rawData) {
         const sheet = rawData[key];
-        if (sheet?.name?.includes('主角') && sheet.content?.[1]?.[1]) {
-          return getDisplayName(sheet.content[1][1]);
+        if (sheet?.name?.includes('主角') && sheet.content?.[1]) {
+          const headers = sheet.content[0] || [];
+          const displayName = getRowDisplayName(sheet.content[1], headers);
+          if (displayName) return displayName;
         }
       }
     }
@@ -6245,6 +6329,28 @@ import {
     let result = text.replace(/<user>/gi, displayName);
     result = result.replace(/\{\{user\}\}/gi, displayName);
     return result;
+  };
+
+  const USER_AVATAR_LOOKUP_KEYS = ['{{user}}', '<user>'] as const;
+
+  const getAvatarLookupNames = (name: unknown): string[] => {
+    const originalName = String(name || '').trim();
+    const names = originalName ? [originalName] : [];
+    const playerName = String(getPlayerName() || '').trim();
+    const personaName = String(getPersonaName() || '').trim();
+    const lowerName = originalName.toLowerCase();
+    const autoMergeProtagonist = getDiceConfig().autoMergeProtagonist !== false;
+    const isUserAvatar =
+      USER_AVATAR_LOOKUP_KEYS.some(key => key.toLowerCase() === lowerName) ||
+      (autoMergeProtagonist && originalName === '主角') ||
+      (autoMergeProtagonist && Boolean(playerName) && originalName === playerName) ||
+      (personaName ? originalName === personaName : false);
+
+    if (isUserAvatar) {
+      names.push(...USER_AVATAR_LOOKUP_KEYS);
+    }
+
+    return [...new Set(names.filter(Boolean))];
   };
 
   type DiceStatsScope = 'chat' | 'character' | 'global';
@@ -6337,11 +6443,15 @@ import {
 
     // 同步获取（仅 URL 和 ST 头像，不含本地图片）
     get(name) {
-      const data = this.load()[name];
-      if (data && data.url) return data.url;
+      const lookupNames = getAvatarLookupNames(name);
+      const avatarMap = this.load();
+      for (const lookupName of lookupNames) {
+        const data = avatarMap[lookupName];
+        if (data && data.url) return data.url;
+      }
 
       for (const key in this._cache) {
-        if (this._cache[key].aliases && this._cache[key].aliases.includes(name)) {
+        if (this._cache[key].aliases && lookupNames.some(lookupName => this._cache[key].aliases.includes(lookupName))) {
           if (this._cache[key].url) return this._cache[key].url;
         }
       }
@@ -6352,41 +6462,33 @@ import {
     // 异步获取（优先级：本地图片 > URL > ST头像）
     async getAsync(name) {
       if (!name) return null;
-
-      // 判断是否是主角
-      const playerName = getPlayerName();
-      const isPlayer = name === '<user>' || name === '主角' || (playerName && name === playerName);
+      const lookupNames = new Set(getAvatarLookupNames(name));
+      [...lookupNames].forEach(lookupName => {
+        const primaryName = this.getPrimaryName(lookupName);
+        if (primaryName) lookupNames.add(primaryName);
+      });
 
       // 1. 优先查本地 IndexedDB
-      const localUrl = await LocalAvatarDB.get(name);
-      if (localUrl) return localUrl;
-
-      // 2. 如果是主角，也尝试用 <user> 查找
-      if (isPlayer && name !== '<user>') {
-        const userLocalUrl = await LocalAvatarDB.get('<user>');
-        if (userLocalUrl) return userLocalUrl;
+      for (const lookupName of lookupNames) {
+        const localUrl = await LocalAvatarDB.get(lookupName);
+        if (localUrl) return localUrl;
       }
 
-      // 3. 检查别名对应的本地图片
-      const primaryName = this.getPrimaryName(name);
-      if (primaryName !== name) {
-        const aliasLocalUrl = await LocalAvatarDB.get(primaryName);
-        if (aliasLocalUrl) return aliasLocalUrl;
-      }
-
-      // 4. 回退到同步方法（URL / ST头像）
+      // 2. 回退到同步方法（URL / ST头像）
       return this.get(name);
     },
 
     // 检查是否有本地图片
     async hasLocalAvatar(name) {
       if (!name) return false;
-      const has = await LocalAvatarDB.has(name);
-      if (has) return true;
-
-      const primaryName = this.getPrimaryName(name);
-      if (primaryName !== name) {
-        return await LocalAvatarDB.has(primaryName);
+      const lookupNames = new Set(getAvatarLookupNames(name));
+      [...lookupNames].forEach(lookupName => {
+        const primaryName = this.getPrimaryName(lookupName);
+        if (primaryName) lookupNames.add(primaryName);
+      });
+      for (const lookupName of lookupNames) {
+        const has = await LocalAvatarDB.has(lookupName);
+        if (has) return true;
       }
       return false;
     },
@@ -6418,10 +6520,14 @@ import {
 
     // 根据名字或别名找到主记录
     _resolveByAlias(name) {
-      const data = this.load()[name];
-      if (data) return data;
+      const lookupNames = getAvatarLookupNames(name);
+      const avatarMap = this.load();
+      for (const lookupName of lookupNames) {
+        const data = avatarMap[lookupName];
+        if (data) return data;
+      }
       for (const key in this._cache) {
-        if (this._cache[key].aliases && this._cache[key].aliases.includes(name)) {
+        if (this._cache[key].aliases && lookupNames.some(lookupName => this._cache[key].aliases.includes(lookupName))) {
           return this._cache[key];
         }
       }
@@ -6430,9 +6536,13 @@ import {
 
     // 获取主名称（如果传入的是别名，返回主名称）
     getPrimaryName(name) {
-      if (this.load()[name]) return name;
+      const lookupNames = getAvatarLookupNames(name);
+      const avatarMap = this.load();
+      for (const lookupName of lookupNames) {
+        if (avatarMap[lookupName]) return lookupName;
+      }
       for (const key in this._cache) {
-        if (this._cache[key].aliases && this._cache[key].aliases.includes(name)) {
+        if (this._cache[key].aliases && lookupNames.some(lookupName => this._cache[key].aliases.includes(lookupName))) {
           return key;
         }
       }
@@ -6596,12 +6706,46 @@ import {
     return parseCharacterName(rawName).displayName;
   };
 
+  const CHARACTER_NAME_COLUMN_KEYS = ['姓名', '名称', '名字', '角色名', '人物名', '人物名称', 'name', 'Name'];
+
+  const findNameColumnIndex = (headers: unknown[], fallbackIndex = 1): number => {
+    const index = headers.findIndex(header => {
+      const text = String(header || '');
+      const lowerText = text.toLowerCase();
+      return CHARACTER_NAME_COLUMN_KEYS.some(keyword => {
+        const keywordText = String(keyword);
+        return text.includes(keywordText) || lowerText.includes(keywordText.toLowerCase());
+      });
+    });
+    if (index >= 0) return index;
+    if (headers.length > fallbackIndex) return fallbackIndex;
+    return headers.length > 0 ? 0 : fallbackIndex;
+  };
+
+  const getRowDisplayName = (row: unknown[], headers: unknown[], fallbackIndex = 1): string => {
+    const nameIndex = findNameColumnIndex(headers, fallbackIndex);
+    return getDisplayName(String(row[nameIndex] || ''));
+  };
+
   /**
    * 判断一个表格是否是角色相关表格（主角信息、NPC、角色等）
    * 用于决定是否对该表格的名称列应用 getDisplayName
    */
   const isCharacterTable = (tableName: string): boolean => {
-    const keywords = ['主角', '角色', '人物', '对象', 'NPC', '伙伴', '队友', '宠物', '弟子', '成员', 'player', 'character'];
+    const keywords = [
+      '主角',
+      '角色',
+      '人物',
+      '对象',
+      'NPC',
+      '伙伴',
+      '队友',
+      '宠物',
+      '弟子',
+      '成员',
+      'player',
+      'character',
+    ];
     return keywords.some(kw => tableName.toLowerCase().includes(kw.toLowerCase()));
   };
 
@@ -6638,8 +6782,7 @@ import {
         const rows = table.rows || [];
 
         // 查找名称列
-        let nameIdx = headers.findIndex(h => h && (String(h).includes('姓名') || String(h).includes('名称')));
-        if (nameIdx < 0) nameIdx = 1; // 回退到第二列（跳过行号）
+        const nameIdx = findNameColumnIndex(headers);
 
         rows.forEach(row => {
           const rawName = String(row[nameIdx] || '').trim();
@@ -6741,12 +6884,252 @@ import {
   const isUserPlaceholderKey = (name: string): boolean =>
     USER_PLACEHOLDER_KEYS.some(key => name.toLowerCase() === key.toLowerCase());
 
+  type DiceTableCell = string | number | null;
+  type DiceRawSheet = { name?: string; content?: DiceTableCell[][] };
+  type DiceRawData = Record<string, DiceRawSheet>;
+
+  interface CharacterAttributeRowLookup {
+    sheetKey: string;
+    sheet: { name?: string; content: DiceTableCell[][] };
+    rowIndex: number;
+    headers: DiceTableCell[];
+    isUser: boolean;
+  }
+
+  const normalizeCharacterNameForCompare = (value: unknown): string => {
+    return getDisplayName(String(value ?? '').trim())
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/\s+/g, '')
+      .toLowerCase();
+  };
+
+  const pushUniqueNameCandidate = (candidates: string[], value: unknown): void => {
+    const name = String(value ?? '').trim();
+    if (!name) return;
+    if (!candidates.includes(name)) candidates.push(name);
+  };
+
+  const getAvatarManualAliases = (name: string): string[] => {
+    if (!name) return [];
+    const avatarMap = AvatarManager.load() as Record<string, { aliases?: unknown[] } | undefined>;
+    const data = avatarMap[name];
+    if (!data || !Array.isArray(data.aliases)) return [];
+    return data.aliases.map(alias => String(alias ?? '').trim()).filter(Boolean);
+  };
+
+  const getCharacterNameCandidates = (name: unknown, includeResolved = true): string[] => {
+    const rawName = String(name ?? '').trim();
+    if (!rawName) return [];
+
+    const candidates: string[] = [];
+    const addParsedName = (value: string): void => {
+      const parsed = parseCharacterName(value);
+      pushUniqueNameCandidate(candidates, value);
+      pushUniqueNameCandidate(candidates, parsed.displayName);
+      parsed.aliases.forEach(alias => pushUniqueNameCandidate(candidates, alias));
+    };
+
+    addParsedName(rawName);
+
+    const replacedName = replaceUserPlaceholders(rawName);
+    if (typeof replacedName === 'string' && replacedName !== rawName) {
+      addParsedName(replacedName);
+    }
+
+    const displayName = getDisplayName(rawName);
+    const replacedDisplayName = replaceUserPlaceholders(displayName);
+    if (typeof replacedDisplayName === 'string' && replacedDisplayName !== displayName) {
+      addParsedName(replacedDisplayName);
+    }
+
+    getAvatarManualAliases(rawName).forEach(alias => addParsedName(alias));
+    if (displayName !== rawName) {
+      getAvatarManualAliases(displayName).forEach(alias => addParsedName(alias));
+    }
+
+    if (includeResolved) {
+      const resolvedName = NameAliasRegistry.resolve(rawName);
+      if (resolvedName && resolvedName !== rawName) {
+        addParsedName(resolvedName);
+      }
+    }
+
+    return candidates;
+  };
+
+  const getUserCharacterNameCandidates = (): string[] => {
+    const seeds: string[] = [...USER_PLACEHOLDER_KEYS, '主角'];
+    [getPlayerName(), getPersonaName(), getDisplayPlayerName()].forEach(name => pushUniqueNameCandidate(seeds, name));
+    USER_PLACEHOLDER_KEYS.forEach(key =>
+      getAvatarManualAliases(key).forEach(alias => pushUniqueNameCandidate(seeds, alias)),
+    );
+
+    const candidates: string[] = [];
+    seeds.forEach(seed => {
+      getCharacterNameCandidates(seed).forEach(candidate => pushUniqueNameCandidate(candidates, candidate));
+    });
+    return candidates;
+  };
+
+  const isUserCharacterName = (name: unknown): boolean => {
+    const rawName = String(name ?? '').trim();
+    if (!rawName) return true;
+
+    const userKeys = new Set(getUserCharacterNameCandidates().map(normalizeCharacterNameForCompare).filter(Boolean));
+    return getCharacterNameCandidates(rawName).some(candidate => {
+      const key = normalizeCharacterNameForCompare(candidate);
+      return Boolean(key) && userKeys.has(key);
+    });
+  };
+
+  const resolveCanonicalCharacterName = (name: unknown): string => {
+    const rawName = String(name ?? '').trim();
+    if (!rawName || isUserCharacterName(rawName)) return '<user>';
+    return NameAliasRegistry.resolve(rawName);
+  };
+
+  const characterNamesMatch = (storedName: unknown, lookupName: unknown): boolean => {
+    const lookupRaw = String(lookupName ?? '').trim();
+    if (!lookupRaw) return isUserCharacterName(storedName);
+
+    const storedIsUser = isUserCharacterName(storedName);
+    const lookupIsUser = isUserCharacterName(lookupRaw);
+    if (storedIsUser || lookupIsUser) return storedIsUser && lookupIsUser;
+
+    const storedKeys = new Set(
+      getCharacterNameCandidates(storedName).map(normalizeCharacterNameForCompare).filter(Boolean),
+    );
+    return getCharacterNameCandidates(lookupRaw).some(candidate => {
+      const key = normalizeCharacterNameForCompare(candidate);
+      return Boolean(key) && storedKeys.has(key);
+    });
+  };
+
+  const isPlayerTableName = (tableName: string): boolean => {
+    const normalized = String(tableName || '').toLowerCase();
+    return tableName.includes('主角') || tableName.includes('玩家') || normalized.includes('player');
+  };
+
+  const isNpcLikeTableName = (tableName: string): boolean => {
+    const normalized = String(tableName || '').toLowerCase();
+    return (
+      isNpcTableName(tableName) ||
+      tableName.includes('人物') ||
+      tableName.includes('NPC') ||
+      tableName.includes('角色') ||
+      normalized.includes('character')
+    );
+  };
+
+  const findAttributeColumnIndices = (headers: unknown[], includeSkill = false): number[] => {
+    const cols: number[] = [];
+    headers.forEach((header, idx) => {
+      const text = String(header || '');
+      if (text.includes('属性') || (includeSkill && text.includes('技能'))) {
+        cols.push(idx);
+      }
+    });
+    return cols;
+  };
+
+  const pickFallbackAttributeColumn = (cols: number[], headers: unknown[]): number => {
+    if (cols.length === 0) return -1;
+    const baseCol = cols.find(col => String(headers[col] || '').includes('基础属性'));
+    if (baseCol !== undefined) return baseCol;
+    const specialCol = cols.find(col => {
+      const text = String(headers[col] || '');
+      return text.includes('特有属性') || text.includes('特别属性');
+    });
+    if (specialCol !== undefined) return specialCol;
+    return cols[0];
+  };
+
+  const findPrimaryAttributeColumns = (headers: unknown[]): { baseColIndex: number; specialColIndex: number } => {
+    let baseColIndex = -1;
+    let specialColIndex = -1;
+
+    headers.forEach((header, idx) => {
+      const text = String(header || '');
+      if (text.includes('基础属性')) {
+        baseColIndex = idx;
+      } else if (text.includes('特有属性') || text.includes('特别属性')) {
+        specialColIndex = idx;
+      }
+    });
+
+    if (baseColIndex < 0) {
+      const genericCol = findAttributeColumnIndices(headers).find(col => {
+        const text = String(headers[col] || '');
+        return !text.includes('特有') && !text.includes('特别');
+      });
+      baseColIndex = genericCol ?? -1;
+    }
+
+    return { baseColIndex, specialColIndex };
+  };
+
+  const findCharacterAttributeRow = (
+    characterName: unknown,
+    rawData: DiceRawData | null | undefined,
+  ): CharacterAttributeRowLookup | null => {
+    if (!rawData) return null;
+
+    const wantsUser = isUserCharacterName(characterName);
+    const data = rawData as DiceRawData;
+
+    for (const key in data) {
+      const sheet = data[key];
+      if (!sheet?.name || !Array.isArray(sheet.content)) continue;
+      const sheetName = sheet.name;
+      const headers = (sheet.content[0] || []) as DiceTableCell[];
+
+      if (isPlayerTableName(sheetName) && sheet.content[1]) {
+        const playerRow = sheet.content[1];
+        const nameIdx = findNameColumnIndex(headers);
+        const playerName = String(playerRow[nameIdx] || '');
+        if (wantsUser || characterNamesMatch(playerName, characterName)) {
+          return {
+            sheetKey: key,
+            sheet: sheet as { name?: string; content: DiceTableCell[][] },
+            rowIndex: 1,
+            headers,
+            isUser: true,
+          };
+        }
+      }
+
+      if (!wantsUser && !isPlayerTableName(sheetName) && isNpcLikeTableName(sheetName)) {
+        const nameIdx = findNameColumnIndex(headers);
+        for (let rowIndex = 1; rowIndex < sheet.content.length; rowIndex++) {
+          const row = sheet.content[rowIndex];
+          if (!row) continue;
+          if (characterNamesMatch(String(row[nameIdx] || ''), characterName)) {
+            return {
+              sheetKey: key,
+              sheet: sheet as { name?: string; content: DiceTableCell[][] },
+              rowIndex,
+              headers,
+              isUser: false,
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
   const resolveUserGraphName = (name: string): string => {
     const displayName = getDisplayName(String(name || '').trim());
     if (!displayName) return displayName;
 
     const avatarPrimary = AvatarManager.getPrimaryName(displayName);
-    if (isUserPlaceholderKey(displayName) || isUserPlaceholderKey(avatarPrimary)) {
+    if (
+      isUserPlaceholderKey(displayName) ||
+      isUserPlaceholderKey(avatarPrimary) ||
+      isUserCharacterName(displayName) ||
+      isUserCharacterName(avatarPrimary)
+    ) {
       return USER_NODE_KEY;
     }
 
@@ -6869,7 +7252,9 @@ import {
     return escapeHtml(icon);
   };
 
-  const renderGachaItemIconContent = (item: Pick<GachaItemDefinition, 'name' | 'type' | 'icon' | 'iconUrl' | 'localIconKey'>): string => {
+  const renderGachaItemIconContent = (
+    item: Pick<GachaItemDefinition, 'name' | 'type' | 'icon' | 'iconUrl' | 'localIconKey'>,
+  ): string => {
     const fallback = renderThemeIconContent(item.icon || getElementEmoji(item.name, item.type));
     if (item.localIconKey) {
       return `<span class="acu-gacha-image-icon acu-gacha-local-icon" data-gacha-local-icon-key="${escapeHtml(item.localIconKey)}">${fallback}</span>`;
@@ -13457,7 +13842,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       // 新增: user, <user>
       tableKeywords: ['主角信息', '主角', '玩家', '角色信息', 'player', '用户', 'user', '<user>'],
       columns: {
-        name: { keywords: ['姓名', '名称', '人物名称', 'name'], fallbackIndex: 1 },
+        name: { keywords: CHARACTER_NAME_COLUMN_KEYS, fallbackIndex: 1 },
         status: { keywords: ['状态关键词', '状态关键字', '状态标签', '状态'], fallbackIndex: null },
         position: { keywords: ['具体位置', '位置', '所在地'], fallbackIndex: null },
         attrs: { keywords: ['基础属性', '属性'], fallbackIndex: null, isMultiple: true },
@@ -13515,7 +13900,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         '灵宠',
       ],
       columns: {
-        name: { keywords: ['姓名', '名称'], fallbackIndex: 1 },
+        name: { keywords: CHARACTER_NAME_COLUMN_KEYS, fallbackIndex: 1 },
         status: { keywords: ['自身状态', '状态'], fallbackIndex: null },
         position: { keywords: ['具体位置', '位置', '所在地点', '所在'], fallbackIndex: null },
         inScene: { keywords: ['在场状态', '在场', '是否离场', '离场'], fallbackIndex: null },
@@ -13598,7 +13983,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       cloned[moduleKey] = {
         tableKeywords: [...moduleConfig.tableKeywords],
         columns,
-        ...(moduleConfig.filters ? { filters: JSON.parse(JSON.stringify(moduleConfig.filters)) as Record<string, DashboardFilterConfig> } : {}),
+        ...(moduleConfig.filters
+          ? { filters: JSON.parse(JSON.stringify(moduleConfig.filters)) as Record<string, DashboardFilterConfig> }
+          : {}),
       };
     });
     return cloned;
@@ -13760,7 +14147,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return filters;
   };
 
-  const normalizeDashboardRelationshipGraphConfig = (rawModule: Record<string, unknown>): DashboardPresetModuleConfig => {
+  const normalizeDashboardRelationshipGraphConfig = (
+    rawModule: Record<string, unknown>,
+  ): DashboardPresetModuleConfig => {
     if (!Array.isArray(rawModule.sources)) {
       throw new Error('模块 relationshipGraph.sources 必须是数组');
     }
@@ -13937,7 +14326,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return modules;
   };
 
-  const parseDashboardPresetJson = (jsonText: string): { name: string; description: string; modules: DashboardPresetModules } => {
+  const parseDashboardPresetJson = (
+    jsonText: string,
+  ): { name: string; description: string; modules: DashboardPresetModules } => {
     const parsed = JSON.parse(stripJsonComments(jsonText)) as unknown;
     if (!isRecordValue(parsed)) {
       throw new Error('仪表盘预设必须是对象');
@@ -13972,7 +14363,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     // 主角区：属性、资源、当前位置
     "tableKeywords": ["主角信息", "主角", "玩家", "角色信息", "user", "<user>"],
     "columns": {
-      "name": { "keywords": ["姓名", "名称", "人物名称", "name"] },
+      "name": { "keywords": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"] },
       "status": { "keywords": ["近况", "当前状态", "状态关键词", "状态关键字", "状态标签", "状态"] },
       "position": { "keywords": ["具体位置", "位置", "所在地"] },
       "money": { "keywords": ["金钱", "资金", "金币", "货币", "余额"] },
@@ -13991,7 +14382,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     // 角色区：示例把默认的“重要对象表”改成“恋爱对象表”，仍保持在场/离场分组和头像
     "tableKeywords": ["恋爱对象表", "恋爱对象"],
     "columns": {
-      "name": { "keywords": ["姓名", "名称"] },
+      "name": { "keywords": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"] },
       "status": { "keywords": ["当前情绪", "对主角态度", "自身状态", "状态"] },
       "position": { "keywords": ["具体位置", "位置", "所在地点", "所在"] },
       "inScene": { "keywords": ["在场状态", "在场", "是否离场", "离场"] }
@@ -14005,14 +14396,14 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       {
         "mode": "fixedTarget",
         "tableKeywords": ["恋爱对象表", "恋爱对象"],
-        "nameColumn": ["姓名", "名称"],
+        "nameColumn": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"],
         "relationColumn": ["与主角关系"],
         "target": "player"
       },
       {
         "mode": "relationList",
         "tableKeywords": ["重要角色表", "重要人物表"],
-        "nameColumn": ["姓名", "名称"],
+        "nameColumn": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"],
         "relationColumn": ["人际关系"]
       }
     ]
@@ -14115,7 +14506,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         return newPreset;
       },
 
-      updatePreset(id: string, updates: { name: string; description?: string; modules: DashboardPresetModules }): boolean {
+      updatePreset(
+        id: string,
+        updates: { name: string; description?: string; modules: DashboardPresetModules },
+      ): boolean {
         const stored = getStoredPresets();
         const index = stored.findIndex(preset => preset.id === id);
         if (index < 0) return false;
@@ -14166,7 +14560,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           });
         } catch (error) {
           console.error('[DICE]DashboardPresetManager 导入失败:', error);
-          if (window.toastr) window.toastr.error('导入失败: ' + (error instanceof Error ? error.message : String(error)));
+          if (window.toastr)
+            window.toastr.error('导入失败: ' + (error instanceof Error ? error.message : String(error)));
           return null;
         }
       },
@@ -14245,31 +14640,42 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
   // 仪表盘数据解析器
   const DashboardDataParser = {
-    // 根据配置查找表
-    findTable(allTables, moduleKey) {
+    // 根据配置查找所有匹配表
+    findTables(allTables, moduleKey) {
       const config = getDashboardModuleConfig(moduleKey);
       if (!config) {
         console.info(`[DICE]仪表盘查找表格: 模块"${moduleKey}"配置不存在`);
-        return null;
+        return [];
       }
 
+      const results = [];
+      const matchedTableNames = new Set();
       for (const keyword of config.tableKeywords) {
         for (const tableName in allTables) {
-          if (tableName.includes(keyword)) {
+          if (tableName.includes(keyword) && !matchedTableNames.has(tableName)) {
+            matchedTableNames.add(tableName);
             console.info(`[DICE]仪表盘查找表格: 模块"${moduleKey}"找到表格"${tableName}" (关键词: "${keyword}")`);
-            return {
+            results.push({
               data: allTables[tableName],
               name: tableName,
               key: allTables[tableName].key,
               config: config,
-            };
+            });
           }
         }
       }
-      console.info(
-        `[DICE]仪表盘查找表格: 模块"${moduleKey}"未找到匹配表格 (关键词: ${config.tableKeywords.join(', ')})`,
-      );
-      return null;
+
+      if (results.length === 0) {
+        console.info(
+          `[DICE]仪表盘查找表格: 模块"${moduleKey}"未找到匹配表格 (关键词: ${config.tableKeywords.join(', ')})`,
+        );
+      }
+      return results;
+    },
+
+    // 根据配置查找表
+    findTable(allTables, moduleKey) {
+      return this.findTables(allTables, moduleKey)[0] || null;
     },
 
     // 根据配置查找列索引
@@ -15333,8 +15739,66 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (n.includes('势力') || n.includes('阵营')) return 'fa-shield-halved';
     if (n.includes('物品')) return 'fa-gem';
     if (n.includes('情报') || n.includes('信息')) return 'fa-file-lines';
+    if (n.includes('检定建议')) return 'fa-dice-d20';
     if (n.includes('选项')) return 'fa-list-check';
     return 'fa-table';
+  };
+
+  const isOptionTableName = tableName => String(tableName || '').includes('选项');
+  const isCheckSuggestionTableName = tableName => String(tableName || '').includes('检定建议');
+
+  const getOptionItemsFromTable = tableData => {
+    const items: { text: string; rowIndex: number; colIndex: number; header: string }[] = [];
+    const rows = Array.isArray(tableData?.rows) ? tableData.rows : [];
+    const headers = Array.isArray(tableData?.headers) ? tableData.headers : [];
+
+    rows.forEach((row, rowIndex) => {
+      if (!Array.isArray(row)) return;
+      row.forEach((cell, colIndex) => {
+        if (colIndex <= 0) return;
+        const text = String(cell ?? '').trim();
+        if (!text) return;
+        items.push({
+          text,
+          rowIndex,
+          colIndex,
+          header: String(headers[colIndex] ?? ''),
+        });
+      });
+    });
+
+    return items;
+  };
+
+  const renderOptionButtonHtml = (text: string): string =>
+    `<button class="acu-opt-btn" data-val="${safeEncodeURIComponent(text)}">${escapeHtml(text)}</button>`;
+
+  const renderCheckSuggestionOptionButtonHtml = (displayText: string, commandText: string): string =>
+    `<button class="acu-check-suggestion-btn" data-display="${safeEncodeURIComponent(displayText)}" data-command="${safeEncodeURIComponent(commandText)}">${escapeHtml(displayText || '未填写展示文本')}</button>`;
+
+  const getCheckSuggestionItemsFromTable = tableData => {
+    const items: { displayText: string; commandText: string; rowIndex: number; rowId: string }[] = [];
+    const rows = Array.isArray(tableData?.rows) ? tableData.rows : [];
+    const headers = Array.isArray(tableData?.headers) ? tableData.headers : [];
+    const displayCol = headers.findIndex(header => String(header || '').includes('展示'));
+    const commandCol = headers.findIndex(header => String(header || '').includes('骰子命令'));
+    const safeDisplayCol = displayCol >= 0 ? displayCol : 1;
+    const safeCommandCol = commandCol >= 0 ? commandCol : 2;
+
+    rows.forEach((row, rowIndex) => {
+      if (!Array.isArray(row)) return;
+      const displayText = String(row[safeDisplayCol] ?? '').trim();
+      const commandText = String(row[safeCommandCol] ?? '').trim();
+      if (!displayText && !commandText) return;
+      items.push({
+        displayText,
+        commandText,
+        rowIndex,
+        rowId: String(row[0] ?? rowIndex + 1),
+      });
+    });
+
+    return items;
   };
 
   const getBadgeStyle = text => {
@@ -15502,79 +15966,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   };
   // [新增] 根据角色名获取属性列表
   const getAttributesForCharacter = characterName => {
-    const rawData = cachedRawData || getTableData();
-    if (!rawData) return [];
-
-    const isUser = !characterName || characterName === '<user>' || characterName.trim() === '';
-
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet || !sheet.name || !sheet.content) continue;
-      const sheetName = sheet.name;
-
-      // 主角信息表 -> <user> 或通过真名匹配
-      if (sheetName.includes('主角') || sheetName.includes('玩家') || sheetName.toLowerCase().includes('player')) {
-        if (sheet.content[1]) {
-          // 通过真名匹配：非<user>时检查主角表中的姓名是否与characterName一致
-          if (!isUser) {
-            const protagonistName = getDisplayName(String(sheet.content[1][1] || ''));
-            if (protagonistName !== getDisplayName(characterName)) continue;
-          }
-          const headers = sheet.content[0] || [];
-          const row = sheet.content[1];
-          let attrs = [];
-          headers.forEach((h, idx) => {
-            if (h && h.includes('属性')) {
-              const parsed = parseAttributeString(row[idx] || '');
-              parsed.forEach(attr => {
-                if (!attrs.includes(attr.name)) attrs.push(attr.name);
-              });
-            }
-          });
-          if (attrs.length > 0) return attrs;
-        }
-      }
-
-      // 重要人物表 -> 其他角色 (模糊匹配)
-      if (
-        !isUser &&
-        (sheetName.includes('人物') ||
-          sheetName.includes('NPC') ||
-          sheetName.includes('角色') ||
-          sheetName.toLowerCase().includes('character'))
-      ) {
-        const headers = sheet.content[0] || [];
-        // 动态查找姓名列
-        let nameColIdx = 1;
-        for (let h = 0; h < headers.length; h++) {
-          if (
-            headers[h] &&
-            (headers[h].includes('姓名') || headers[h].includes('名称') || headers[h].toLowerCase().includes('name'))
-          ) {
-            nameColIdx = h;
-            break;
-          }
-        }
-
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row && getDisplayName(String(row[nameColIdx] || '')) === getDisplayName(characterName)) {
-            let attrs = [];
-            headers.forEach((h, idx) => {
-              if (h && h.includes('属性')) {
-                const parsed = parseAttributeString(row[idx] || '');
-                parsed.forEach(attr => {
-                  if (!attrs.includes(attr.name)) attrs.push(attr.name);
-                });
-              }
-            });
-            return attrs;
-          }
-        }
-      }
-    }
-
-    return [];
+    return getFullAttributesForCharacter(characterName).map(attr => attr.name);
   };
   const normalizeAttributeName = (name: string): string => {
     if (!name) return '';
@@ -15661,78 +16053,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
   // [新增] 根据角色名和属性名获取属性值
   const getAttributeValue = (characterName, attrName, aliasCandidates: string[] = []) => {
-    const rawData = cachedRawData || getTableData();
-    if (!rawData || !attrName) return null;
-
-    const isUser = !characterName || characterName === '<user>' || characterName.trim() === '';
+    if (!attrName) return null;
     const resolved = resolveAttributeAliasName(characterName, attrName, aliasCandidates);
     if (!resolved.name) return null;
     const resolvedAttrName = resolved.name;
-
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet || !sheet.name || !sheet.content) continue;
-      const sheetName = sheet.name;
-
-      // 主角信息表 -> <user> 或通过真名匹配
-      if (sheetName.includes('主角') || sheetName.includes('玩家') || sheetName.toLowerCase().includes('player')) {
-        if (sheet.content[1]) {
-          // 通过真名匹配：非<user>时检查主角表中的姓名是否与characterName一致
-          if (!isUser) {
-            const protagonistName = getDisplayName(String(sheet.content[1][1] || ''));
-            if (protagonistName !== getDisplayName(characterName)) continue;
-          }
-          const headers = sheet.content[0] || [];
-          const row = sheet.content[1];
-          for (let idx = 0; idx < headers.length; idx++) {
-            const h = headers[idx];
-            if (h && h.includes('属性')) {
-              const parsed = parseAttributeString(row[idx] || '');
-              const found = parsed.find(attr => attr.name === resolvedAttrName);
-              if (found) return found.value;
-            }
-          }
-        }
-      }
-
-      // 重要人物表 -> 其他角色 (模糊匹配)
-      if (
-        !isUser &&
-        (sheetName.includes('人物') ||
-          sheetName.includes('NPC') ||
-          sheetName.includes('角色') ||
-          sheetName.toLowerCase().includes('character'))
-      ) {
-        const headers = sheet.content[0] || [];
-        // 动态查找姓名列
-        let nameColIdx = 1;
-        for (let h = 0; h < headers.length; h++) {
-          if (
-            headers[h] &&
-            (headers[h].includes('姓名') || headers[h].includes('名称') || headers[h].toLowerCase().includes('name'))
-          ) {
-            nameColIdx = h;
-            break;
-          }
-        }
-
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row && getDisplayName(String(row[nameColIdx] || '')) === getDisplayName(characterName)) {
-            for (let idx = 0; idx < headers.length; idx++) {
-              const h = headers[idx];
-              if (h && h.includes('属性')) {
-                const parsed = parseAttributeString(row[idx] || '');
-                const found = parsed.find(attr => attr.name === resolvedAttrName);
-                if (found) return found.value;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return null;
+    const found = getFullAttributesForCharacter(characterName).find(attr => attr.name === resolvedAttrName);
+    return found ? found.value : null;
   };
   // [新增] 标准6维属性名
   const STANDARD_ATTRS = ['力量', '敏捷', '体质', '智力', '感知', '魅力'];
@@ -16130,103 +16456,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return { success: false };
     }
 
-    const isUser = !charName || charName === '<user>' || charName.trim() === '';
-    let targetSheet = null;
-    let targetRowIndex = -1;
-    let baseColIndex = -1; // 基础属性列
-    let specialColIndex = -1; // 特有属性列
-    let sheetKey = null;
-
-    // 查找目标表和行
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet || !sheet.name || !sheet.content) continue;
-      const sheetName = sheet.name;
-      const headers = sheet.content[0] || [];
-
-      // 主角信息表
-      if (sheetName.includes('主角') || sheetName.includes('玩家') || sheetName.toLowerCase().includes('player')) {
-        if (sheet.content[1]) {
-          // 通过真名匹配：非<user>时检查主角表中的姓名是否与charName一致
-          if (!isUser) {
-            const protagonistName = getDisplayName(String(sheet.content[1][1] || ''));
-            if (protagonistName !== getDisplayName(charName)) continue;
-          }
-          targetSheet = sheet;
-          targetRowIndex = 1;
-          sheetKey = key;
-
-          // 查找基础属性列和特有属性列
-          for (let h = 0; h < headers.length; h++) {
-            if (headers[h] && headers[h].includes('基础属性')) {
-              baseColIndex = h;
-            } else if (headers[h] && headers[h].includes('特有属性')) {
-              specialColIndex = h;
-            }
-          }
-          // 如果没有找到基础属性列，尝试查找通用属性列
-          if (baseColIndex < 0) {
-            for (let h = 0; h < headers.length; h++) {
-              if (headers[h] && headers[h].includes('属性') && !headers[h].includes('特有')) {
-                baseColIndex = h;
-                break;
-              }
-            }
-          }
-          break;
-        }
-      }
-
-      // NPC/角色/人物表
-      if (
-        !isUser &&
-        (sheetName.includes('人物') ||
-          sheetName.includes('NPC') ||
-          sheetName.includes('角色') ||
-          sheetName.toLowerCase().includes('character'))
-      ) {
-        let nameColIdx = 1;
-        for (let h = 0; h < headers.length; h++) {
-          if (
-            headers[h] &&
-            (headers[h].includes('姓名') || headers[h].includes('名称') || headers[h].toLowerCase().includes('name'))
-          ) {
-            nameColIdx = h;
-            break;
-          }
-        }
-
-        // 查找目标行
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row && getDisplayName(String(row[nameColIdx] || '')) === getDisplayName(charName)) {
-            targetSheet = sheet;
-            targetRowIndex = i;
-            sheetKey = key;
-
-            // 查找基础属性列和特有属性列
-            for (let h = 0; h < headers.length; h++) {
-              if (headers[h] && headers[h].includes('基础属性')) {
-                baseColIndex = h;
-              } else if (headers[h] && headers[h].includes('特有属性')) {
-                specialColIndex = h;
-              }
-            }
-            // 如果没有找到基础属性列，尝试查找通用属性列
-            if (baseColIndex < 0) {
-              for (let h = 0; h < headers.length; h++) {
-                if (headers[h] && headers[h].includes('属性') && !headers[h].includes('特有')) {
-                  baseColIndex = h;
-                  break;
-                }
-              }
-            }
-            break;
-          }
-        }
-        if (targetRowIndex > 0) break;
-      }
-    }
+    const lookup = findCharacterAttributeRow(charName, rawData as DiceRawData);
+    const targetSheet = lookup?.sheet || null;
+    const targetRowIndex = lookup?.rowIndex ?? -1;
+    const sheetKey = lookup?.sheetKey || null;
+    const { baseColIndex, specialColIndex } = lookup
+      ? findPrimaryAttributeColumns(lookup.headers)
+      : { baseColIndex: -1, specialColIndex: -1 };
 
     // 验证是否找到目标
     if (!targetSheet || targetRowIndex < 0) {
@@ -16271,104 +16507,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return { success: false };
     }
 
-    const isUser = !charName || charName === '<user>' || charName.trim() === '';
-    let targetSheet = null;
-    let targetRowIndex = -1;
-    let baseColIndex = -1; // 基础属性列
-    let specialColIndex = -1; // 特有属性列
-    let sheetKey = null;
-
-    // 查找目标表和行
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet || !sheet.name || !sheet.content) continue;
-      const sheetName = sheet.name;
-      const headers = sheet.content[0] || [];
-
-      // 主角信息表
-      if (sheetName.includes('主角') || sheetName.includes('玩家') || sheetName.toLowerCase().includes('player')) {
-        if (sheet.content[1]) {
-          // 通过真名匹配：非<user>时检查主角表中的姓名是否与charName一致
-          if (!isUser) {
-            const protagonistName = getDisplayName(String(sheet.content[1][1] || ''));
-            if (protagonistName !== getDisplayName(charName)) continue;
-          }
-          targetSheet = sheet;
-          targetRowIndex = 1;
-          sheetKey = key;
-
-          // 查找基础属性列和特有属性列
-          for (let h = 0; h < headers.length; h++) {
-            if (headers[h] && headers[h].includes('基础属性')) {
-              baseColIndex = h;
-            } else if (headers[h] && headers[h].includes('特有属性')) {
-              specialColIndex = h;
-            }
-          }
-          // 如果没有找到基础属性列，尝试查找通用属性列
-          if (baseColIndex < 0) {
-            for (let h = 0; h < headers.length; h++) {
-              if (headers[h] && headers[h].includes('属性') && !headers[h].includes('特有')) {
-                baseColIndex = h;
-                break;
-              }
-            }
-          }
-          break;
-        }
-      }
-
-      // 重要人物表
-      if (
-        !isUser &&
-        (sheetName.includes('人物') ||
-          sheetName.includes('NPC') ||
-          sheetName.includes('角色') ||
-          sheetName.toLowerCase().includes('character'))
-      ) {
-        // 查找姓名列
-        let nameColIdx = 1;
-        for (let h = 0; h < headers.length; h++) {
-          if (
-            headers[h] &&
-            (headers[h].includes('姓名') || headers[h].includes('名称') || headers[h].toLowerCase().includes('name'))
-          ) {
-            nameColIdx = h;
-            break;
-          }
-        }
-
-        // 查找目标行
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row && getDisplayName(String(row[nameColIdx] || '')) === getDisplayName(charName)) {
-            targetSheet = sheet;
-            targetRowIndex = i;
-            sheetKey = key;
-
-            // 查找基础属性列和特有属性列
-            for (let h = 0; h < headers.length; h++) {
-              if (headers[h] && headers[h].includes('基础属性')) {
-                baseColIndex = h;
-              } else if (headers[h] && headers[h].includes('特有属性')) {
-                specialColIndex = h;
-              }
-            }
-            // 如果没有找到基础属性列，尝试查找通用属性列
-            if (baseColIndex < 0) {
-              for (let h = 0; h < headers.length; h++) {
-                if (headers[h] && headers[h].includes('属性') && !headers[h].includes('特有')) {
-                  baseColIndex = h;
-                  break;
-                }
-              }
-            }
-            break;
-          }
-        }
-        if (targetRowIndex > 0) break;
-      }
-    }
+    const lookup = findCharacterAttributeRow(charName, rawData as DiceRawData);
+    const targetSheet = lookup?.sheet || null;
+    const targetRowIndex = lookup?.rowIndex ?? -1;
+    const sheetKey = lookup?.sheetKey || null;
+    const { baseColIndex, specialColIndex } = lookup
+      ? findPrimaryAttributeColumns(lookup.headers)
+      : { baseColIndex: -1, specialColIndex: -1 };
 
     // 验证是否找到目标
     if (!targetSheet || targetRowIndex < 0) {
@@ -16556,96 +16701,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return { success: false, oldValue: 0, newValue: 0, error };
     }
 
-    const isUser = !charName || charName === '<user>' || charName.trim() === '';
-    let targetSheet: { name: string; content: (string | number | null)[][] } | null = null;
-    let targetRowIndex = -1;
-    let targetColIndex = -1;
-    let fallbackAttrColIndex = -1;
-    let attrColIndices: number[] = [];
-    let sheetKey: string | null = null;
-
-    // 查找目标表和行
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet || !sheet.name || !sheet.content) continue;
-      const sheetName = sheet.name;
-      const headers = sheet.content[0] || [];
-      const collectAttrCols = (): number[] => {
-        const cols: number[] = [];
-        for (let h = 0; h < headers.length; h++) {
-          if (headers[h] && String(headers[h]).includes('属性')) {
-            cols.push(h);
-          }
-        }
-        return cols;
-      };
-      const pickFallbackAttrCol = (cols: number[]): number => {
-        if (cols.length === 0) return -1;
-        for (const col of cols) {
-          if (String(headers[col]).includes('基础属性')) return col;
-        }
-        for (const col of cols) {
-          if (String(headers[col]).includes('特有属性')) return col;
-        }
-        return cols[0];
-      };
-
-      // 主角信息表
-      if (sheetName.includes('主角') || sheetName.includes('玩家') || sheetName.toLowerCase().includes('player')) {
-        if (sheet.content[1]) {
-          // 通过真名匹配：非<user>时检查主角表中的姓名是否与charName一致
-          if (!isUser) {
-            const protagonistName = getDisplayName(String(sheet.content[1][1] || ''));
-            if (protagonistName !== getDisplayName(charName)) continue;
-          }
-          targetSheet = sheet;
-          targetRowIndex = 1;
-          sheetKey = key;
-          attrColIndices = collectAttrCols();
-          fallbackAttrColIndex = pickFallbackAttrCol(attrColIndices);
-          targetColIndex = fallbackAttrColIndex;
-          break;
-        }
-      }
-
-      // 重要人物表
-      if (
-        !isUser &&
-        (sheetName.includes('人物') ||
-          sheetName.includes('NPC') ||
-          sheetName.includes('角色') ||
-          sheetName.toLowerCase().includes('character'))
-      ) {
-        // 查找姓名列
-        let nameColIdx = 1;
-        for (let h = 0; h < headers.length; h++) {
-          if (
-            headers[h] &&
-            (String(headers[h]).includes('姓名') ||
-              String(headers[h]).includes('名称') ||
-              String(headers[h]).toLowerCase().includes('name'))
-          ) {
-            nameColIdx = h;
-            break;
-          }
-        }
-
-        // 查找目标行
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row && getDisplayName(String(row[nameColIdx] || '')) === getDisplayName(charName)) {
-            targetSheet = sheet;
-            targetRowIndex = i;
-            sheetKey = key;
-            attrColIndices = collectAttrCols();
-            fallbackAttrColIndex = pickFallbackAttrCol(attrColIndices);
-            targetColIndex = fallbackAttrColIndex;
-            break;
-          }
-        }
-        if (targetRowIndex > 0) break;
-      }
-    }
+    const lookup = findCharacterAttributeRow(charName, rawData as DiceRawData);
+    const targetSheet = lookup?.sheet || null;
+    const targetRowIndex = lookup?.rowIndex ?? -1;
+    const sheetKey = lookup?.sheetKey || null;
+    const attrColIndices = lookup ? findAttributeColumnIndices(lookup.headers) : [];
+    const fallbackAttrColIndex = lookup ? pickFallbackAttributeColumn(attrColIndices, lookup.headers) : -1;
+    let targetColIndex = fallbackAttrColIndex;
 
     // 验证是否找到目标
     if (!targetSheet || targetRowIndex < 0) {
@@ -16775,82 +16837,20 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     characterName,
     dataOverride?: Record<string, { name: string; content: (string | number | null)[][] }>,
   ) => {
-    const rawData = dataOverride || cachedRawData || getTableData();
-    if (!rawData) return [];
+    const rawData = (dataOverride || cachedRawData || getTableData()) as DiceRawData | null;
+    const lookup = findCharacterAttributeRow(characterName, rawData);
+    if (!lookup) return [];
 
-    const isUser = !characterName || characterName === '<user>' || characterName.trim() === '';
-    let attrs = [];
-
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet || !sheet.name || !sheet.content) continue;
-      const sheetName = sheet.name;
-
-      // 主角信息表 -> <user> 或通过真名匹配
-      if (sheetName.includes('主角') || sheetName.includes('玩家') || sheetName.toLowerCase().includes('player')) {
-        if (sheet.content[1]) {
-          // 通过真名匹配：非<user>时检查主角表中的姓名是否与characterName一致
-          if (!isUser) {
-            const protagonistName = getDisplayName(String(sheet.content[1][1] || ''));
-            if (protagonistName !== getDisplayName(characterName)) continue;
-          }
-          const headers = sheet.content[0] || [];
-          const row = sheet.content[1];
-          headers.forEach((h, idx) => {
-            if (h && h.includes('属性')) {
-              const parsed = parseAttributeString(row[idx] || '');
-              parsed.forEach(attr => {
-                if (!attrs.some(a => a.name === attr.name)) {
-                  attrs.push(attr);
-                }
-              });
-            }
-          });
-          if (attrs.length > 0) break;
+    const attrs: Array<{ name: string; value: number }> = [];
+    const row = lookup.sheet.content[lookup.rowIndex] || [];
+    findAttributeColumnIndices(lookup.headers).forEach(idx => {
+      const parsed = parseAttributeString(row[idx] || '');
+      parsed.forEach(attr => {
+        if (!attrs.some(existing => existing.name === attr.name)) {
+          attrs.push(attr);
         }
-      }
-
-      // 重要人物表 -> 其他角色 (模糊匹配)
-      if (
-        !isUser &&
-        (sheetName.includes('人物') ||
-          sheetName.includes('NPC') ||
-          sheetName.includes('角色') ||
-          sheetName.toLowerCase().includes('character'))
-      ) {
-        const headers = sheet.content[0] || [];
-        // 动态查找姓名列
-        let nameColIdx = 1;
-        for (let h = 0; h < headers.length; h++) {
-          if (
-            headers[h] &&
-            (headers[h].includes('姓名') || headers[h].includes('名称') || headers[h].toLowerCase().includes('name'))
-          ) {
-            nameColIdx = h;
-            break;
-          }
-        }
-
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row && getDisplayName(String(row[nameColIdx] || '')) === getDisplayName(characterName)) {
-            headers.forEach((h, idx) => {
-              if (h && h.includes('属性')) {
-                const parsed = parseAttributeString(row[idx] || '');
-                parsed.forEach(attr => {
-                  if (!attrs.some(a => a.name === attr.name)) {
-                    attrs.push(attr);
-                  }
-                });
-              }
-            });
-            break;
-          }
-        }
-        if (attrs.length > 0) break;
-      }
-    }
-
+      });
+    });
     return attrs;
   };
   // [新增] 自定义下拉菜单初始化函数
@@ -17230,24 +17230,35 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const rawDataForList = cachedRawData || getTableData();
     let diceCharacterList: string[] = [];
     let diceAttrList = [];
+    const pushDiceCharacter = (name: unknown, preferFront = false): void => {
+      const displayName = getDisplayName(String(name ?? '').trim());
+      if (!displayName || diceCharacterList.some(existing => characterNamesMatch(existing, displayName))) return;
+      if (preferFront) {
+        diceCharacterList.unshift(displayName);
+      } else {
+        diceCharacterList.push(displayName);
+      }
+    };
 
     if (rawDataForList) {
       for (const key in rawDataForList) {
         const sheet = rawDataForList[key];
         if (!sheet || !sheet.name || !sheet.content) continue;
+        const headers = sheet.content[0] || [];
 
         if (isNpcTableName(sheet.name)) {
+          const nameIdx = findNameColumnIndex(headers);
           for (let i = 1; i < sheet.content.length; i++) {
             const row = sheet.content[i];
-            if (row && row[1]) diceCharacterList.push(row[1]);
+            if (row) pushDiceCharacter(row[nameIdx]);
           }
         }
 
         if (sheet.name?.includes('主角') && sheet.content[1]) {
           const row = sheet.content[1];
           // 主角真名加入角色列表（作为第一个）
-          if (row[1]) diceCharacterList.unshift(getDisplayName(String(row[1])));
-          const headers = sheet.content[0] || [];
+          const nameIdx = findNameColumnIndex(headers);
+          pushDiceCharacter(row[nameIdx], true);
           headers.forEach((h, idx) => {
             if (h && h.includes('属性')) {
               const parsed = parseAttributeString(row[idx] || '');
@@ -17784,7 +17795,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
       // 添加常规角色列表（所有名字统一处理，不再区分 <user>）
       diceCharacterList.forEach(name => {
-        const resolvedName = NameAliasRegistry.resolve(String(name));
+        const resolvedName = resolveCanonicalCharacterName(String(name));
         const displayName = replaceUserPlaceholders(String(resolvedName));
         const shortName = displayName.length > 4 ? displayName.substring(0, 4) + '..' : displayName;
         html += `<button class="acu-dice-char-btn" data-char="${escapeHtml(String(resolvedName))}" title="${escapeHtml(displayName)}">${escapeHtml(shortName)}</button>`;
@@ -18590,7 +18601,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           setHistoryEffectStateByRun(run, { effectEventSeq: seq });
 
           if (hasFailure && window.toastr) {
-            const firstError = results.find(result => !result.success && result.error)?.error || '请检查表格结构和字段约束';
+            const firstError =
+              results.find(result => !result.success && result.error)?.error || '请检查表格结构和字段约束';
             window.toastr.warning(`效果执行失败，已回滚本次全部效果：${firstError}`, '效果执行失败', {
               timeOut: 9000,
             });
@@ -20051,7 +20063,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       if (!currentAdvancedPreset) return;
 
       const preset = currentAdvancedPreset;
-      const initiatorName = panel.find('#dice-initiator-name').val().trim() || '<user>';
+      const initiatorName = resolveCanonicalCharacterName(panel.find('#dice-initiator-name').val().trim() || '<user>');
       const attrName = panel.find('#dice-attr-name').val().trim() || '自由检定';
 
       // [辅助函数] 解析 defaultValue (支持表达式)
@@ -20832,7 +20844,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const diceExpr = panel.find('#custom-dice-expr').val().trim() || '1d100';
       const judgeMode = panel.find('#custom-judge-mode').val() as string;
       const targetValueStr = panel.find('#custom-target-value').val().trim();
-      const initiatorName = panel.find('#dice-initiator-name').val().trim() || '<user>';
+      const initiatorName = resolveCanonicalCharacterName(panel.find('#dice-initiator-name').val().trim() || '<user>');
       const attrName = panel.find('#dice-attr-name').val().trim() || '自由检定';
 
       // 解析目标值
@@ -21189,7 +21201,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       });
 
       // 生成 Prompt 文本
-      const initiatorName = panel.find('#dice-initiator-name').val().trim() || '<user>';
+      const initiatorName = resolveCanonicalCharacterName(panel.find('#dice-initiator-name').val().trim() || '<user>');
 
       // 构建简单条件表达式（用于界面显示）
       let conditionExpr = '';
@@ -21394,64 +21406,44 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     // [新增] 构建角色下拉列表（主角真名 + 重要角色表）
     let characterList: string[] = [];
+    const pushContestCharacter = (name: unknown, preferFront = false): void => {
+      const displayName = getDisplayName(String(name ?? '').trim());
+      if (!displayName || characterList.some(existing => characterNamesMatch(existing, displayName))) return;
+      if (preferFront) {
+        characterList.unshift(displayName);
+      } else {
+        characterList.push(displayName);
+      }
+    };
     if (rawData) {
       for (const key in rawData) {
         const sheet = rawData[key];
         if (!sheet || !sheet.name || !sheet.content) continue;
+        const headers = sheet.content[0] || [];
         if (isNpcTableName(sheet.name)) {
+          const nameIdx = findNameColumnIndex(headers);
           for (let i = 1; i < sheet.content.length; i++) {
             const row = sheet.content[i];
-            if (row && row[1]) characterList.push(row[1]);
+            if (row) pushContestCharacter(row[nameIdx]);
           }
         }
         if (sheet.name?.includes('主角') && sheet.content[1]) {
           const row = sheet.content[1];
-          if (row[1]) characterList.unshift(getDisplayName(String(row[1])));
+          const nameIdx = findNameColumnIndex(headers);
+          pushContestCharacter(row[nameIdx], true);
         }
       }
     }
     // [新增] 构建属性下拉列表
     let contestAttrList = [];
-    if (rawData) {
-      for (const key in rawData) {
-        const sheet = rawData[key];
-        if (sheet && sheet.name?.includes('主角') && sheet.content && sheet.content[1]) {
-          const headers = sheet.content[0] || [];
-          const row = sheet.content[1];
-          headers.forEach((h, idx) => {
-            if (h && h.includes('属性')) {
-              const parsed = parseAttributeString(row[idx] || '');
-              parsed.forEach(attr => {
-                if (!contestAttrList.includes(attr.name)) contestAttrList.push(attr.name);
-              });
-            }
-          });
-          break;
-        }
-      }
-    }
-    if (rawData) {
-      for (const key in rawData) {
-        const sheet = rawData[key];
-        if (!sheet || !sheet.name || !sheet.content) continue;
-
-        if (sheet.name?.includes('主角') && sheet.content[1]) {
-          const attrStr = sheet.content[1][7] || '';
-          playerAttrs = parseAttributeString(attrStr);
-        }
-
-        if (isNpcTableName(sheet.name) && opponentName) {
-          for (let i = 1; i < sheet.content.length; i++) {
-            const row = sheet.content[i];
-            if (row && row[1] === opponentName) {
-              const attrStr = row[9] || '';
-              opponentAttrs = parseAttributeString(attrStr);
-              break;
-            }
-          }
-        }
-      }
-    }
+    playerAttrs = getFullAttributesForCharacter(passedInitiatorName || '<user>');
+    playerAttrs.forEach(attr => {
+      if (!contestAttrList.includes(attr.name)) contestAttrList.push(attr.name);
+    });
+    opponentAttrs = opponentName ? getFullAttributesForCharacter(opponentName) : [];
+    opponentAttrs.forEach(attr => {
+      if (!contestAttrList.includes(attr.name)) contestAttrList.push(attr.name);
+    });
 
     const buildAttrButtons = (attrs, targetType) => {
       let html = '';
@@ -21541,7 +21533,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       '<div class="acu-dice-section-title" id="contest-init-char-buttons-section"><span><i class="fa-solid fa-user"></i> 发起方</span><div id="contest-init-char-buttons" class="acu-dice-quick-inline"></div></div>' +
       '<div id="contest-init-params-section">' +
       '<div id="contest-init-primary-row" class="acu-dice-form-row cols-2">' +
-      '<div><div class="acu-dice-form-label">名字</div><input type="text" class="acu-dice-input" id="contest-init-display" value="" placeholder="<user>"></div>' +
+      '<div><div class="acu-dice-form-label">名字</div><input type="text" class="acu-dice-input" id="contest-init-display" value="' +
+      escapeHtml(passedInitiatorName) +
+      '" placeholder="<user>"></div>' +
       '<div><div class="acu-dice-form-label"><span class="contest-attr-name-text">属性名</span><button type="button" class="acu-random-skill-btn" id="contest-init-random-skill" title="随机技能"><i class="fa-solid fa-dice"></i></button></div><input type="text" class="acu-dice-input" id="contest-init-name" value="" placeholder="自由检定"></div>' +
       '</div>' +
       // [调整] 发起方骰子语法 (自定义模式时显示，半宽)
@@ -21624,7 +21618,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const $container = panel.find(containerId);
       let html = '';
       characterList.forEach(name => {
-        const resolvedName = NameAliasRegistry.resolve(String(name));
+        const resolvedName = resolveCanonicalCharacterName(String(name));
         const displayName = replaceUserPlaceholders(String(resolvedName));
         const shortName = displayName.length > 4 ? displayName.substring(0, 4) + '..' : displayName;
         html +=
@@ -22743,10 +22737,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         console.warn('[DICE] 对抗别名映射刷新失败:', error);
       }
       const initNameRaw = panel.find('#contest-init-display').val().trim() || '<user>';
-      const initName = initNameRaw === '<user>' ? initNameRaw : NameAliasRegistry.resolve(initNameRaw);
+      const initName = resolveCanonicalCharacterName(initNameRaw);
       const initAttrName = panel.find('#contest-init-name').val().trim() || '自由检定';
       const oppNameRaw = panel.find('#contest-opponent-display').val().trim() || '对手';
-      const oppName = oppNameRaw === '<user>' ? oppNameRaw : NameAliasRegistry.resolve(oppNameRaw);
+      const oppName = resolveCanonicalCharacterName(oppNameRaw);
       const oppAttrName = panel.find('#contest-opp-name').val().trim() || initAttrName;
 
       // 掷骰
@@ -22967,7 +22961,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       }
 
       var initNameRaw = (panel.find('#contest-init-display').val() || '').toString().trim() || '<user>';
-      var initName = initNameRaw === '<user>' ? initNameRaw : NameAliasRegistry.resolve(initNameRaw);
+      var initName = resolveCanonicalCharacterName(initNameRaw);
       var initAttrName = (panel.find('#contest-init-name').val() || '').toString().trim() || '自由检定';
       // 辅助函数：根据骰子公式计算最大值的一半
       var getHalfMax = function (formulaStr) {
@@ -23032,7 +23026,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       }
 
       var oppNameRaw = (panel.find('#contest-opponent-display').val() || '').toString().trim() || '对手';
-      var oppName = oppNameRaw === '<user>' ? oppNameRaw : NameAliasRegistry.resolve(oppNameRaw);
+      var oppName = resolveCanonicalCharacterName(oppNameRaw);
       var oppAttrName = (panel.find('#contest-opp-name').val() || '').toString().trim() || initAttrName;
       var oppValueInput = (panel.find('#contest-opp-value').val() || '').toString().trim();
       var oppValue;
@@ -23720,7 +23714,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const locations = new Map();
     const locationHeaders = locationResult.data.headers || [];
     const locationRows = locationResult.data.rows || [];
-    const locationConfig = locationResult.config || getDashboardModuleConfig('location') || DASHBOARD_TABLE_CONFIG.location;
+    const locationConfig =
+      locationResult.config || getDashboardModuleConfig('location') || DASHBOARD_TABLE_CONFIG.location;
     const locationNameIdx = DashboardDataParser.findColumnIndex(locationHeaders, 'name', locationConfig);
     const locationRegionIdx = findColumnIndex(locationHeaders, ['次要地区', '次要区域', '区域', '地区'], null);
     const locationTypeIdx = findColumnIndex(locationHeaders, ['地点类型', '地点类别', '类型'], null);
@@ -23806,14 +23801,22 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     }
 
     const characters = new Map();
+    const resolveMapAvatarLookupName = (name: unknown): string => {
+      const rawName = String(name || '').trim();
+      if (!rawName) return '';
+      return resolveUserGraphName(NameAliasRegistry.resolve(rawName));
+    };
+
     const addCharacter = async character => {
-      const avatarUrl = await AvatarManager.getAsync(character.name);
+      const avatarLookupName = resolveMapAvatarLookupName(character.name) || character.name;
+      const avatarUrl = await AvatarManager.getAsync(avatarLookupName);
       const full = {
         ...character,
+        avatarLookupName,
         avatarUrl,
-        avatarOffsetX: AvatarManager.getOffsetX(character.name),
-        avatarOffsetY: AvatarManager.getOffsetY(character.name),
-        avatarScale: AvatarManager.getScale(character.name),
+        avatarOffsetX: AvatarManager.getOffsetX(avatarLookupName),
+        avatarOffsetY: AvatarManager.getOffsetY(avatarLookupName),
+        avatarScale: AvatarManager.getScale(avatarLookupName),
       };
       if (!characters.has(full.location)) {
         characters.set(full.location, []);
@@ -24432,7 +24435,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
       tableResults.forEach(tableResult => {
         const sourceHeaders = (tableResult.table.headers || []).map(header => String(header || ''));
-        const nameIdx = findRelationGraphColumnIndex(sourceHeaders, source.nameColumn);
+        const configuredNameIdx = findRelationGraphColumnIndex(sourceHeaders, source.nameColumn);
+        const nameIdx = configuredNameIdx >= 0 ? configuredNameIdx : findNameColumnIndex(sourceHeaders, -1);
         const relationIdx = findRelationGraphColumnIndex(sourceHeaders, source.relationColumn);
         if (nameIdx < 0 || relationIdx < 0) {
           console.warn(
@@ -24473,6 +24477,155 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     };
   };
 
+  const isDashboardRoleInSceneValue = (value, header = ''): boolean => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (!normalized) return false;
+
+    const normalizedHeader = String(header || '').toLowerCase();
+    if (normalizedHeader.includes('离场')) {
+      return (
+        normalized === '否' ||
+        normalized === 'false' ||
+        normalized === 'no' ||
+        normalized === '0' ||
+        normalized.includes('未离场') ||
+        normalized.includes('不离场')
+      );
+    }
+
+    if (normalized === 'true' || normalized === 'yes' || normalized === '是' || normalized === '1') return true;
+    if (normalized.includes('不在场') || normalized.includes('离场')) return false;
+    return normalized.startsWith('在场') || normalized.includes('在场');
+  };
+
+  const pushDashboardNpcEntry = (entries, entry): void => {
+    const name = String(entry.name || '').trim();
+    if (!name) return;
+    if (entries.some(existing => characterNamesMatch(existing.name, name))) return;
+    entries.push({ ...entry, name });
+  };
+
+  const findDashboardNpcNameColumnIndex = (headers, source): number => {
+    if (source?.nameColumn) {
+      const configuredNameIdx = findRelationGraphColumnIndex(headers, source.nameColumn);
+      return configuredNameIdx >= 0 ? configuredNameIdx : findNameColumnIndex(headers, -1);
+    }
+
+    const npcConfig = getDashboardModuleConfig('npc') || DASHBOARD_TABLE_CONFIG.npc;
+    const configuredNameIdx = DashboardDataParser.findColumnIndex(headers, 'name', npcConfig);
+    return configuredNameIdx >= 0 ? configuredNameIdx : findNameColumnIndex(headers, -1);
+  };
+
+  const collectDashboardNpcEntriesFromTableResult = (entries, tableResult, source = null): number => {
+    const table = tableResult?.table || tableResult?.data;
+    if (!table) return 0;
+
+    const tableName = String(tableResult.tableName || tableResult.name || '');
+    const tableKey = String(table.key || tableResult.key || '');
+    const headers = (table.headers || []).map(header => String(header || ''));
+    const rows = table.rows || [];
+    const nameIdx = findDashboardNpcNameColumnIndex(headers, source);
+
+    if (nameIdx < 0) {
+      console.warn(`[DICE]仪表盘角色区: 表格"${tableName || '未知'}"缺少名称列`);
+      return 0;
+    }
+
+    if (source?.relationColumn && findRelationGraphColumnIndex(headers, source.relationColumn) < 0) {
+      console.warn(`[DICE]仪表盘角色区: 表格"${tableName || '未知'}"缺少关系列`);
+      return 0;
+    }
+
+    const npcConfig = getDashboardModuleConfig('npc') || DASHBOARD_TABLE_CONFIG.npc;
+    const statusIdx = DashboardDataParser.findColumnIndex(headers, 'status', npcConfig);
+    const positionIdx = DashboardDataParser.findColumnIndex(headers, 'position', npcConfig);
+    let inSceneIdx = DashboardDataParser.findColumnIndex(headers, 'inScene', npcConfig);
+    if (inSceneIdx < 0 || inSceneIdx >= headers.length) {
+      inSceneIdx = headers.findIndex(header => header.includes('在场') || header.includes('离场'));
+    }
+
+    const beforeCount = entries.length;
+    rows.forEach((row, rowIndex) => {
+      const rawName = String(row?.[nameIdx] || '').trim();
+      if (!rawName) return;
+      pushDashboardNpcEntry(entries, {
+        name: rawName,
+        status: statusIdx >= 0 && statusIdx < row.length ? row[statusIdx] || '' : '',
+        position: positionIdx >= 0 && positionIdx < row.length ? row[positionIdx] || '' : '',
+        isInScene:
+          inSceneIdx >= 0 && inSceneIdx < row.length
+            ? isDashboardRoleInSceneValue(row[inSceneIdx], headers[inSceneIdx])
+            : false,
+        index: rowIndex,
+        tableKey,
+        tableName,
+      });
+    });
+
+    return entries.length - beforeCount;
+  };
+
+  const collectDashboardNpcEntriesFromTableResults = tableResults => {
+    const entries = [];
+    tableResults.forEach(tableResult => collectDashboardNpcEntriesFromTableResult(entries, tableResult));
+    return entries;
+  };
+
+  const collectDashboardNpcEntriesFromRelationshipSources = (
+    allTables: Record<string, RelationGraphTableInput>,
+    sources: DashboardRelationshipGraphSourceConfig[],
+  ) => {
+    const entries = [];
+    const matchedTableKeys = new Set<string>();
+    const usedSources: string[] = [];
+
+    sources.forEach((source, sourceIndex) => {
+      const sourceTableResults = findRelationshipGraphSourceTables(allTables, source.tableKeywords);
+      if (sourceTableResults.length === 0) {
+        console.info(
+          `[DICE]仪表盘角色区: 来源${sourceIndex + 1}未找到表格 (关键词: ${source.tableKeywords.join(', ')})`,
+        );
+        return;
+      }
+
+      sourceTableResults.forEach(tableResult => {
+        const tableKey = String(tableResult.table.key || tableResult.tableName || '');
+        if (tableKey && matchedTableKeys.has(tableKey)) return;
+
+        const addedCount = collectDashboardNpcEntriesFromTableResult(entries, tableResult, source);
+        if (addedCount > 0) {
+          if (tableKey) matchedTableKeys.add(tableKey);
+          usedSources.push(tableResult.tableName);
+        }
+      });
+    });
+
+    if (entries.length > 0) {
+      console.info(`[DICE]仪表盘角色区: 已合并来源 ${usedSources.join('、')}，共${entries.length}名角色`);
+    }
+    return entries;
+  };
+
+  const getDashboardNpcListData = (allTables: Record<string, RelationGraphTableInput>) => {
+    const npcTableResults = DashboardDataParser.findTables(allTables, 'npc');
+    const graphSources = getActiveDashboardRelationshipGraphSources();
+    const graphEntries =
+      graphSources.length > 0 ? collectDashboardNpcEntriesFromRelationshipSources(allTables, graphSources) : [];
+    const entries =
+      graphEntries.length > 0 ? graphEntries : collectDashboardNpcEntriesFromTableResults(npcTableResults);
+    const primaryEntry = entries[0];
+    const primaryTable = npcTableResults[0];
+
+    return {
+      entries,
+      tableName: primaryEntry?.tableName || primaryTable?.name || '重要角色表',
+      tableKey: primaryEntry?.tableKey || primaryTable?.key || '',
+      hasTable: entries.length > 0 || npcTableResults.length > 0,
+    };
+  };
+
   interface RelationGraphLayoutPosition {
     x: number;
     y: number;
@@ -24492,7 +24645,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const headers = (npcTable.headers || []).map(header => String(header || ''));
     const rows = npcTable.rows || [];
 
-    const nameIdx = headers.findIndex(h => h && (h.includes('姓名') || h.includes('名称'))) || 1;
+    const nameIdx = findNameColumnIndex(headers);
     const relationIdx = headers.findIndex(h => h && h.includes('人际关系'));
     const npcTableKey = npcTable.key || '';
 
@@ -24517,7 +24670,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       for (const key in rawData) {
         const sheet = rawData[key];
         if (sheet?.name?.includes('主角') && sheet.content?.[1]) {
-          playerName = getDisplayName(sheet.content[1][1] || '主角');
+          const headers = sheet.content[0] || [];
+          playerName = getRowDisplayName(sheet.content[1], headers) || '主角';
           break;
         }
       }
@@ -27222,8 +27376,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               if (!row) continue;
 
               // 检查名字列（常见列名）
-              const nameColumns = ['名字', '角色名', '姓名', 'name', 'Name', '名称'];
-              for (const col of nameColumns) {
+              for (const col of CHARACTER_NAME_COLUMN_KEYS) {
                 const cellValue = row[col];
                 if (cellValue && typeof cellValue === 'string') {
                   if (allNames.includes(cellValue.toLowerCase())) {
@@ -27276,15 +27429,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             const tableName = sheet.name || tKey.replace('sheet_', '');
 
             // 查找"名字"列索引
-            const nameColumns = ['名字', '角色名', '姓名', 'name', 'Name', '名称'];
-            let nameColIndex = -1;
-            for (const col of nameColumns) {
-              const idx = headers.findIndex(h => h === col);
-              if (idx !== -1) {
-                nameColIndex = idx;
-                break;
-              }
-            }
+            const nameColIndex = findNameColumnIndex(headers, -1);
 
             // 查找"人际关系"列索引
             const relationColIndex = headers.findIndex(h => h === '人际关系');
@@ -27375,15 +27520,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                 if (!Array.isArray(sheet.content) || sheet.content.length < 2) continue;
 
                 const headers = sheet.content[0] as string[];
-                const nameColumns = ['名字', '角色名', '姓名', 'name', 'Name', '名称'];
-                let nameColIndex = -1;
-                for (const col of nameColumns) {
-                  const idx = headers.findIndex(h => h === col);
-                  if (idx !== -1) {
-                    nameColIndex = idx;
-                    break;
-                  }
-                }
+                const nameColIndex = findNameColumnIndex(headers, -1);
                 if (nameColIndex === -1) continue;
 
                 for (let i = 1; i < sheet.content.length; i++) {
@@ -27637,15 +27774,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
               // 获取表头，找到"名字"列的索引
               const headers = sheet.content[0] as string[];
-              const nameColumns = ['名字', '角色名', '姓名', 'name', 'Name', '名称'];
-              let nameColIndex = -1;
-              for (const col of nameColumns) {
-                const idx = headers.findIndex(h => h === col);
-                if (idx !== -1) {
-                  nameColIndex = idx;
-                  break;
-                }
-              }
+              const nameColIndex = findNameColumnIndex(headers, -1);
 
               if (nameColIndex === -1) continue; // 该表格没有名字列
 
@@ -28809,7 +28938,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return Boolean(record && Array.isArray(record.content));
   };
 
-  const normalizeDiffText = (value: unknown): string => String(value ?? '').trim().replace(/\s+/g, ' ');
+  const normalizeDiffText = (value: unknown): string =>
+    String(value ?? '')
+      .trim()
+      .replace(/\s+/g, ' ');
 
   const normalizeDiffHeader = (value: unknown): string => normalizeDiffText(value).toLowerCase();
 
@@ -28973,7 +29105,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return { byKey, rows, usedIndices: new Set<number>() };
   };
 
-  const takeDiffRowMatch = (matcher: DiffRowMatcher, headers: DiffRow, row: DiffRow, rowIndex: number): DiffRowMatch | null => {
+  const takeDiffRowMatch = (
+    matcher: DiffRowMatcher,
+    headers: DiffRow,
+    row: DiffRow,
+    rowIndex: number,
+  ): DiffRowMatch | null => {
     for (const key of getDiffRowIdentityKeys(headers, row)) {
       const queue = matcher.byKey.get(key);
       while (queue?.length) {
@@ -29139,7 +29276,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                     .acu-contest-panel *:not(i[class*="fa-"]):not(i[class*="ti-"]),
                     .acu-dice-config-dialog,
                     .acu-relation-graph-container, .acu-avatar-manager, .acu-import-confirm-dialog, .acu-inventory-overlay, .acu-inventory-shell, .acu-inventory-detail,
-                    .acu-gacha-overlay, .acu-embedded-options-container, .acu-option-panel, .acu-opt-btn {
+                    .acu-gacha-overlay, .acu-embedded-options-container, .acu-option-panel, .acu-opt-btn, .acu-check-suggestion-btn {
                         font-family: ${fontVal} !important;
                     }
                 `;
@@ -29500,7 +29637,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const getSheetRows = sheet => (Array.isArray(sheet?.content) ? sheet.content.slice(1) : []);
   const getSheetHeaders = sheet => (Array.isArray(sheet?.content?.[0]) ? sheet.content[0] : []);
   const sameRow = (left, right): boolean => JSON.stringify(left || []) === JSON.stringify(right || []);
-  const sameHeaders = (left, right): boolean => JSON.stringify(getSheetHeaders(left)) === JSON.stringify(getSheetHeaders(right));
+  const sameHeaders = (left, right): boolean =>
+    JSON.stringify(getSheetHeaders(left)) === JSON.stringify(getSheetHeaders(right));
   const getStableRowKeyForCrud = row => {
     if (!Array.isArray(row)) return '';
     const primary = String(row[1] ?? '').trim();
@@ -29650,7 +29788,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return changedColumns;
   };
 
-  const isCrudRowIdMissing = (value: unknown): boolean => value === null || value === undefined || String(value).trim() === '';
+  const isCrudRowIdMissing = (value: unknown): boolean =>
+    value === null || value === undefined || String(value).trim() === '';
 
   const shouldInferCrudRowIdFromVisibleIndex = (input: CrudExistingRowPatchInput): boolean => {
     const firstHeader = normalizeDiffHeader(input.headers[0]);
@@ -29725,7 +29864,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (isolatedData && isolationKey !== null) {
       const tagData = asDiffRecord(isolatedData[isolationKey]);
       const independentData = asDiffRecord(tagData?.independentData);
-      rememberPatchedKey(patchCrudSheetCellInRecord(independentData, sheetKey, desiredSheet, rowIndex, colIndex, value));
+      rememberPatchedKey(
+        patchCrudSheetCellInRecord(independentData, sheetKey, desiredSheet, rowIndex, colIndex, value),
+      );
       if (patchedKeys.length > 0) msg.TavernDB_ACU_IsolatedData = isolatedData;
     }
 
@@ -29835,10 +29976,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return refreshedData;
   };
 
-  const applyJsonCellFallbackForCrud = async (
-    input: CrudExistingRowPatchInput,
-    colIndex: number,
-  ): Promise<boolean> => {
+  const applyJsonCellFallbackForCrud = async (input: CrudExistingRowPatchInput, colIndex: number): Promise<boolean> => {
     const liveData = readRuntimeTableDataReference(input.api);
     const liveEntry =
       findDiffSnapshotEntry(liveData, input.sheetKey || input.tableName, input.sheet) ||
@@ -29848,7 +29986,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     const value = input.nextRow[colIndex] ?? '';
     patchCrudSheetCellInRecord(liveData, sheetKey, input.sheet, input.rowIndex, colIndex, value);
-    const persisted = await patchLatestChatSheetCellWithoutTracking(sheetKey, input.sheet, input.rowIndex, colIndex, value);
+    const persisted = await patchLatestChatSheetCellWithoutTracking(
+      sheetKey,
+      input.sheet,
+      input.rowIndex,
+      colIndex,
+      value,
+    );
     if (!persisted) return false;
 
     input.api._notifyTableUpdate?.();
@@ -29934,13 +30078,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     });
   };
 
-  const assertCrudInsertRequiredCells = (
-    tableName: string,
-    headers,
-    row,
-    sheet,
-    rowIndex: number,
-  ): void => {
+  const assertCrudInsertRequiredCells = (tableName: string, headers, row, sheet, rowIndex: number): void => {
     if (!Array.isArray(headers) || !Array.isArray(row)) return;
     const requiredHeaders = buildCrudRequiredHeaderSet(sheet);
     if (requiredHeaders.size === 0) return;
@@ -29975,7 +30113,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   };
 
   const applyExistingRowCellPatchesViaCrud = async (input: CrudExistingRowPatchInput): Promise<Set<number>> => {
-    const changedColumns = input.changedColumns || getCrudChangedColumns(input.headers, input.currentRow, input.nextRow);
+    const changedColumns =
+      input.changedColumns || getCrudChangedColumns(input.headers, input.currentRow, input.nextRow);
     const writableColumns = new Set<number>(
       Array.from(changedColumns).filter(index => index > 0 && Boolean(input.headers[index])),
     );
@@ -30109,7 +30248,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (desiredRows.length > workingRows.length) {
       for (let index = workingRows.length; index < desiredRows.length; index++) {
         assertCrudInsertRequiredCells(tableName, headers, desiredRows[index], desiredSheet, index);
-        assertCrudEnumConstraints(tableName, headers, desiredRows[index], desiredSheet, index, undefined, columnAliasMap);
+        assertCrudEnumConstraints(
+          tableName,
+          headers,
+          desiredRows[index],
+          desiredSheet,
+          index,
+          undefined,
+          columnAliasMap,
+        );
         const rowData = buildRowDataForCrud(headers, desiredRows[index], undefined);
         const result = await api.insertRow({ tableName: crudTableName, data: rowData, skipNotify: true });
         if (result === false || result === -1) {
@@ -30177,7 +30324,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return { dataToSave, sheetKeysToSave };
   };
 
-  const applyRuntimeDataViaCrud = async (tableData, modifiedSheetKeys?: string[], options?: { commitDeletes?: boolean }) => {
+  const applyRuntimeDataViaCrud = async (
+    tableData,
+    modifiedSheetKeys?: string[],
+    options?: { commitDeletes?: boolean },
+  ) => {
     const api = assertRuntimeCrudApi();
     const isPartialSave = Array.isArray(modifiedSheetKeys);
     const { dataToSave, sheetKeysToSave } = sanitizeRuntimeTableData(
@@ -30266,7 +30417,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     try {
       return await applyRuntimeDataViaCrud(tableData, modifiedSheetKeys);
     } catch (e) {
-      console.error('[DICE]ACU saveDataOnly error:', getRuntimeErrorLogPayload(e), modifiedSheetKeys ? { modifiedSheetKeys } : undefined);
+      console.error(
+        '[DICE]ACU saveDataOnly error:',
+        getRuntimeErrorLogPayload(e),
+        modifiedSheetKeys ? { modifiedSheetKeys } : undefined,
+      );
       throw e;
     }
   };
@@ -30387,7 +30542,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const tableName = normalizeDiffText(context?.tableName) || normalizeDiffText(entry?.sheet?.name);
         const sheetForMetadata = context?.sheet || entry?.sheet;
         const headers = Array.isArray(context?.headers) ? context.headers : getSheetHeaders(entry?.sheet);
-        const currentRow = Array.isArray(context?.currentRow) ? context.currentRow : getDiffDataRow(entry?.sheet, rowIndex);
+        const currentRow = Array.isArray(context?.currentRow)
+          ? context.currentRow
+          : getDiffDataRow(entry?.sheet, rowIndex);
 
         if (!tableName) {
           throw new Error(`表格 "${tableKey}" 不存在`);
@@ -30462,7 +30619,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const nextRow = [...newRowData];
       const columnAliasMap = buildCrudColumnAliasMap(entry.sheet);
       assertCrudInsertRequiredCells(tableName, headers, nextRow, entry.sheet, getSheetRows(entry.sheet).length);
-      assertCrudEnumConstraints(tableName, headers, nextRow, entry.sheet, getSheetRows(entry.sheet).length, undefined, columnAliasMap);
+      assertCrudEnumConstraints(
+        tableName,
+        headers,
+        nextRow,
+        entry.sheet,
+        getSheetRows(entry.sheet).length,
+        undefined,
+        columnAliasMap,
+      );
       const rowData = buildRowDataForCrud(headers, nextRow, undefined);
       const result = await api.insertRow({ tableName: crudTableName, data: rowData, skipNotify: true });
       if (result === false || result === -1) {
@@ -30470,7 +30635,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       }
 
       const fallbackData = cloneRuntimeDataValue(sourceData);
-      const fallbackEntry = findRuntimeSheetEntryForMutation(fallbackData, entry.key) || findRuntimeSheetEntryForMutation(fallbackData, tableKey);
+      const fallbackEntry =
+        findRuntimeSheetEntryForMutation(fallbackData, entry.key) ||
+        findRuntimeSheetEntryForMutation(fallbackData, tableKey);
       if (fallbackEntry?.sheet?.content) fallbackEntry.sheet.content.push([...nextRow]);
       updateRuntimeDataCacheAfterCrud(api, fallbackData, entry.key || tableKey);
     });
@@ -30492,7 +30659,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       if (result === false || result === -1) throw new Error(`删除 "${tableName}" 第 ${rowIndex + 1} 行失败`);
 
       const fallbackData = cloneRuntimeDataValue(sourceData);
-      const fallbackEntry = findRuntimeSheetEntryForMutation(fallbackData, entry.key) || findRuntimeSheetEntryForMutation(fallbackData, tableKey);
+      const fallbackEntry =
+        findRuntimeSheetEntryForMutation(fallbackData, entry.key) ||
+        findRuntimeSheetEntryForMutation(fallbackData, tableKey);
       if (fallbackEntry?.sheet?.content?.[rowIndex + 1]) fallbackEntry.sheet.content.splice(rowIndex + 1, 1);
       updateRuntimeDataCacheAfterCrud(api, fallbackData, entry.key || tableKey);
     });
@@ -35128,7 +35297,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         overlay.remove();
         popModal();
       } catch (error) {
-        if (window.toastr) window.toastr.error('JSONC 格式错误: ' + (error instanceof Error ? error.message : String(error)));
+        if (window.toastr)
+          window.toastr.error('JSONC 格式错误: ' + (error instanceof Error ? error.message : String(error)));
       }
     });
 
@@ -36109,6 +36279,367 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     }
   }
 
+  type CheckSuggestionTieRule = 'initiator_win' | 'initiator_lose' | 'tie';
+  type CheckSuggestionCriteria = 'lte' | 'gte';
+  type CheckSuggestionParsedCommand =
+    | {
+        kind: 'check';
+        characterName: string;
+        attributeName: string;
+        diceType: string;
+        targetValue: number | null;
+        criteria: CheckSuggestionCriteria;
+      }
+    | {
+        kind: 'contest';
+        leftName: string;
+        leftAttribute: string;
+        rightName: string;
+        rightAttribute: string;
+        diceType: string;
+        tieRule: CheckSuggestionTieRule;
+      }
+    | { kind: 'fixed'; success: boolean }
+    | { kind: 'none' }
+    | { kind: 'invalid'; reason: string };
+
+  const normalizeCheckSuggestionDiceFormula = (rawFormula: string): string => {
+    const cleaned = String(rawFormula || '')
+      .trim()
+      .replace(/^[.。]/, '')
+      .replace(/^r(?=\d*d)/i, '');
+    return cleaned || '1d100';
+  };
+
+  const extractCheckSuggestionDiceFormula = (text: string): { rest: string; diceType: string } => {
+    const match = text.match(/(^|\s)([.。]?r?(?:\d*)d(?:\d+|F)(?:[a-z]+\d+)?)(?=$|\s)/i);
+    if (!match || match.index === undefined) return { rest: text, diceType: '1d100' };
+    const before = text.slice(0, match.index);
+    const after = text.slice(match.index + match[0].length);
+    return {
+      rest: `${before} ${after}`.replace(/\s+/g, ' ').trim(),
+      diceType: normalizeCheckSuggestionDiceFormula(match[2]),
+    };
+  };
+
+  const extractCheckSuggestionTarget = (
+    text: string,
+  ): { rest: string; targetValue: number | null; criteria: CheckSuggestionCriteria } => {
+    const match = text.match(/(<=|≤|>=|≥|<|>|=)\s*(\d{1,4})/);
+    if (!match || match.index === undefined) return { rest: text, targetValue: null, criteria: 'lte' };
+    const operator = match[1];
+    const targetValue = parseInt(match[2], 10);
+    const criteria: CheckSuggestionCriteria = operator === '>=' || operator === '≥' || operator === '>' ? 'gte' : 'lte';
+    return {
+      rest: `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`.replace(/\s+/g, ' ').trim(),
+      targetValue: Number.isNaN(targetValue) ? null : targetValue,
+      criteria,
+    };
+  };
+
+  const parseCheckSuggestionTieRule = (rawRule: string): CheckSuggestionTieRule => {
+    const rule = rawRule.trim().toLowerCase();
+    if (/(发起方|左方|initiator|left).*(成功|胜|赢|win)/.test(rule) || rule === '发起方成功') {
+      return 'initiator_win';
+    }
+    if (/^(平局|平手|tie|保留平局)$/.test(rule)) {
+      return 'tie';
+    }
+    return 'initiator_lose';
+  };
+
+  const extractCheckSuggestionTieRule = (text: string): { rest: string; tieRule: CheckSuggestionTieRule } => {
+    const match = text.match(/平局\s*=\s*([^\s，,。；;]+)/);
+    if (!match || match.index === undefined) return { rest: text, tieRule: 'initiator_lose' };
+    return {
+      rest: `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`.replace(/\s+/g, ' ').trim(),
+      tieRule: parseCheckSuggestionTieRule(match[1]),
+    };
+  };
+
+  const parseCheckSuggestionSide = (text: string): { name: string; attribute: string } | null => {
+    const parts = text.trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return null;
+    return {
+      name: parts[0],
+      attribute: parts.slice(1).join(' '),
+    };
+  };
+
+  const parseCheckSuggestionCommand = (rawCommand: string): CheckSuggestionParsedCommand => {
+    const command = String(rawCommand || '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!command) return { kind: 'invalid', reason: '骰子命令为空' };
+    if (/^(必成|必定成功|自动成功)(?:\s|$)/.test(command)) return { kind: 'fixed', success: true };
+    if (/^(必败|必定失败|自动失败)(?:\s|$)/.test(command)) return { kind: 'fixed', success: false };
+    if (/^(无|无需检定|不检定|无检定)(?:\s|$)/.test(command)) return { kind: 'none' };
+
+    if (command.startsWith('检定 ')) {
+      const withoutPrefix = command.replace(/^检定\s+/, '').trim();
+      const targetExtracted = extractCheckSuggestionTarget(withoutPrefix);
+      const diceExtracted = extractCheckSuggestionDiceFormula(targetExtracted.rest);
+      const side = parseCheckSuggestionSide(diceExtracted.rest);
+      if (!side) return { kind: 'invalid', reason: '普通检定命令格式应为：检定 <角色> <属性> .r1d100 <=60' };
+      return {
+        kind: 'check',
+        characterName: side.name,
+        attributeName: side.attribute,
+        diceType: diceExtracted.diceType,
+        targetValue: targetExtracted.targetValue,
+        criteria: targetExtracted.criteria,
+      };
+    }
+
+    if (command.startsWith('对抗 ')) {
+      const withoutPrefix = command.replace(/^对抗\s+/, '').trim();
+      const tieExtracted = extractCheckSuggestionTieRule(withoutPrefix);
+      const diceExtracted = extractCheckSuggestionDiceFormula(tieExtracted.rest);
+      const sides = diceExtracted.rest.split(/\s+vs\s+/i);
+      if (sides.length !== 2) {
+        return { kind: 'invalid', reason: '对抗检定命令格式应为：对抗 <角色> <属性> vs <角色> <属性> .r1d100' };
+      }
+      const left = parseCheckSuggestionSide(sides[0]);
+      const right = parseCheckSuggestionSide(sides[1]);
+      if (!left || !right) {
+        return { kind: 'invalid', reason: '对抗检定需要双方角色和属性' };
+      }
+      return {
+        kind: 'contest',
+        leftName: left.name,
+        leftAttribute: left.attribute,
+        rightName: right.name,
+        rightAttribute: right.attribute,
+        diceType: diceExtracted.diceType,
+        tieRule: tieExtracted.tieRule,
+      };
+    }
+
+    return { kind: 'invalid', reason: `无法识别的骰子命令：${command}` };
+  };
+
+  const normalizeCheckSuggestionActionText = (displayText: string): string => {
+    const text = String(displayText || '').trim();
+    if (!text) return '';
+    return `${text}${/[。！？!?…]$/.test(text) ? '' : '。'}`;
+  };
+
+  const refreshNameAliasesForCheckSuggestion = () => {
+    try {
+      const rawDataForAlias = cachedRawData || getTableData();
+      if (rawDataForAlias) {
+        NameAliasRegistry.rebuild(processJsonData(rawDataForAlias || {}));
+      }
+    } catch (error) {
+      console.warn('[DICE] 检定建议刷新角色别名失败', error);
+    }
+  };
+
+  const resolveCheckSuggestionCharacterName = (name: string): string => {
+    const trimmed = String(name || '').trim();
+    return resolveCanonicalCharacterName(trimmed);
+  };
+
+  const getCheckSuggestionDiceSides = (formula: string): number => {
+    const match = String(formula || '').match(/\d*d(\d+)/i);
+    if (!match) return 100;
+    const sides = parseInt(match[1], 10);
+    return Number.isNaN(sides) ? 100 : sides;
+  };
+
+  const buildCheckSuggestionMetaBlock = (line: string): string => `<meta:检定结果>\n${line}\n</meta:检定结果>`;
+
+  const executeFixedCheckSuggestion = (success: boolean) => {
+    const label = success ? '必定成功' : '必定失败';
+    smartInsertToTextarea(buildCheckSuggestionMetaBlock(`元叙事：无需投骰，【${label}】。`), 'dice');
+  };
+
+  const executeNormalCheckSuggestion = (command: Extract<CheckSuggestionParsedCommand, { kind: 'check' }>) => {
+    refreshNameAliasesForCheckSuggestion();
+    const characterName = resolveCheckSuggestionCharacterName(command.characterName);
+    const targetValue = command.targetValue ?? getAttributeValue(characterName, command.attributeName);
+    if (targetValue === null) {
+      throw new Error(`未找到 ${replaceUserPlaceholders(characterName)} 的属性「${command.attributeName}」`);
+    }
+
+    const rollResult = rollComplexDiceExpression(command.diceType);
+    if (Number.isNaN(rollResult.total)) {
+      throw new Error(`无效的骰子公式：${command.diceType}`);
+    }
+
+    const sides = getCheckSuggestionDiceSides(command.diceType);
+    const finalRoll = rollResult.total;
+    const successLevel = getSuccessLevel(finalRoll, targetValue, sides);
+    const success = command.criteria === 'gte' ? finalRoll >= targetValue : successLevel.level >= 0;
+    const outcomeText = command.criteria === 'gte' ? (success ? '成功' : '失败') : successLevel.name;
+    const judgeExpr = command.criteria === 'gte' ? `需≥${targetValue}` : `需≤${targetValue}`;
+    const displayName = replaceUserPlaceholders(characterName);
+    const metaContent = `元叙事：${displayName}发起了【${command.attributeName}】检定，${command.diceType}=${finalRoll}，${judgeExpr}，【${outcomeText}】。`;
+    smartInsertToTextarea(buildCheckSuggestionMetaBlock(metaContent), 'dice');
+
+    const timestamp = Date.now();
+    const detailId = `check_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
+    const checkResultWithTimestamp = {
+      success,
+      roll: finalRoll,
+      total: finalRoll,
+      target: targetValue,
+      margin: command.criteria === 'gte' ? finalRoll - targetValue : targetValue - finalRoll,
+      criticalSuccess: sides === 100 ? finalRoll <= 5 : finalRoll === sides,
+      criticalFailure: sides === 100 ? finalRoll >= 96 : finalRoll === 1,
+      message: outcomeText,
+      diceType: command.diceType,
+      rule: command.criteria === 'gte' ? ('dnd' as const) : ('coc' as const),
+      outcomeText,
+      attrName: command.attributeName,
+      formula: command.diceType,
+      criteria: command.criteria,
+      isAutoTarget: command.targetValue === null,
+      timestamp,
+      detailId,
+      initiatorName: characterName,
+      historyType: 'check' as const,
+      detailLines: [
+        `发起者: ${displayName}`,
+        `属性: ${command.attributeName} (值=${targetValue})`,
+        `公式: ${command.diceType}`,
+        `掷骰: ${finalRoll}`,
+        `判定: ${judgeExpr}`,
+        `结果: ${outcomeText}`,
+      ],
+    };
+    checkHistory.push(checkResultWithTimestamp);
+    if (checkHistory.length > MAX_HISTORY) {
+      checkHistory.shift();
+    }
+    emitEvent('check', checkResultWithTimestamp);
+  };
+
+  const executeContestCheckSuggestion = (command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>) => {
+    refreshNameAliasesForCheckSuggestion();
+    const leftName = resolveCheckSuggestionCharacterName(command.leftName);
+    const rightName = resolveCheckSuggestionCharacterName(command.rightName);
+    const leftTarget = getAttributeValue(leftName, command.leftAttribute);
+    const rightTarget = getAttributeValue(rightName, command.rightAttribute);
+    if (leftTarget === null) {
+      throw new Error(`未找到 ${replaceUserPlaceholders(leftName)} 的属性「${command.leftAttribute}」`);
+    }
+    if (rightTarget === null) {
+      throw new Error(`未找到 ${replaceUserPlaceholders(rightName)} 的属性「${command.rightAttribute}」`);
+    }
+
+    const leftRoll = rollComplexDiceExpression(command.diceType).total;
+    const rightRoll = rollComplexDiceExpression(command.diceType).total;
+    if (Number.isNaN(leftRoll) || Number.isNaN(rightRoll)) {
+      throw new Error(`无效的骰子公式：${command.diceType}`);
+    }
+
+    const sides = getCheckSuggestionDiceSides(command.diceType);
+    const leftLevel = getSuccessLevel(leftRoll, leftTarget, sides);
+    const rightLevel = getSuccessLevel(rightRoll, rightTarget, sides);
+    let winner: 'left' | 'right' | 'tie';
+
+    if (leftLevel.level > rightLevel.level) {
+      winner = 'left';
+    } else if (leftLevel.level < rightLevel.level) {
+      winner = 'right';
+    } else if (command.tieRule === 'initiator_win') {
+      winner = 'left';
+    } else if (command.tieRule === 'tie') {
+      winner = 'tie';
+    } else {
+      winner = 'right';
+    }
+
+    const leftDisplayName = replaceUserPlaceholders(leftName);
+    const rightDisplayName = replaceUserPlaceholders(rightName);
+    const winnerText =
+      winner === 'left' ? `${leftDisplayName}胜出` : winner === 'right' ? `${rightDisplayName}胜出` : '双方平局';
+    const message = `${winnerText}（${leftLevel.name} vs ${rightLevel.name}）`;
+    const metaContent = `元叙事：${leftDisplayName}以【${command.leftAttribute}】对抗${rightDisplayName}的【${command.rightAttribute}】，${command.diceType}=${leftRoll}/${rightRoll}，目标=${leftTarget}/${rightTarget}，结果：${message}。`;
+    smartInsertToTextarea(buildCheckSuggestionMetaBlock(metaContent), 'dice');
+
+    const contestResult: AcuDice.ContestResult = {
+      left: {
+        name: leftName,
+        attribute: command.leftAttribute,
+        roll: leftRoll,
+        target: leftTarget,
+        successLevel: leftLevel.level,
+      },
+      right: {
+        name: rightName,
+        attribute: command.rightAttribute,
+        roll: rightRoll,
+        target: rightTarget,
+        successLevel: rightLevel.level,
+      },
+      winner,
+      message,
+    };
+    const timestamp = Date.now();
+    const contestResultWithTimestamp = {
+      ...contestResult,
+      timestamp,
+      detailId: `contest_${timestamp}_${Math.random().toString(36).slice(2, 8)}`,
+      historyType: 'contest' as const,
+      detailLines: [
+        `发起方: ${leftDisplayName} / 对抗方: ${rightDisplayName}`,
+        `属性: ${command.leftAttribute} vs ${command.rightAttribute}`,
+        `公式: ${command.diceType}`,
+        `掷骰: ${leftRoll} vs ${rightRoll}`,
+        `目标: ${leftTarget} vs ${rightTarget}`,
+        `成功等级: ${leftLevel.name} vs ${rightLevel.name}`,
+        `平手规则: ${command.tieRule}`,
+        `结果: ${message}`,
+      ],
+    };
+    contestHistory.push(contestResultWithTimestamp);
+    if (contestHistory.length > MAX_HISTORY) {
+      contestHistory.shift();
+    }
+    emitEvent('contest', contestResultWithTimestamp);
+  };
+
+  const executeCheckSuggestionCommand = (displayText: string, commandText: string) => {
+    const parsed = parseCheckSuggestionCommand(commandText);
+    if (parsed.kind === 'invalid') {
+      if (window.toastr) window.toastr.error(parsed.reason);
+      console.warn('[DICE] 检定建议命令解析失败:', commandText, parsed.reason);
+      return;
+    }
+
+    try {
+      const actionText = normalizeCheckSuggestionActionText(displayText);
+      const insertActionText = () => {
+        if (actionText) {
+          smartInsertToTextarea(actionText, 'action');
+        }
+      };
+
+      if (parsed.kind === 'none') {
+        insertActionText();
+        return;
+      }
+      if (parsed.kind === 'fixed') {
+        executeFixedCheckSuggestion(parsed.success);
+        insertActionText();
+        return;
+      }
+      if (parsed.kind === 'check') {
+        executeNormalCheckSuggestion(parsed);
+        insertActionText();
+        return;
+      }
+      executeContestCheckSuggestion(parsed);
+      insertActionText();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (window.toastr) window.toastr.error(message);
+      console.error('[DICE] 执行检定建议失败:', error);
+    }
+  };
+
   /**
    * AcuDice 公共 API
    * 提供骰子投掷和检定功能给外部插件使用
@@ -36183,30 +36714,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       // 如果指定了属性名但没有目标值，尝试从角色数据获取
       if (targetValue === undefined && (options.attribute || options.skill)) {
         const attrName = options.attribute || options.skill || '';
-        const rawData = cachedRawData || getTableData();
-
-        if (rawData) {
-          // 从主角信息表查找属性值
-          for (const key in rawData) {
-            const sheet = rawData[key];
-            if (sheet?.name === '主角信息' && sheet.content?.[1]) {
-              const headers = sheet.content[0] || [];
-              const row = sheet.content[1];
-              for (let idx = 0; idx < headers.length; idx++) {
-                const h = headers[idx];
-                if (h && (h.includes('属性') || h.includes('技能'))) {
-                  const parsed = parseAttributeString(row[idx] || '');
-                  const found = parsed.find((attr: { name: string; value: number }) => attr.name === attrName);
-                  if (found) {
-                    targetValue = found.value;
-                    break;
-                  }
-                }
-              }
-              if (targetValue !== undefined) break;
-            }
-          }
-        }
+        const resolvedValue = getAttributeValue('<user>', attrName);
+        if (resolvedValue !== null) targetValue = resolvedValue;
 
         if (targetValue === undefined) {
           throw new Error(`[AcuDice] 未找到属性或技能: ${attrName}`);
@@ -36582,6 +37091,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       /** @deprecated 使用 right 代替 */
       defender?: { name: string; attribute: string; targetValue?: number };
       rule?: 'initiator_win' | 'initiator_lose' | 'tie';
+      diceType?: string;
     }): Promise<{
       left: { name: string; attribute: string; roll: number; target: number; successLevel: number };
       right: { name: string; attribute: string; roll: number; target: number; successLevel: number };
@@ -36608,8 +37118,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         console.warn('[AcuDice] contest() 别名映射刷新失败', error);
       }
 
-      const leftName = left.name === '<user>' ? left.name : NameAliasRegistry.resolve(left.name);
-      const rightName = right.name === '<user>' ? right.name : NameAliasRegistry.resolve(right.name);
+      const leftName = resolveCanonicalCharacterName(left.name);
+      const rightName = resolveCanonicalCharacterName(right.name);
 
       // 获取双方属性值（优先使用 targetValue，否则从角色数据查找）
       let leftTarget = left.targetValue ?? null;
@@ -36630,7 +37140,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
       // 获取骰子配置
       const diceCfg = getDiceConfig();
-      const formula = diceCfg.lastDiceType || '1d100';
+      const formula = normalizeCheckSuggestionDiceFormula(options.diceType || diceCfg.lastDiceType || '1d100');
 
       // 投骰
       const leftResult = rollComplexDiceExpression(formula).total;
@@ -39025,7 +39535,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   let viewportInputMutationDocument: Document | null = null;
   let viewportInputTargetsRaf: number | null = null;
 
-  const VIEWPORT_BOTTOM_ANCHOR_SELECTORS = ['#send_form', '#form_sheld', '#send_textarea', '#chat_input', '#send_but'] as const;
+  const VIEWPORT_BOTTOM_ANCHOR_SELECTORS = [
+    '#send_form',
+    '#form_sheld',
+    '#send_textarea',
+    '#chat_input',
+    '#send_but',
+  ] as const;
   const VIEWPORT_BOTTOM_REFRESH_EVENTS = [
     'input',
     'change',
@@ -39079,7 +39595,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const rect = el.getBoundingClientRect();
         const isComposerElement = VIEWPORT_COMPOSER_ELEMENT_IDS.has(el.id) || el.tagName.toLowerCase() === 'textarea';
         const minTopRatio = isComposerElement ? 0.2 : 0.45;
-        const maxHeight = isComposerElement ? Math.max(520, viewportHeight * 0.75) : Math.max(220, viewportHeight * 0.4);
+        const maxHeight = isComposerElement
+          ? Math.max(520, viewportHeight * 0.75)
+          : Math.max(220, viewportHeight * 0.4);
         if (rect.width <= 0 || rect.height <= 0) return false;
         if (viewportHeight <= 0) return rect.bottom > 0;
         if (rect.top < viewportTop || rect.bottom > viewportBottom + 80) return false;
@@ -39444,11 +39962,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             if (transformResult.totalApplied > 0) {
               console.info(`[DICE]自动替换完成，共影响 ${transformResult.totalApplied} 处数据`);
 
-              saveSheetsViaJsonFloorWithoutTracking(rawData, transformResult.modifiedSheetKeys).catch(err => {
-                console.warn('[DICE]自动转换后保存数据失败:', err);
-              }).finally(() => {
-                isAutoTransforming = false;
-              });
+              saveSheetsViaJsonFloorWithoutTracking(rawData, transformResult.modifiedSheetKeys)
+                .catch(err => {
+                  console.warn('[DICE]自动转换后保存数据失败:', err);
+                })
+                .finally(() => {
+                  isAutoTransforming = false;
+                });
             }
             if (transformResult.errors.length > 0) {
               console.warn(`[DICE]自动转换遇到 ${transformResult.errors.length} 个错误:`, transformResult.errors);
@@ -39572,35 +40092,30 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     let currentOptionHash = null; // 当前选项的指纹
 
     if (config.showOptionPanel !== false) {
+      const checkSuggestionTables = [];
       const optionTables = [];
       Object.keys(tables).forEach(k => {
-        if (k.includes('选项')) optionTables.push(tables[k]);
+        const table = tables[k];
+        const tableName = table?.name || k;
+        if (isCheckSuggestionTableName(tableName)) {
+          checkSuggestionTables.push(table);
+        } else if (isOptionTableName(tableName)) {
+          optionTables.push(table);
+        }
       });
 
       // [修改开始] 添加收起面板的开关 - 叙事书页风重设计
-      if (optionTables.length > 0) {
+      if (checkSuggestionTables.length > 0 || optionTables.length > 0) {
         const isOptionsCollapsed = getOptionsCollapsedState();
         const collapseIcon = isOptionsCollapsed ? 'fa-chevron-right' : 'fa-chevron-down';
         const collapseText = isOptionsCollapsed ? '展开' : '收起';
         const collapsedClass = isOptionsCollapsed ? 'collapsed' : '';
 
-        let optionCount = 0;
-        let hasBtns = false;
         // [修改结束]
-        let optionValues = []; // 用于生成指纹
-
-        // 先统计选项数量
-        optionTables.forEach(table => {
-          if (table.rows) {
-            table.rows.forEach(row => {
-              row.forEach((cell, idx) => {
-                if (idx > 0 && cell && String(cell).trim()) {
-                  optionCount++;
-                }
-              });
-            });
-          }
-        });
+        const checkSuggestionItems = checkSuggestionTables.flatMap(table => getCheckSuggestionItemsFromTable(table));
+        const optionItems = optionTables.flatMap(table => getOptionItemsFromTable(table));
+        const optionCount = checkSuggestionItems.length + optionItems.length;
+        const optionValues: string[] = []; // 用于生成指纹
 
         // 生成标题栏
         let buttonsHtml = `
@@ -39611,22 +40126,17 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                         </span>
                     </div>`;
 
-        optionTables.forEach(table => {
-          if (table.rows) {
-            table.rows.forEach(row => {
-              row.forEach((cell, idx) => {
-                if (idx > 0 && cell && String(cell).trim()) {
-                  const cellStr = String(cell).trim();
-                  buttonsHtml += `<button class="acu-opt-btn" data-val="${safeEncodeURIComponent(cellStr)}">${escapeHtml(cellStr)}</button>`;
-                  optionValues.push(cellStr);
-                  hasBtns = true;
-                }
-              });
-            });
-          }
+        checkSuggestionItems.forEach(item => {
+          buttonsHtml += renderCheckSuggestionOptionButtonHtml(item.displayText, item.commandText);
+          optionValues.push(`check:${item.displayText}=>${item.commandText}`);
         });
 
-        if (hasBtns) {
+        optionItems.forEach(item => {
+          buttonsHtml += renderOptionButtonHtml(item.text);
+          optionValues.push(`option:${item.text}`);
+        });
+
+        if (optionCount > 0) {
           optionHtml = `<div class="acu-option-panel acu-theme-${config.theme} ${collapsedClass}">${buttonsHtml}</div>`;
           // 生成选项内容的指纹 (简单拼接)
           // [修复] 将收起状态加入指纹，强制触发重绘
@@ -40039,6 +40549,18 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   // [修复版] 绑定选项点击事件 (优化：事件委托 + 增强发送逻辑)
   const bindOptionEvents = () => {
     const { $ } = getCore();
+    $('body')
+      .off('click.acu_check_suggestion')
+      .on('click.acu_check_suggestion', '.acu-check-suggestion-btn', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const displayText = safeDecodeURIComponent($(this).attr('data-display') || '');
+        const commandText = safeDecodeURIComponent($(this).attr('data-command') || '');
+        executeCheckSuggestionCommand(displayText, commandText);
+        $('#send_textarea').focus();
+      });
+
     // 移除旧的直接绑定，改用 Body 委托，提升性能并防止动态元素事件丢失
     $('body')
       .off('click.acu_opt')
@@ -40376,9 +40898,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const isValidationMode = Store.get(STORAGE_KEY_VALIDATION_MODE, false);
     const hasStructuralChanges = changes.some(
       change =>
-        change.type === 'table_deleted' ||
-        change.type === 'table_added' ||
-        change.type === 'table_structure_changed',
+        change.type === 'table_deleted' || change.type === 'table_added' || change.type === 'table_structure_changed',
     );
 
     // 根据模式渲染不同的标题和按钮
@@ -40624,9 +41144,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const bindChangesEvents = () => {
     const { $ } = getCore();
 
-    const resolveChangesPanelJumpTarget = (
-      $item: JQuery,
-    ): { tableName: string; rowIndex: number } | null => {
+    const resolveChangesPanelJumpTarget = ($item: JQuery): { tableName: string; rowIndex: number } | null => {
       const tableNameFromItem = String($item.data('table') || '').trim();
       const tableKey = String($item.data('table-key') || '').trim();
       const rawRowIndex = $item.data('row') ?? $item.data('row-index');
@@ -40712,7 +41230,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             if (rawData[sheetId]?.name === tableName && snapshot[sheetId]) {
               const headers = rawData[sheetId].content?.[0] || [];
               const colIdx = headers.indexOf(columnName);
-              if (colIdx >= 0 && rawData[sheetId].content?.[rowIndex + 1] && snapshot[sheetId].content?.[rowIndex + 1]) {
+              if (
+                colIdx >= 0 &&
+                rawData[sheetId].content?.[rowIndex + 1] &&
+                snapshot[sheetId].content?.[rowIndex + 1]
+              ) {
                 const snapshotValue = snapshot[sheetId].content[rowIndex + 1][colIdx];
                 const nextRow = [...rawData[sheetId].content[rowIndex + 1]];
                 nextRow[colIdx] = snapshotValue;
@@ -40923,7 +41445,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         if (!snapshot || !rawData) return;
 
         const snapshotEntry = findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(rawData, tableKey));
-        const rawEntry = findDiffSnapshotEntry(rawData, tableKey, snapshotEntry?.sheet || getDiffSheetByKey(rawData, tableKey));
+        const rawEntry = findDiffSnapshotEntry(
+          rawData,
+          tableKey,
+          snapshotEntry?.sheet || getDiffSheetByKey(rawData, tableKey),
+        );
         if (!rawEntry?.sheet) {
           if (window.toastr) window.toastr.warning('找不到当前表格，无法快捷拒绝该变更');
           return;
@@ -41393,7 +41919,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     // 获取快照中的旧值
     const snapshot = loadSnapshot();
     const currentRawData = cachedRawData || getTableData();
-    const snapshotEntry = snapshot ? findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(currentRawData, tableKey)) : null;
+    const snapshotEntry = snapshot
+      ? findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(currentRawData, tableKey))
+      : null;
     const oldRow = getDiffDataRow(snapshotEntry?.sheet, rowIndex);
     const oldValue = String(oldRow?.[colIndex] ?? '');
     const hasOldValue = oldValue !== '' && String(oldValue) !== String(value);
@@ -41497,7 +42025,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     // 获取快照中的旧行
     const snapshot = loadSnapshot();
     const currentRawData = cachedRawData || getTableData();
-    const snapshotEntry = snapshot ? findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(currentRawData, tableKey)) : null;
+    const snapshotEntry = snapshot
+      ? findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(currentRawData, tableKey))
+      : null;
     const oldRow = getDiffDataRow(snapshotEntry?.sheet, rowIndex) || [];
 
     // 构建字段对比列表
@@ -41613,7 +42143,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const globalResult = DashboardDataParser.findTable(allTables, 'global');
     const playerResult = DashboardDataParser.findTable(allTables, 'player');
     const locationResult = DashboardDataParser.findTable(allTables, 'location');
-    const npcResult = DashboardDataParser.findTable(allTables, 'npc');
     const questResult = DashboardDataParser.findTable(allTables, 'quest');
     const bagResult = DashboardDataParser.findTable(allTables, 'bag');
     const equipResult = DashboardDataParser.findTable(allTables, 'equip');
@@ -41682,28 +42211,19 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       globalLocation ||
       (player.position.includes('-') ? player.position.split('-')[0].trim() : player.position);
 
-    // [重构] NPC数据 - 使用新解析器
-    const npcTableName = npcResult?.name || '重要角色表';
-    const npcTableKey = npcResult?.key || '';
-
-    const npcParsed = DashboardDataParser.parseRows(npcResult, 'npc');
+    // [重构] NPC数据 - 角色区优先复用人物关系图 sources，可拼接多个来源
+    const npcListData = getDashboardNpcListData(allTables);
+    const npcTableName = npcListData.tableName;
+    const npcTableKey = npcListData.tableKey;
 
     // 分离在场和离场的NPC
     let inSceneNPCs = [];
     let offSceneNPCs = [];
-    npcParsed.forEach(npc => {
-      const inSceneVal = String(npc.inScene || '').toLowerCase();
-      const normalizedNpcName = String(npc.name || '未知').trim() || '未知';
-      const npcData = {
-        name: normalizedNpcName,
-        status: npc.status || '',
-        position: npc.position || '',
-        index: npc._rowIndex,
-      };
-      if (inSceneVal === 'true' || inSceneVal === '在场') {
-        inSceneNPCs.push(npcData);
+    npcListData.entries.forEach(npc => {
+      if (npc.isInScene) {
+        inSceneNPCs.push(npc);
       } else {
-        offSceneNPCs.push(npcData);
+        offSceneNPCs.push(npc);
       }
     });
     // 合并：在场的排前面
@@ -41973,7 +42493,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                               const npcDisplayShort =
                                 npcDisplayName.length > 4 ? npcDisplayName.substring(0, 4) + '..' : npcDisplayName;
                               const npcFallbackChar = npcDisplayName.charAt(0) || '？';
-                              const isInScene = inSceneNPCs.some(n => n.name === npcName);
+                              const isInScene = npc.isInScene === true;
                               const isLastNpc = npcIdx === allNPCs.length - 1;
                               const npcAvatar = AvatarManager.get(npcName);
                               const avatarOffsetX = AvatarManager.getOffsetX(npcName);
@@ -41986,7 +42506,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                                 ? ''
                                 : 'filter:grayscale(80%) brightness(0.7);opacity:0.5;';
                               return `<div class="acu-dash-clickable acu-dash-preview-trigger"
-                            data-table-key="${escapeHtml(npcTableKey)}"
+                            data-table-key="${escapeHtml(npc.tableKey || npcTableKey)}"
                             data-row-index="${npc.index}"
                             data-preview-type="npc"
                             style="padding:6px 4px;${!isLastNpc ? 'border-bottom:1px dashed var(--acu-border);' : ''}">
@@ -42136,7 +42656,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       globalResult ? '全局数据' : null,
       playerResult ? '主角信息' : null,
       locationResult ? '地点' : null,
-      npcResult ? 'NPC' : null,
+      npcListData.hasTable ? 'NPC' : null,
       questResult ? '任务' : null,
       bagResult ? '背包' : null,
       equipResult ? '装备' : null,
@@ -42681,7 +43201,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   };
 
   const getVisibleGachaPoolConfigDefinitions = (rawData = getRuntimeGachaRawData()): GachaPoolDefinition[] =>
-    getAllGachaPoolConfigDefinitions(rawData).filter(pool => pool.id === GACHA_ALL_POOL_TAG || pool.visibleInTabs !== false);
+    getAllGachaPoolConfigDefinitions(rawData).filter(
+      pool => pool.id === GACHA_ALL_POOL_TAG || pool.visibleInTabs !== false,
+    );
 
   const getGachaAllExpandablePoolTags = (rawData = getRuntimeGachaRawData()): GachaPoolTag[] => {
     return getAllGachaPoolConfigDefinitions(rawData)
@@ -42707,8 +43229,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       ...updates,
       id,
       builtin: existing.builtin,
-      visibleInTabs: id === GACHA_ALL_POOL_TAG ? true : updates.visibleInTabs ?? existing.visibleInTabs,
-      includeInAll: id === GACHA_ALL_POOL_TAG ? false : updates.includeInAll ?? existing.includeInAll,
+      visibleInTabs: id === GACHA_ALL_POOL_TAG ? true : (updates.visibleInTabs ?? existing.visibleInTabs),
+      includeInAll: id === GACHA_ALL_POOL_TAG ? false : (updates.includeInAll ?? existing.includeInAll),
       name: updates.name !== undefined ? normalizeGachaPoolName(updates.name, id) : existing.name,
     };
     saveGachaPoolSettings(pools);
@@ -43582,7 +44104,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         if (!rawPool || typeof rawPool !== 'object') return null;
         const record = rawPool as Record<string, unknown>;
         const rawId = normalizeGachaPoolId(record.id || record.tag || record.name);
-        const rawName = normalizeGachaPoolName(record.name || record.label || rawId, rawId || GACHA_CUSTOM_ONLY_POOL_TAG);
+        const rawName = normalizeGachaPoolName(
+          record.name || record.label || rawId,
+          rawId || GACHA_CUSTOM_ONLY_POOL_TAG,
+        );
         const shouldUseNameAsCustomId =
           rawId &&
           rawId !== GACHA_ALL_POOL_TAG &&
@@ -43656,7 +44181,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         builtin: existing?.builtin === true,
         visibleInTabs: pool.visibleInTabs !== false,
         includeInAll: pool.includeInAll === true,
-        order: Number.isFinite(Number(pool.order)) ? Number(pool.order) : existing?.order ?? 999,
+        order: Number.isFinite(Number(pool.order)) ? Number(pool.order) : (existing?.order ?? 999),
       });
     });
     saveGachaPoolSettings(Array.from(byId.values()));
@@ -44034,7 +44559,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const customIds = new Set(getCustomGachaItemDefinitions(rawData).map(item => item.id));
       return allItems.filter(item => customIds.has(item.id));
     }
-    const activeTags = normalizedPoolId === GACHA_ALL_POOL_TAG ? getGachaAllExpandablePoolTags(rawData) : [normalizedPoolId];
+    const activeTags =
+      normalizedPoolId === GACHA_ALL_POOL_TAG ? getGachaAllExpandablePoolTags(rawData) : [normalizedPoolId];
     return allItems.filter(item => item.poolTags.some(tag => activeTags.includes(tag)));
   };
 
@@ -44065,7 +44591,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const isPoolExport = Boolean(normalizedPoolId);
     const json = exportGachaCatalogJson(rawData, normalizedPoolId);
     const hasExportableItems = getGachaCatalogItemsForExport(rawData, normalizedPoolId).length > 0;
-    const blob = new Blob([json], { type: hasExportableItems || isPoolExport ? 'application/json' : 'application/jsonc' });
+    const blob = new Blob([json], {
+      type: hasExportableItems || isPoolExport ? 'application/json' : 'application/jsonc',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -45031,9 +45559,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const totalShards = getTotalGachaShards(state);
     const poolDefinitions = getVisibleGachaPoolConfigDefinitions(rawData);
 
-    const poolButtonsHtml = poolDefinitions.map(pool => {
-      const isActive = activePoolTag === pool.id;
-      return `
+    const poolButtonsHtml = poolDefinitions
+      .map(pool => {
+        const isActive = activePoolTag === pool.id;
+        return `
         <button
           class="acu-gacha-pool-tab acu-gacha-pool-btn ${isActive ? 'active' : ''}"
           type="button"
@@ -45046,7 +45575,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           <span>${escapeHtml(pool.name)}</span>
         </button>
       `;
-    }).join('');
+      })
+      .join('');
 
     return `
       <div class="acu-gacha-shell acu-theme-${config.theme} ${horizontalScrollbarClass}">
@@ -45626,9 +46156,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       .map(pool => {
         const isAllPool = pool.id === GACHA_ALL_POOL_TAG;
         const poolItems = isAllPool ? allPoolItems : itemDefinitions.filter(item => item.poolTags.includes(pool.id));
-        const countText = isAllPool
-          ? `${poolItems.length} 个候选`
-          : `${counts.get(pool.id) || 0} 个物品`;
+        const countText = isAllPool ? `${poolItems.length} 个候选` : `${counts.get(pool.id) || 0} 个物品`;
         const visible = isAllPool || pool.visibleInTabs !== false;
         const includeInAll = pool.includeInAll === true;
         const canDeletePool = canDeleteGachaPoolDefinition(pool);
@@ -45751,9 +46279,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const getCurrentSettingsItemFiltersActive = () =>
       Boolean(
         settingsItemFilters.search ||
-          settingsItemFilters.source !== 'all' ||
-          settingsItemFilters.status !== 'all' ||
-          settingsItemFilters.sort !== 'default',
+        settingsItemFilters.source !== 'all' ||
+        settingsItemFilters.status !== 'all' ||
+        settingsItemFilters.sort !== 'default',
       );
     const toSettingsSourceFilter = (value: unknown): GachaSettingsItemSourceFilter => {
       const text = String(value || '');
@@ -45802,7 +46330,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         $menu.find('.acu-gacha-settings-filter-menu-label').text(getGachaSettingsFilterLabel(field, value));
         $menu.find('.acu-gacha-settings-filter-option').each(function () {
           const active = String($(this).data('filter-value') || '') === value;
-          $(this).toggleClass('active', active).attr('aria-checked', active ? 'true' : 'false');
+          $(this)
+            .toggleClass('active', active)
+            .attr('aria-checked', active ? 'true' : 'false');
         });
       };
       syncMenu('source', settingsItemFilters.source, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.source);
@@ -45831,7 +46361,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const items = $section.find('.acu-gacha-settings-item').toArray() as HTMLElement[];
       let visibleCount = 0;
       items.forEach(item => {
-        const searchMatched = !settingsItemFilters.search || String(item.dataset.search || '').includes(settingsItemFilters.search);
+        const searchMatched =
+          !settingsItemFilters.search || String(item.dataset.search || '').includes(settingsItemFilters.search);
         const sourceMatched =
           settingsItemFilters.source === 'all' || String(item.dataset.source || '') === settingsItemFilters.source;
         const statusMatched =
@@ -46102,7 +46633,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         ? $(this).closest('.acu-gacha-settings-items-section')
         : overlay.find('.acu-gacha-settings-items-section').first();
       const selectedPoolId = normalizeGachaPoolId($itemSection.data('pool-id'));
-      const initialPoolId = selectedPoolId && selectedPoolId !== GACHA_ALL_POOL_TAG ? selectedPoolId : GACHA_CUSTOM_ONLY_POOL_TAG;
+      const initialPoolId =
+        selectedPoolId && selectedPoolId !== GACHA_ALL_POOL_TAG ? selectedPoolId : GACHA_CUSTOM_ONLY_POOL_TAG;
       void showGachaItemEditorDialog(null, initialPoolId);
     });
 
@@ -46234,10 +46766,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       })
       .join('');
     const rarityOptionsHtml = GACHA_RARITY_ORDER.map(
-      rarity => `<option value="${escapeHtml(rarity)}" ${item.quality === rarity ? 'selected' : ''}>${escapeHtml(rarity)}</option>`,
+      rarity =>
+        `<option value="${escapeHtml(rarity)}" ${item.quality === rarity ? 'selected' : ''}>${escapeHtml(rarity)}</option>`,
     ).join('');
     const targetOptionsHtml = GACHA_REWARD_TARGETS.map(
-      target => `<option value="${escapeHtml(target)}" ${item.rewardTarget === target ? 'selected' : ''}>${target === 'equipment' ? '装备' : '物品'}</option>`,
+      target =>
+        `<option value="${escapeHtml(target)}" ${item.rewardTarget === target ? 'selected' : ''}>${target === 'equipment' ? '装备' : '物品'}</option>`,
     ).join('');
 
     $('.acu-gacha-item-editor-overlay').remove();
@@ -46318,7 +46852,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         type: String(overlay.find('.acu-gacha-item-type').val() || item.type || '').trim(),
         icon: icon || undefined,
         iconUrl: previewObjectUrl || iconUrl || undefined,
-        localIconKey: (previewObjectUrl || iconUrl || shouldClearLocalIcon) ? undefined : item.localIconKey,
+        localIconKey: previewObjectUrl || iconUrl || shouldClearLocalIcon ? undefined : item.localIconKey,
       };
       const $preview = overlay.find('.acu-gacha-icon-editor-preview');
       $preview.html(renderGachaItemIconContent(previewItem));
@@ -46388,7 +46922,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         ensureGachaPoolsForTags(poolTags);
         const existingIds = new Set(getAllGachaItemDefinitions(rawData).map(candidate => candidate.id));
         if (existingItem) existingIds.delete(existingItem.id);
-        const id = existingItem?.id || createUniqueGachaItemId(buildStableGachaCustomItemId({ name, quality, type }), existingIds);
+        const id =
+          existingItem?.id ||
+          createUniqueGachaItemId(buildStableGachaCustomItemId({ name, quality, type }), existingIds);
         let localIconKey = existingItem?.localIconKey;
         const shouldClearLocalIcon = overlay.find('.acu-gacha-item-clear-local-icon').prop('checked') === true;
         const fileInput = overlay.find('.acu-gacha-item-icon-file')[0] as HTMLInputElement | undefined;
@@ -46468,7 +47004,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const dismantleUnitSize = definition ? getGachaItemGrantQuantity(definition) : 1;
         const maxDismantleUnits = Math.floor(quantityAvailable / dismantleUnitSize);
         if (maxDismantleUnits <= 0) {
-          if (window.toastr) window.toastr.warning(`至少需要 ${dismantleUnitSize} 个${context.item.name}才能拆解为碎片`);
+          if (window.toastr)
+            window.toastr.warning(`至少需要 ${dismantleUnitSize} 个${context.item.name}才能拆解为碎片`);
           return;
         }
 
@@ -47149,7 +47686,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           return;
         }
         if (!hasGachaRewardTable(rawData, item.rewardTarget)) {
-          if (window.toastr) window.toastr.warning(`未找到${getGachaRewardTargetTableLabel(item.rewardTarget)}，暂时无法兑换`);
+          if (window.toastr)
+            window.toastr.warning(`未找到${getGachaRewardTargetTableLabel(item.rewardTarget)}，暂时无法兑换`);
           return;
         }
         const state = touchGachaActivity(getGachaState(rawData, true));
@@ -48930,6 +49468,188 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     console.log('[DICE] bindFavoritesEvents initialized');
   };
 
+  const renderOptionTableContent = (tableData, tableName, reverseBtnHtml, isReversed) => {
+    const config = getConfig();
+    const searchTerm = String(tableSearchStates[tableName] || '')
+      .toLowerCase()
+      .trim();
+    let optionItems = getOptionItemsFromTable(tableData);
+
+    if (searchTerm) {
+      optionItems = optionItems.filter(item => {
+        const text = item.text.toLowerCase();
+        const header = item.header.toLowerCase();
+        return text.includes(searchTerm) || header.includes(searchTerm);
+      });
+    }
+
+    if (isReversed) {
+      optionItems = [...optionItems].reverse();
+    }
+
+    const itemsPerPage = config.itemsPerPage || 50;
+    const totalItems = optionItems.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    let currentPage = tablePageStates[tableName] || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    tablePageStates[tableName] = currentPage;
+
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const endIdx = startIdx + itemsPerPage;
+    const rowsToRender = optionItems.slice(startIdx, endIdx);
+    const displayStart = totalItems > 0 ? startIdx + 1 : 0;
+    const displayEnd = Math.min(endIdx, totalItems);
+    const optionRowsHtml =
+      rowsToRender.length > 0
+        ? rowsToRender
+            .map((item, idx) => {
+              const displayIndex = startIdx + idx + 1;
+              return `
+                <button class="acu-opt-btn acu-option-table-row" data-val="${safeEncodeURIComponent(item.text)}" data-option-row="${item.rowIndex}" data-option-col="${item.colIndex}">
+                  <span class="acu-option-table-index">#${displayIndex}</span>
+                  <span class="acu-option-table-text">${escapeHtml(item.text)}</span>
+                </button>`;
+            })
+            .join('')
+        : `<div class="acu-option-table-empty">${searchTerm ? '暂无匹配选项' : '暂无可点击选项'}</div>`;
+
+    let html = `
+            <div class="acu-panel-header">
+                <div class="acu-panel-title">
+                    <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
+                    <div class="acu-title-sub">(${displayStart}-${displayEnd} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
+                </div>
+                <div class="acu-header-actions">
+                    ${getTutorialButtonHtml('settingsOptions', '查看行动选项教程')}
+                    ${reverseBtnHtml}
+                    <div class="acu-height-control">
+                        <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                    </div>
+                    <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索选项..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
+                    <button class="acu-close-btn" title="关闭"><i class="fa-solid fa-times"></i></button>
+                </div>
+            </div>
+            <div class="acu-panel-content acu-option-table-content">
+                <div class="acu-card-grid acu-option-table-grid">
+                    <div class="acu-option-panel acu-theme-${config.theme} acu-option-table-panel">
+                        ${optionRowsHtml}
+                    </div>
+                </div>
+            </div>`;
+
+    if (totalPages > 1) {
+      html += `<div class="acu-panel-footer"><button class="acu-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+      const range = [];
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) range.push(i);
+      } else {
+        if (currentPage <= 4) range.push(1, 2, 3, 4, 5, '...', totalPages);
+        else if (currentPage >= totalPages - 3)
+          range.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        else range.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+      range.forEach(p => {
+        if (p === '...') html += `<span class="acu-page-info">...</span>`;
+        else html += `<button class="acu-page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+      });
+      html += `<button class="acu-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button></div>`;
+    }
+
+    return html;
+  };
+
+  const renderCheckSuggestionTableContent = (tableData, tableName, reverseBtnHtml, isReversed) => {
+    const config = getConfig();
+    const searchTerm = String(tableSearchStates[tableName] || '')
+      .toLowerCase()
+      .trim();
+    let suggestionItems = getCheckSuggestionItemsFromTable(tableData);
+
+    if (searchTerm) {
+      suggestionItems = suggestionItems.filter(item => {
+        const displayText = item.displayText.toLowerCase();
+        const commandText = item.commandText.toLowerCase();
+        return displayText.includes(searchTerm) || commandText.includes(searchTerm);
+      });
+    }
+
+    if (isReversed) {
+      suggestionItems = [...suggestionItems].reverse();
+    }
+
+    const itemsPerPage = config.itemsPerPage || 50;
+    const totalItems = suggestionItems.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    let currentPage = tablePageStates[tableName] || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    tablePageStates[tableName] = currentPage;
+
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const endIdx = startIdx + itemsPerPage;
+    const rowsToRender = suggestionItems.slice(startIdx, endIdx);
+    const displayStart = totalItems > 0 ? startIdx + 1 : 0;
+    const displayEnd = Math.min(endIdx, totalItems);
+    const suggestionRowsHtml =
+      rowsToRender.length > 0
+        ? rowsToRender
+            .map((item, idx) => {
+              const displayIndex = item.rowId || String(startIdx + idx + 1);
+              return `
+                <button class="acu-check-suggestion-btn acu-option-table-row" data-display="${safeEncodeURIComponent(item.displayText)}" data-command="${safeEncodeURIComponent(item.commandText)}" data-check-row="${item.rowIndex}">
+                  <span class="acu-option-table-index">#${escapeHtml(displayIndex)}</span>
+                  <span class="acu-option-table-text">${escapeHtml(item.displayText || '未填写展示文本')}</span>
+                </button>`;
+            })
+            .join('')
+        : `<div class="acu-option-table-empty">${searchTerm ? '暂无匹配建议' : '暂无检定建议'}</div>`;
+
+    let html = `
+            <div class="acu-panel-header">
+                <div class="acu-panel-title">
+                    <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
+                    <div class="acu-title-sub">(${displayStart}-${displayEnd} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
+                </div>
+                <div class="acu-header-actions">
+                    ${getTutorialButtonHtml('dice', '查看检定教程')}
+                    ${reverseBtnHtml}
+                    <div class="acu-height-control">
+                        <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                    </div>
+                    <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索建议..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
+                    <button class="acu-close-btn" title="关闭"><i class="fa-solid fa-times"></i></button>
+                </div>
+            </div>
+            <div class="acu-panel-content acu-option-table-content">
+                <div class="acu-card-grid acu-option-table-grid">
+                    <div class="acu-option-panel acu-theme-${config.theme} acu-option-table-panel">
+                        ${suggestionRowsHtml}
+                    </div>
+                </div>
+            </div>`;
+
+    if (totalPages > 1) {
+      html += `<div class="acu-panel-footer"><button class="acu-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
+      const range = [];
+      if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) range.push(i);
+      } else {
+        if (currentPage <= 4) range.push(1, 2, 3, 4, 5, '...', totalPages);
+        else if (currentPage >= totalPages - 3)
+          range.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+        else range.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+      range.forEach(p => {
+        if (p === '...') html += `<span class="acu-page-info">...</span>`;
+        else html += `<button class="acu-page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+      });
+      html += `<button class="acu-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button></div>`;
+    }
+
+    return html;
+  };
+
   const renderTableContent = (tableData, tableName) => {
     const isReversed = isTableReversed(tableName);
     const reverseBtnHtml = shouldShowReverseButton(tableName)
@@ -48939,6 +49659,14 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             </button>
         `
       : '';
+
+    if (tableData && isOptionTableName(tableName)) {
+      return renderOptionTableContent(tableData, tableName, reverseBtnHtml, isReversed);
+    }
+
+    if (tableData && isCheckSuggestionTableName(tableName)) {
+      return renderCheckSuggestionTableContent(tableData, tableName, reverseBtnHtml, isReversed);
+    }
 
     if (!tableData || !tableData.rows.length)
       return `
@@ -49573,30 +50301,27 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         }
 
         // 查找角色数据
-        const npcResult = DashboardDataParser.findTable(allTables, 'npc');
+        const npcListData = getDashboardNpcListData(allTables as Record<string, RelationGraphTableInput>);
         const playerResult = DashboardDataParser.findTable(allTables, 'player');
 
         const nodeArr = [];
 
         // 添加主角（更严格的数据校验）
         if (playerResult?.data?.rows?.[0]) {
-          const playerName = playerResult.data.rows[0][1];
+          const playerNameIdx = findNameColumnIndex(playerResult.data.headers || []);
+          const playerName = playerResult.data.rows[0][playerNameIdx];
           if (playerName && typeof playerName === 'string' && playerName.trim()) {
             nodeArr.push({ name: playerName.trim(), isPlayer: true });
           }
         }
 
-        // 添加NPC（更严格的数据校验）
-        if (npcResult?.data?.rows && Array.isArray(npcResult.data.rows)) {
-          npcResult.data.rows.forEach((row, idx) => {
-            if (Array.isArray(row) && row[1]) {
-              const npcName = row[1];
-              if (typeof npcName === 'string' && npcName.trim()) {
-                nodeArr.push({ name: npcName.trim(), isPlayer: false, rowIndex: idx });
-              }
-            }
-          });
-        }
+        // 添加NPC（与仪表盘角色区保持同一套多来源规则）
+        npcListData.entries.forEach(npc => {
+          const npcName = String(npc.name || '').trim();
+          if (npcName) {
+            nodeArr.push({ name: npcName, isPlayer: false, rowIndex: npc.index, tableKey: npc.tableKey });
+          }
+        });
 
         // 检查是否有可管理的角色
         if (nodeArr.length === 0) {
@@ -50777,7 +51502,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             if (sheet.name.includes('技能') || sheet.name.includes('能力')) {
               const headers = sheet.content[0] || [];
               // 动态查找列索引
-              const nameIdx = headers.findIndex(h => h && (h.includes('名称') || h.includes('技能名'))) || 1;
+              const foundNameIdx = headers.findIndex(h => h && (h.includes('名称') || h.includes('技能名')));
+              const nameIdx = foundNameIdx >= 0 ? foundNameIdx : 1;
               const attrValIdx = headers.findIndex(h => h && h.includes('属性值'));
               const profIdx = headers.findIndex(h => h && (h.includes('熟练') || h.includes('等级')));
 
@@ -50911,55 +51637,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         e.preventDefault();
         const npcName = $(this).data('npc') || '';
 
-        const rawData = cachedRawData || getTableData();
-
-        var playerAttrValue = 50;
-        var npcAttrValue = 50;
-        var foundPlayer = false;
-        var foundNPC = false;
-
-        if (rawData) {
-          for (var key in rawData) {
-            var sheet = rawData[key];
-            if (!sheet || !sheet.name || !sheet.content) continue;
-
-            // 主角信息表
-            if (sheet.name?.includes('主角')) {
-              if (sheet.content[1]) {
-                var attrStr = sheet.content[1][7] || '';
-                var parts = attrStr.split(/[,，;；\s]+/);
-                for (var i = 0; i < parts.length; i++) {
-                  var match = parts[i].match(/^([\u4e00-\u9fa5a-zA-Z]+)[:\s：]\s*(\d+)/);
-                  if (match) {
-                    playerAttrValue = parseInt(match[2], 10);
-                    foundPlayer = true;
-                    break;
-                  }
-                }
-              }
-            }
-
-            // 重要人物表
-            if (isNpcTableName(sheet.name) && npcName) {
-              for (var j = 1; j < sheet.content.length; j++) {
-                var row = sheet.content[j];
-                if (row && row[1] === npcName) {
-                  var npcAttrStr = row[9] || '';
-                  var npcParts = npcAttrStr.split(/[,，;；\s]+/);
-                  for (var k = 0; k < npcParts.length; k++) {
-                    var npcMatch = npcParts[k].match(/^([\u4e00-\u9fa5a-zA-Z]+)[:\s：]\s*(\d+)/);
-                    if (npcMatch) {
-                      npcAttrValue = parseInt(npcMatch[2], 10);
-                      foundNPC = true;
-                      break;
-                    }
-                  }
-                  break;
-                }
-              }
-            }
-          }
-        }
+        const playerAttr = getFullAttributesForCharacter('<user>')[0];
+        const npcAttr = npcName ? getFullAttributesForCharacter(String(npcName))[0] : null;
+        const playerAttrValue = playerAttr?.value ?? 50;
+        const npcAttrValue = npcAttr?.value ?? 50;
 
         showContestPanel({
           initiatorName: '<user>',
@@ -52020,31 +52701,31 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
       // --- 数据操作 ---
       try {
-          await deleteRowInstantly(tableKey, rowIdx);
-          const latestRawData = cachedRawData || getTableData();
+        await deleteRowInstantly(tableKey, rowIdx);
+        const latestRawData = cachedRawData || getTableData();
 
-          // [Bug 3 修复] 立即同步更新diffMap，避免闪烁
-          currentDiffMap = generateDiffMap(latestRawData);
+        // [Bug 3 修复] 立即同步更新diffMap，避免闪烁
+        currentDiffMap = generateDiffMap(latestRawData);
 
-          // 刷新界面
-          renderInterface();
+        // 刷新界面
+        renderInterface();
 
-          // [修复] 如果地图overlay存在，刷新地图数据（重建viewModel）
-          if (isFromMap) {
-            const refreshMapData = $mapOverlay.data('refreshMapData');
-            if (typeof refreshMapData === 'function') {
-              await refreshMapData();
-            }
+        // [修复] 如果地图overlay存在，刷新地图数据（重建viewModel）
+        if (isFromMap) {
+          const refreshMapData = $mapOverlay.data('refreshMapData');
+          if (typeof refreshMapData === 'function') {
+            await refreshMapData();
           }
+        }
 
-          // [修复] 恢复滚动位置（在renderInterface防抖完成后）
-          setTimeout(() => {
-            const $newContent = $('.acu-panel-content');
-            if ($newContent.length && (savedScrollTop > 0 || savedScrollLeft > 0)) {
-              $newContent.scrollTop(savedScrollTop);
-              $newContent.scrollLeft(savedScrollLeft);
-            }
-          }, 60);
+        // [修复] 恢复滚动位置（在renderInterface防抖完成后）
+        setTimeout(() => {
+          const $newContent = $('.acu-panel-content');
+          if ($newContent.length && (savedScrollTop > 0 || savedScrollLeft > 0)) {
+            $newContent.scrollTop(savedScrollTop);
+            $newContent.scrollLeft(savedScrollLeft);
+          }
+        }, 60);
       } catch (e) {
         console.error('[DICE]ACU 删除保存失败:', e);
         toastr.error('删除保存失败: ' + (e instanceof Error ? e.message : String(e)));
@@ -52906,7 +53587,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         if (sendButton) {
           const onSendCapture = () => {
             const $ta = $('#send_textarea');
-            if ($ta.length) capturePendingHumanInputSnapshot($ta.val());
+            if ($ta.length) {
+              const textarea = $ta[0] as AcuDiceTextareaElement;
+              capturePendingHumanInputSnapshot($ta.val(), textarea._acuOriginalActionText);
+            }
             // 在捕获阶段提前注入疯狂模式
             triggerCrazyModeBeforeSend();
             // 在捕获阶段立即恢复真实结果
@@ -52922,7 +53606,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           .off('click.acu_restore_dice', '#send_but')
           .on('click.acu_restore_dice', '#send_but', function (e) {
             const $ta = $('#send_textarea');
-            if ($ta.length) capturePendingHumanInputSnapshot($ta.val());
+            if ($ta.length) {
+              const textarea = $ta[0] as AcuDiceTextareaElement;
+              capturePendingHumanInputSnapshot($ta.val(), textarea._acuOriginalActionText);
+            }
             // 在事件冒泡前注入疯狂模式
             triggerCrazyModeBeforeSend();
             // 在事件冒泡前恢复真实结果
@@ -52934,7 +53621,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           .on('keydown.acu_restore_dice', '#send_textarea', function (e) {
             if (e.isComposing) return;
             if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
-            capturePendingHumanInputSnapshot((this as HTMLTextAreaElement).value);
+            const textarea = this as AcuDiceTextareaElement;
+            capturePendingHumanInputSnapshot(textarea.value, textarea._acuOriginalActionText);
             triggerCrazyModeBeforeSend();
             restoreDiceResultBeforeSend();
           });
