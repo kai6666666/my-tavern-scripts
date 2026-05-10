@@ -2068,8 +2068,8 @@ import {
     inSceneNpcWeight: 15,
     offSceneNpcWeight: 5,
   };
-  const PRESET_FORMAT_VERSION = '1.7.0'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v5.62'; // 脚本版本号
+  const PRESET_FORMAT_VERSION = '1.8.3'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
+  const SCRIPT_VERSION = 'v5.64'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -10710,6 +10710,22 @@ import {
     hidden?: boolean;
   }
 
+  interface CheckSuggestionGuide {
+    /** 覆盖检定建议表中的【检定规则】段 */
+    rule?: string;
+    /** 覆盖检定建议表中的【DSL 命令】段 */
+    dsl?: string;
+    /** 覆盖检定建议表中的【格式示例】段 */
+    examples?: string;
+  }
+
+  interface CheckSuggestionAliases {
+    /** 中文参数名到预设字段 ID 的映射 */
+    params?: Record<string, string>;
+    /** 参数值别名映射，第一层 key 是归一化后的参数名 */
+    values?: Record<string, Record<string, string | number | boolean>>;
+  }
+
   interface AdvancedDicePreset {
     kind: 'advanced';
     id: string;
@@ -10790,6 +10806,11 @@ import {
     /** 二级效果触发策略（first=首命中，all=全部命中） */
     secondaryTriggerMode?: 'first' | 'all';
 
+    /** 检定建议表中 <检定规则> 标签的提示词分段 */
+    checkSuggestionGuide?: CheckSuggestionGuide;
+    /** 检定建议表 DSL 的参数名和值别名 */
+    checkSuggestionAliases?: CheckSuggestionAliases;
+
     /** 孤注一掷配置 (COC7等规则) */
     pushedRoll?: {
       /** 是否启用 */
@@ -10839,6 +10860,150 @@ import {
     timestamp: number;
   }
 
+  const COC7_CHECK_SUGGESTION_ALIASES: CheckSuggestionAliases = {
+    params: {
+      难度: 'requiredRank',
+      最低成功等级: 'requiredRank',
+      成功等级: 'requiredRank',
+      奖惩: 'bonusPenalty',
+      奖惩骰: 'bonusPenalty',
+    },
+    values: {
+      requiredRank: {
+        普通: 1,
+        成功: 1,
+        普通成功: 1,
+        困难: 2,
+        困难成功: 2,
+        极难: 3,
+        极难成功: 3,
+      },
+      bonusPenalty: {
+        奖励: 1,
+        奖励1: 1,
+        奖励骰: 1,
+        奖励骰1: 1,
+        惩罚: -1,
+        惩罚1: -1,
+        惩罚骰: -1,
+        惩罚骰1: -1,
+      },
+    },
+  };
+
+  const COC7_CHECK_SUGGESTION_GUIDE: CheckSuggestionGuide = {
+    rule:
+      '使用 CoC7 的 1d100 检定：掷 1d100，结果小于等于属性值则成功。普通检定与对抗检定都必须使用下方角色属性清单里的普通属性或特殊属性。\n' +
+      'CoC7 成功等级：大成功 > 极难成功 > 困难成功 > 普通成功 > 失败 > 大失败。完成目标难度较高时，可写 难度=困难 或 难度=极难；正常难度则不要写该参数。\n' +
+      '当角色明显处于优势或劣势地位时可以指定奖惩骰。格式为 奖惩=奖励1 或 奖惩=惩罚1；没有明确奖惩时不要写该参数。',
+    dsl:
+      '普通检定：检定 <角色> <属性> [难度=普通|困难|极难] [奖惩=奖励1|惩罚1]\n' +
+      '对抗检定：对抗 <发起者> <属性> vs <对手> <属性> [难度=普通|困难|极难] [奖惩=奖励1|惩罚1]\n' +
+      '固定成功：必成\n固定失败：必败\n无需检定：无',
+    examples:
+      '以下示例用于说明 display_text 与 dice_command 的对应关系。生成时必须根据当前剧情、角色与属性重新编写，不得直接复用。\n' +
+      '1. 展示文本：<user>俯身检查地毯边缘，尝试寻找可疑的痕迹。\n' +
+      '   骰子命令：检定 <user> 侦查 难度=困难\n' +
+      '2. 展示文本：守夜人表示昨夜没有听到任何奇怪的声音，<user>观察他的神情，判断他是否在说谎。\n' +
+      '   骰子命令：对抗 <user> 心理学 vs 守夜人 话术\n' +
+      '3. 展示文本：<user>在空旷的平地上一边逃跑一边躲避射击。\n' +
+      '   骰子命令：检定 <user> 敏捷 奖惩=惩罚1\n' +
+      '4. 展示文本：<角色A>利用能力封锁整个场馆。\n' +
+      '   骰子命令：必成\n' +
+      '5. 展示文本：<角色B>试图强行闯入完全封死的结界中。\n' +
+      '   骰子命令：必败',
+  };
+
+  const COC7_GROWTH_CHECK_SUGGESTION_GUIDE: CheckSuggestionGuide = {
+    rule: '使用 CoC7 幕间成长检定：掷 1d100，结果大于当前技能值时表示技能获得成长机会。该预设主要用于幕间或阶段结算，不适合作为普通行动成败判定。',
+    dsl: '成长检定：检定 <角色> <技能> [成长值=1d10]\n' + '固定成功：必成\n固定失败：必败\n无需检定：无',
+    examples:
+      '1. 展示文本：<user>在幕间整理案件记录，检视侦查技能是否成长。\n' +
+      '   骰子命令：检定 <user> 侦查 成长值=1d10\n' +
+      '2. 展示文本：某个技能没有经历足够压力，不进行成长检定。\n' +
+      '   骰子命令：无',
+  };
+
+  const DND5E_CHECK_SUGGESTION_ALIASES: CheckSuggestionAliases = {
+    params: {
+      属性: 'attr',
+      属性值: 'attr',
+      基础属性: 'attr',
+      难度: 'dc',
+      目标值: 'dc',
+      技能: 'skillMod',
+      技能加值: 'skillMod',
+      修正: 'mod',
+      额外加值: 'mod',
+      优势: 'advantage',
+      优劣势: 'advantage',
+    },
+    values: {
+      advantage: {
+        优势: 1,
+        正常: 0,
+        平常: 0,
+        劣势: -1,
+      },
+    },
+  };
+
+  const DND5E_CHECK_SUGGESTION_GUIDE: CheckSuggestionGuide = {
+    rule:
+      '使用类 D&D 检定：掷 1d20，加上调整值，总值大于等于 DC 则成功。\n' +
+      '默认只选择最贴合行动的基础属性或特有属性。只有当这次行动确实同时依赖基础素质和具体技能/能力时，命令里才同时写基础属性和特有属性。',
+    dsl:
+      '普通检定：检定 <角色> <属性或技能> dc=<目标值> [attr=<相关基础属性>] [mod=<额外加值>] [优势=优势|正常|劣势]\n' +
+      '对抗检定：对抗 <发起者> <技能> vs <对手> <技能> [leftAttr=<发起者相关基础属性>] [rightAttr=<对手相关基础属性>] [优势=优势|正常|劣势]\n' +
+      '固定成功：必成\n固定失败：必败\n无需检定：无',
+    examples:
+      '1. 展示文本：<user>拼尽全力尝试在崩塌前冲过断桥。\n' +
+      '   骰子命令：检定 <user> 敏捷 dc=14\n' +
+      '2. 展示文本：<角色A>发动空间移动，带着同伴脱离危险区域。\n' +
+      '   骰子命令：检定 <角色A> 空间移动 dc=15\n' +
+      '3. 展示文本：<角色A>贴着阴影移动，尝试躲过<角色B>的视线。\n' +
+      '   骰子命令：对抗 <角色A> 隐匿 vs <角色B> 察觉 leftAttr=敏捷 rightAttr=感知\n' +
+      '4. 展示文本：<user>试图用夸张的宫廷传闻吸引贵族的注意力。\n' +
+      '   骰子命令：检定 <user> 游说 attr=魅力 dc=13\n' +
+      '5. 展示文本：被封印的石门没有任何正面突破的希望，只能另寻道路。\n' +
+      '   骰子命令：无',
+  };
+
+  const FATE_CHECK_SUGGESTION_GUIDE: CheckSuggestionGuide = {
+    rule: '使用 Fate 检定：掷 4dF，加上技能值与修正值，总值达到难度则成功；超过难度 3 级或更多为大成功。',
+    dsl:
+      '普通检定：检定 <角色> <技能或风格> dc=<难度> [mod=<修正值>]\n' +
+      '对抗检定：对抗 <发起者> <技能或风格> vs <对手> <技能或风格> [mod=<修正值>] [leftMod=<发起者修正>] [rightMod=<对手修正>]\n' +
+      '固定成功：必成\n固定失败：必败\n无需检定：无',
+    examples:
+      '1. 展示文本：<user>以“谨慎”风格拆解嫌疑人的矛盾证词。\n' +
+      '   骰子命令：检定 <user> 谨慎 dc=2\n' +
+      '2. 展示文本：<角色A>与<角色B>在屋顶边缘展开追逐。\n' +
+      '   骰子命令：对抗 <角色A> 迅捷 vs <角色B> 强壮',
+  };
+
+  const PBTA_CHECK_SUGGESTION_GUIDE: CheckSuggestionGuide = {
+    rule: '使用 PbtA 行动检定：掷 2d6，加上属性值与临时加值；10+ 完全成功，7-9 部分成功，6- 失败。该预设不使用传统对抗检定。',
+    dsl: '普通检定：检定 <角色> <属性或行动> [mod=<临时加值>]\n' + '固定成功：必成\n固定失败：必败\n无需检定：无',
+    examples:
+      '1. 展示文本：<user>在枪火中强行穿过废墟街口。\n' +
+      '   骰子命令：检定 <user> 冷酷 mod=1\n' +
+      '2. 展示文本：<角色>向风暴低语，寻找下一幕灾厄的征兆。\n' +
+      '   骰子命令：检定 <角色> 怪异',
+  };
+
+  const TRIANGLE_AGENCY_CHECK_SUGGESTION_GUIDE: CheckSuggestionGuide = {
+    rule:
+      '使用三角机构检定：掷 6d4 并统计结果为 3 的骰子数量；至少一个 3 成功，三个 3 为三重升华，没有 3 则失败。该预设不使用传统对抗检定。\n' +
+      '三角机构的检定通常有两类：一是向机构申请改变现实，二是发挥角色的异常能力。两者最终都应由 GM 选择一个合适的素质进行检定，可选的素质为[缜密、欺瞒、活力、共情、主动、坚持、气质、专业、低调。]',
+    dsl: '普通检定：检定 <角色> <素质>\n' + '固定成功：必成\n固定失败：必败\n无需检定：无',
+    examples:
+      '1. 展示文本：<user>向机构申请改变现实：让施工大楼的安全隐患立刻被相关人员注意到，并封锁附近街道。\n' +
+      '   骰子命令：检定 <user> 缜密\n' +
+      '2. 展示文本：<角色A>看了一眼手表，说“我们还有时间”，发动异常能力「时计」延缓追兵的抵达。\n' +
+      '   骰子命令：检定 <角色A> 专业',
+  };
+
   // 内置高级骰子预设
   const BUILTIN_ADVANCED_PRESETS: AdvancedDicePreset[] = [
     // CoC7 规则: 1d100 <= 属性值
@@ -10849,6 +11014,8 @@ import {
       description: '克苏鲁的呼唤7版: 1d100 <= 属性值即成功',
       version: PRESET_FORMAT_VERSION,
       builtin: true,
+      checkSuggestionGuide: COC7_CHECK_SUGGESTION_GUIDE,
+      checkSuggestionAliases: COC7_CHECK_SUGGESTION_ALIASES,
       diceExpression: '1d100',
       attribute: {
         label: '技能值',
@@ -11133,6 +11300,13 @@ import {
       version: PRESET_FORMAT_VERSION,
       builtin: true,
       visible: false,
+      checkSuggestionGuide: COC7_GROWTH_CHECK_SUGGESTION_GUIDE,
+      checkSuggestionAliases: {
+        params: {
+          成长: 'growthGain',
+          成长值: 'growthGain',
+        },
+      },
       diceExpression: '1d100',
       attribute: {
         label: '技能值',
@@ -11196,6 +11370,8 @@ import {
       description: 'D&D第五版: 1d20 + 调整值 >= DC (调整值自动从属性值计算)',
       version: PRESET_FORMAT_VERSION,
       builtin: true,
+      checkSuggestionGuide: DND5E_CHECK_SUGGESTION_GUIDE,
+      checkSuggestionAliases: DND5E_CHECK_SUGGESTION_ALIASES,
       diceExpression: '1d20',
       attribute: {
         label: '属性值',
@@ -11317,6 +11493,14 @@ import {
       description: 'Fate规则: 4dF + 技能值 + 修正值 >= 难度',
       version: PRESET_FORMAT_VERSION,
       builtin: true,
+      checkSuggestionGuide: FATE_CHECK_SUGGESTION_GUIDE,
+      checkSuggestionAliases: {
+        params: {
+          难度: 'dc',
+          修正: 'mod',
+          修正值: 'mod',
+        },
+      },
       diceExpression: '4dF',
       attributeName: {
         label: '技能/风格',
@@ -11390,6 +11574,13 @@ import {
       description: 'Powered by the Apocalypse: 2d6+属性, 6-失败/7-9部分成功/10+完全成功',
       version: PRESET_FORMAT_VERSION,
       builtin: true,
+      checkSuggestionGuide: PBTA_CHECK_SUGGESTION_GUIDE,
+      checkSuggestionAliases: {
+        params: {
+          修正: 'mod',
+          临时加值: 'mod',
+        },
+      },
       diceExpression: '2d6',
       attribute: {
         label: '属性值',
@@ -11443,6 +11634,7 @@ import {
       description: '6d4统计3的个数；至少一个3成功，三个3为三重升华；无3失败',
       version: PRESET_FORMAT_VERSION,
       builtin: true,
+      checkSuggestionGuide: TRIANGLE_AGENCY_CHECK_SUGGESTION_GUIDE,
       diceExpression: '6d4=3',
       attribute: {
         hidden: true,
@@ -11495,6 +11687,135 @@ import {
   // 属性规则预设系统
   // ========================================
 
+  type AttributeQuickSelectTarget = 'attribute' | 'skillMod' | 'mod';
+  type CharacterAttributeSource = 'base' | 'special' | 'generic';
+
+  interface AttributeQuickSelectConfig {
+    /** 基础属性快捷按钮默认填入的检定字段 */
+    baseTarget?: AttributeQuickSelectTarget;
+    /** 特有属性快捷按钮默认填入的检定字段 */
+    specialTarget?: AttributeQuickSelectTarget;
+    /** 来源不明确时的默认填入字段 */
+    fallbackTarget?: AttributeQuickSelectTarget;
+    /** 少数属性名需要单独覆盖时使用，key 为目标字段，value 为属性名列表 */
+    nameTargetMapping?: Partial<Record<AttributeQuickSelectTarget, string[]>>;
+  }
+
+  interface NormalizedAttributeQuickSelectConfig {
+    baseTarget: AttributeQuickSelectTarget;
+    specialTarget: AttributeQuickSelectTarget;
+    fallbackTarget: AttributeQuickSelectTarget;
+    nameTargetMapping: Partial<Record<AttributeQuickSelectTarget, string[]>>;
+  }
+
+  interface AttributePresetAttributeDef {
+    name: string;
+    formula: string;
+    range: [number, number];
+    modifier?: string;
+  }
+
+  interface AttributePresetConfig {
+    format?: string;
+    version?: string | number;
+    id?: string;
+    name?: string;
+    builtin?: boolean;
+    description?: string;
+    createdAt?: string;
+    baseAttributes?: AttributePresetAttributeDef[];
+    specialAttributes?: AttributePresetAttributeDef[];
+    quickSelect?: AttributeQuickSelectConfig;
+  }
+
+  interface CharacterAttributeEntry {
+    name: string;
+    value: number;
+    source?: CharacterAttributeSource;
+  }
+
+  interface QuickSelectCheckPresetConfig {
+    attrTargetMapping?: Record<string, string[]>;
+    skillMod?: {
+      hidden?: boolean;
+    };
+    mod?: {
+      hidden?: boolean;
+    };
+    contestRule?: {
+      hideSkillMod?: boolean;
+      hideMod?: boolean;
+    };
+  }
+
+  const ATTRIBUTE_QUICK_SELECT_DEFAULT: NormalizedAttributeQuickSelectConfig = {
+    baseTarget: 'attribute',
+    specialTarget: 'attribute',
+    fallbackTarget: 'attribute',
+    nameTargetMapping: {},
+  };
+
+  const ATTRIBUTE_QUICK_SELECT_DND: NormalizedAttributeQuickSelectConfig = {
+    baseTarget: 'attribute',
+    specialTarget: 'skillMod',
+    fallbackTarget: 'attribute',
+    nameTargetMapping: {
+      skillMod: [
+        '运动',
+        '杂技',
+        '巧手',
+        '隐匿',
+        '奥秘',
+        '历史',
+        '调查',
+        '自然',
+        '宗教',
+        '驯兽',
+        '洞悉',
+        '医药',
+        '察觉',
+        '求生',
+        '欺瞒',
+        '威吓',
+        '表演',
+        '游说',
+        '先攻',
+      ],
+    },
+  };
+
+  const isAttributeQuickSelectTarget = (value: unknown): value is AttributeQuickSelectTarget =>
+    value === 'attribute' || value === 'skillMod' || value === 'mod';
+
+  const cloneQuickSelectNameMapping = (
+    mapping: Partial<Record<AttributeQuickSelectTarget, string[]>> | undefined,
+  ): Partial<Record<AttributeQuickSelectTarget, string[]>> => {
+    const result: Partial<Record<AttributeQuickSelectTarget, string[]>> = {};
+    if (!mapping) return result;
+    (['attribute', 'skillMod', 'mod'] as AttributeQuickSelectTarget[]).forEach(target => {
+      const names = mapping[target];
+      if (Array.isArray(names)) {
+        result[target] = names.map(name => String(name).trim()).filter(Boolean);
+      }
+    });
+    return result;
+  };
+
+  const normalizeAttributeQuickSelectConfig = (
+    config: AttributeQuickSelectConfig | null | undefined,
+  ): NormalizedAttributeQuickSelectConfig => ({
+    baseTarget: isAttributeQuickSelectTarget(config?.baseTarget) ? config.baseTarget : 'attribute',
+    specialTarget: isAttributeQuickSelectTarget(config?.specialTarget) ? config.specialTarget : 'attribute',
+    fallbackTarget: isAttributeQuickSelectTarget(config?.fallbackTarget) ? config.fallbackTarget : 'attribute',
+    nameTargetMapping: cloneQuickSelectNameMapping(config?.nameTargetMapping),
+  });
+
+  const applyAttributeQuickSelectDefaults = (preset: AttributePresetConfig): boolean => {
+    const before = JSON.stringify(preset.quickSelect ?? null);
+    preset.quickSelect = normalizeAttributeQuickSelectConfig(preset.quickSelect);
+    return before !== JSON.stringify(preset.quickSelect);
+  };
+
   // 内置属性规则预设
   const BUILTIN_ATTRIBUTE_PRESETS = [
     {
@@ -11504,6 +11825,7 @@ import {
       name: '简化COC规则',
       builtin: true,
       description: '基于克苏鲁的呼唤第7版规则的属性预设。包含9条基本属性和18条特殊属性。',
+      quickSelect: ATTRIBUTE_QUICK_SELECT_DEFAULT,
       baseAttributes: [
         { name: '力量', formula: '3d6*5', range: [15, 90], modifier: '1d10-5' },
         { name: '体质', formula: '3d6*5', range: [15, 90], modifier: '1d10-5' },
@@ -11550,6 +11872,7 @@ import {
       builtin: true,
       description:
         '基于龙与地下城第5版规则的属性预设。包含6条基本属性和19条技能/派生属性。技能使用长尾分布：多数人为0或负值，少数专家可达+10以上。',
+      quickSelect: ATTRIBUTE_QUICK_SELECT_DND,
       baseAttributes: [
         { name: '力量', formula: '4d6dl1', range: [3, 18], modifier: '1d4-2' },
         { name: '敏捷', formula: '4d6dl1', range: [3, 18], modifier: '1d4-2' },
@@ -11599,7 +11922,7 @@ import {
     return {
       // 获取所有预设（内置 + 自定义，自动检测并更新版本）
       getAllPresets() {
-        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []);
+        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []) as AttributePresetConfig[];
         // 自动检测并更新所有自定义预设的版本（每次调用都检测，不依赖缓存）
         let needsSave = false;
         stored.forEach(preset => {
@@ -11609,6 +11932,9 @@ import {
               `[DICE]AttributePresetManager 检测到预设 "${preset.name}" 版本较旧 (${presetVersion})，自动更新到 ${PRESET_FORMAT_VERSION}`,
             );
             preset.version = PRESET_FORMAT_VERSION;
+            needsSave = true;
+          }
+          if (applyAttributeQuickSelectDefaults(preset)) {
             needsSave = true;
           }
         });
@@ -11641,10 +11967,21 @@ import {
           // 清除缓存，确保下次获取时是最新的
           _cache = null;
           console.log('[DICE]AttributePresetManager 切换预设:', finalId);
+          console.info('[DICE][属性规则同步] 属性预设切换已触发', {
+            inputId: id,
+            finalId,
+            activeStoredId: Store.get(STORAGE_KEY_ACTIVE_ATTR_PRESET, null),
+          });
           // 延迟调用以确保函数已定义（函数在 AttributePresetManager 之后定义）
           setTimeout(() => {
+            console.info('[DICE][属性规则同步] 准备执行模板同步', {
+              finalId,
+              hasUpdater: typeof updateTemplateForActivePreset === 'function',
+            });
             if (typeof updateTemplateForActivePreset === 'function') {
               updateTemplateForActivePreset(finalId);
+            } else {
+              console.warn('[DICE][属性规则同步] updateTemplateForActivePreset 不可用，跳过同步');
             }
           }, 0);
           return true;
@@ -11656,7 +11993,7 @@ import {
 
       // 创建自定义预设
       createPreset(preset) {
-        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []);
+        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []) as AttributePresetConfig[];
         const newPreset = {
           ...preset,
           id: preset.id || 'custom_' + Date.now(),
@@ -11664,6 +12001,7 @@ import {
           version: preset.version || PRESET_FORMAT_VERSION,
           createdAt: new Date().toISOString(),
         };
+        applyAttributeQuickSelectDefaults(newPreset);
         stored.push(newPreset);
         Store.set(STORAGE_KEY_ATTRIBUTE_PRESETS, stored);
         _cache = null;
@@ -11673,10 +12011,12 @@ import {
 
       // 更新自定义预设
       updatePreset(id, updates) {
-        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []);
+        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []) as AttributePresetConfig[];
         const index = stored.findIndex(p => p.id === id);
         if (index < 0) return false;
-        stored[index] = { ...stored[index], ...updates };
+        const nextPreset = { ...stored[index], ...updates };
+        applyAttributeQuickSelectDefaults(nextPreset);
+        stored[index] = nextPreset;
         Store.set(STORAGE_KEY_ATTRIBUTE_PRESETS, stored);
         _cache = null;
         console.log('[DICE]AttributePresetManager 更新预设:', id);
@@ -11685,7 +12025,7 @@ import {
 
       // 删除自定义预设
       deletePreset(id) {
-        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []);
+        const stored = Store.get(STORAGE_KEY_ATTRIBUTE_PRESETS, []) as AttributePresetConfig[];
         const filtered = stored.filter(p => p.id !== id);
         if (filtered.length === stored.length) return false;
         Store.set(STORAGE_KEY_ATTRIBUTE_PRESETS, filtered);
@@ -11838,6 +12178,9 @@ import {
           Store.set(STORAGE_KEY_ACTIVE_ADVANCED_PRESET, finalId);
           _cache = null;
           console.log('[DICE]AdvancedDicePresetManager 切换预设:', finalId);
+          if (typeof updateTemplateForActiveCheckPreset === 'function') {
+            updateTemplateForActiveCheckPreset(finalId);
+          }
           return true;
         } catch (err) {
           console.error('[DICE]AdvancedDicePresetManager 设置预设失败:', err);
@@ -11945,7 +12288,7 @@ import {
       // 从 JSON 导入预设
       importPreset(jsonStr) {
         try {
-          const data = JSON.parse(jsonStr);
+          const data = JSON.parse(stripJsonComments(jsonStr));
 
           // 校验格式
           if (data.kind !== 'advanced') {
@@ -12104,13 +12447,391 @@ import {
     return text.replace(regex, `<${tag}>\n${content}\n</${tag}>`);
   };
 
+  const getCheckSuggestionPresetById = (presetId: string | null | undefined): AdvancedDicePreset | null => {
+    const presets = AdvancedDicePresetManager.getAllPresets() as AdvancedDicePreset[];
+    const fallback = presets.find(preset => preset.id === 'coc7_check') || null;
+    if (!presetId) return AdvancedDicePresetManager.getActivePreset() || fallback;
+    return presets.find(preset => preset.id === presetId) || fallback;
+  };
+
+  const buildAutoCheckSuggestionGuide = (preset: AdvancedDicePreset): Required<CheckSuggestionGuide> => {
+    const supportsContest = AdvancedDicePresetManager.supportsContest(preset);
+    const diceExpression = preset.diceExpression || '1d100';
+    const hasDc = !preset.dc?.hidden;
+    const hasMod = !!preset.mod && !preset.mod.hidden;
+    const hasSkillMod = !!preset.skillMod && !preset.skillMod.hidden;
+    const customParamText =
+      preset.customFields
+        ?.filter(field => !field.hidden)
+        .map(field => `${field.id}=<${field.label || field.id}>`)
+        .join(' ') || '';
+    const paramPieces = [
+      hasDc ? 'dc=<目标值>' : '',
+      hasMod ? 'mod=<修正值>' : '',
+      hasSkillMod ? 'skillMod=<技能加值或属性名>' : '',
+      customParamText,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const suffix = paramPieces ? ` ${paramPieces}` : '';
+
+    return {
+      rule:
+        `使用当前检定预设「${preset.name}」：掷骰公式为 ${diceExpression}，按该预设的 outcomes、判定策略与输出模板裁决结果。` +
+        '属性名必须来自下方角色属性清单并原样引用；需要额外参数时使用 key=value。',
+      dsl:
+        `普通检定：检定 <角色> <属性>${suffix}\n` +
+        (supportsContest ? `对抗检定：对抗 <发起者> <属性> vs <对手> <属性>${suffix}\n` : '') +
+        '固定成功：必成\n固定失败：必败\n无需检定：无',
+      examples:
+        `1. 展示文本：<角色>尝试完成一个关键行动。\n   骰子命令：检定 <角色> <属性>${suffix}\n` +
+        (supportsContest
+          ? `2. 展示文本：<角色>与<对手>在同一目标上相互较量。\n   骰子命令：对抗 <角色> <属性> vs <对手> <属性>\n`
+          : '') +
+        '3. 展示文本：行动结果已经明确，不需要投骰。\n   骰子命令：无',
+    };
+  };
+
+  const buildCheckSuggestionGuide = (preset: AdvancedDicePreset): string => {
+    const autoGuide = buildAutoCheckSuggestionGuide(preset);
+    const manualGuide = preset.checkSuggestionGuide || {};
+    const rule = String(manualGuide.rule || autoGuide.rule).trim();
+    const dsl = String(manualGuide.dsl || autoGuide.dsl).trim();
+    const examples = String(manualGuide.examples || autoGuide.examples).trim();
+    return `【检定规则】
+${rule}
+
+【DSL 命令】
+${dsl}
+
+【格式示例】
+${examples}`;
+  };
+
+  interface AttributeRuleAttributeConfig {
+    name: string;
+    formula: string;
+    range: [number, number];
+    modifier?: string;
+  }
+
+  interface AttributeRulePresetConfig {
+    id: string;
+    name: string;
+    baseAttributes?: AttributeRuleAttributeConfig[];
+    specialAttributes?: AttributeRuleAttributeConfig[];
+  }
+
+  interface GeneratedAttributeRules {
+    base?: Record<string, number>;
+    special?: Record<string, number>;
+  }
+
+  type RuleTemplateSourceData = { note?: unknown };
+  type RuleTemplateSheet = { name?: unknown; sourceData?: RuleTemplateSourceData };
+  type RuleTemplateRecord = Record<string, unknown>;
+
+  const getAttributeRulePresetById = (presetId: string | null | undefined): AttributeRulePresetConfig => {
+    if (presetId === null || presetId === undefined || presetId === '__default__') {
+      return DEFAULT_VIRTUAL_PRESET;
+    }
+    const found = (AttributePresetManager.getAllPresets() as AttributeRulePresetConfig[]).find(
+      preset => preset.id === presetId,
+    );
+    return found || DEFAULT_VIRTUAL_PRESET;
+  };
+
+  const getAttributeRangeBounds = (
+    attributes: AttributeRuleAttributeConfig[] | undefined,
+    fallback: [number, number],
+  ): [number, number] => {
+    if (!attributes || attributes.length === 0) return fallback;
+    const ranges = attributes.map(attr => attr.range);
+    return [Math.min(...ranges.map(range => range[0])), Math.max(...ranges.map(range => range[1]))];
+  };
+
+  const buildAttributeRulesContent = (
+    presetId: string | null | undefined,
+  ): {
+    preset: AttributeRulePresetConfig;
+    content: string;
+    debug: Record<string, string | number>;
+  } => {
+    const preset = getAttributeRulePresetById(presetId);
+    const attrs = generateRPGAttributes(preset.id === '__default__' ? null : preset) as GeneratedAttributeRules;
+    const baseEntries = Object.entries(attrs.base || {});
+    const specialEntries = Object.entries(attrs.special || {});
+    const [baseRangeMin, baseRangeMax] = getAttributeRangeBounds(preset.baseAttributes, [0, 100]);
+    const [specialRangeMin, specialRangeMax] = getAttributeRangeBounds(preset.specialAttributes, [0, 100]);
+    const attributeScaleStr = generateAttributeScale(baseRangeMin, baseRangeMax);
+    const baseRangeStr = `[${baseRangeMin},${baseRangeMax}]`;
+    const specialRangeStr =
+      specialEntries.length > 0
+        ? `[${specialRangeMin},${specialRangeMax}]`
+        : `[${DEFAULT_SPECIAL_ATTR_TEMPLATE.range[0]},${DEFAULT_SPECIAL_ATTR_TEMPLATE.range[1]}]`;
+    const baseExampleStr =
+      baseEntries.length > 0
+        ? baseEntries.map(([name, value]) => `${name}:${value}`).join('; ')
+        : '力量:35; 敏捷:50; 体质:52; 智力:35; 感知:40; 魅力:64';
+    const specialExampleStr =
+      specialEntries.length > 0
+        ? specialEntries.map(([name, value]) => `${name}:${value}`).join('; ')
+        : DEFAULT_SPECIAL_ATTR_TEMPLATE.example;
+
+    return {
+      preset,
+      content: `基础属性: "{基础属性}:{数值}"，数值范围${baseRangeStr}
+示例: "${baseExampleStr}"
+
+特有属性: 角色的特殊能力与技能，体现世界观特色与个体差异。
+格式: "{特有属性}:{数值}"，数值范围${specialRangeStr}
+示例: "${specialExampleStr}"
+
+【属性标尺】
+${attributeScaleStr}`,
+      debug: {
+        baseRangeStr,
+        specialRangeStr,
+        baseExampleStr,
+        specialExampleStr,
+        attributeScaleStr,
+      },
+    };
+  };
+
+  const isRuleTemplateSheetWithNote = (value: unknown): value is RuleTemplateSheet => {
+    if (!value || typeof value !== 'object') return false;
+    const record = value as Record<string, unknown>;
+    const sourceData = record.sourceData;
+    if (!sourceData || typeof sourceData !== 'object') return false;
+    return typeof (sourceData as Record<string, unknown>).note === 'string';
+  };
+
+  const getRuleTagSnippet = (note: string, tag: string): string => {
+    const safeTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matched = note.match(new RegExp(`<${safeTag}>[\\s\\S]*?</${safeTag}>`));
+    return (matched?.[0] || '').slice(0, 500);
+  };
+
+  const replaceRuleTagInTemplate = (
+    template: RuleTemplateRecord,
+    tag: string,
+    content: string,
+    debugPrefix: string,
+  ): boolean => {
+    let modified = false;
+    const ruleSheets = Object.entries(template).filter((entry): entry is [string, RuleTemplateSheet] => {
+      const [, sheet] = entry;
+      if (!isRuleTemplateSheetWithNote(sheet)) return false;
+      return sheet.sourceData?.note?.includes(`<${tag}>`) === true;
+    });
+    console.info(`${debugPrefix} ${tag} 可同步表扫描`, {
+      totalSheets: Object.keys(template).length,
+      matchedCount: ruleSheets.length,
+      matchedSheets: ruleSheets.map(([sheetKey, sheet]) => ({
+        sheetKey,
+        sheetName: String(sheet.name || ''),
+      })),
+    });
+
+    ruleSheets.forEach(([sheetKey, sheet]) => {
+      const sourceData = sheet.sourceData;
+      if (!sourceData || typeof sourceData.note !== 'string') return;
+      const originalNote = sourceData.note;
+      const nextNote = replaceTag(originalNote, tag, content);
+      const changed = nextNote !== originalNote;
+      console.info(`${debugPrefix} ${tag} note 替换结果`, {
+        sheetKey,
+        sheetName: String(sheet.name || ''),
+        changed,
+        beforeSnippet: getRuleTagSnippet(originalNote, tag),
+        afterSnippet: getRuleTagSnippet(nextNote, tag),
+      });
+      if (changed) {
+        sourceData.note = nextNote;
+        modified = true;
+      }
+    });
+
+    return modified;
+  };
+
+  const syncAttributeRuleTagsInTemplate = (
+    template: RuleTemplateRecord,
+    presetId: string | null | undefined,
+    debugPrefix: string,
+  ): boolean => {
+    const built = buildAttributeRulesContent(presetId);
+    console.info(`${debugPrefix} 已生成当前属性规则内容`, {
+      requestedPresetId: presetId,
+      resolvedPresetId: built.preset.id,
+      presetName: built.preset.name,
+      ...built.debug,
+    });
+    return replaceRuleTagInTemplate(template, '属性规则', built.content, debugPrefix);
+  };
+
+  const syncCheckRuleTagsInTemplate = (
+    template: RuleTemplateRecord,
+    presetId: string | null | undefined,
+    debugPrefix: string,
+  ): boolean => {
+    const preset = getCheckSuggestionPresetById(presetId);
+    if (!preset) {
+      console.warn(`${debugPrefix} 找不到可用检定预设，跳过检定规则同步`);
+      return false;
+    }
+    console.info(`${debugPrefix} 已生成当前检定规则内容`, {
+      requestedPresetId: presetId,
+      resolvedPresetId: preset.id,
+      presetName: preset.name,
+    });
+    return replaceRuleTagInTemplate(template, '检定规则', buildCheckSuggestionGuide(preset), debugPrefix);
+  };
+
+  const updateTemplateForActiveCheckPreset = (presetId: string | null): void => {
+    const debugPrefix = '[DICE][检定规则同步]';
+    const preset = getCheckSuggestionPresetById(presetId);
+    console.info(`${debugPrefix} updateTemplateForActiveCheckPreset 被调用`, {
+      requestedPresetId: presetId,
+      resolvedPresetId: preset?.id || null,
+      presetName: preset?.name || '',
+    });
+    if (!preset) {
+      console.warn(`${debugPrefix} 找不到可用检定预设，跳过同步`);
+      return;
+    }
+
+    type TemplateSourceDataDebug = { note?: unknown };
+    type TemplateSheetDebug = { name?: unknown; sourceData?: TemplateSourceDataDebug };
+    type TemplateRecordDebug = Record<string, unknown>;
+    type TemplateImportResultDebug = {
+      success?: boolean;
+      message?: string;
+      scope?: string;
+      presetName?: string;
+    };
+
+    const dbApi = getCore().getDB();
+    console.info(`${debugPrefix} 数据库 API 状态`, {
+      hasDbApi: !!dbApi,
+      getTableTemplateType: typeof dbApi?.getTableTemplate,
+      importTemplateFromDataType: typeof dbApi?.importTemplateFromData,
+    });
+    if (!dbApi || typeof dbApi.getTableTemplate !== 'function') {
+      console.warn(`${debugPrefix} 数据库 API 不可用，跳过更新`);
+      return;
+    }
+
+    const rawTemplate = dbApi.getTableTemplate();
+    const template = rawTemplate && typeof rawTemplate === 'object' ? (rawTemplate as TemplateRecordDebug) : null;
+    if (!template) {
+      console.warn(`${debugPrefix} 无法获取可修改的表格模板对象，跳过更新`, {
+        rawType: typeof rawTemplate,
+      });
+      return;
+    }
+
+    const guideContent = buildCheckSuggestionGuide(preset);
+    let modified = false;
+    const isTemplateSheetWithNote = (value: unknown): value is TemplateSheetDebug => {
+      if (!value || typeof value !== 'object') return false;
+      const record = value as Record<string, unknown>;
+      const sourceData = record.sourceData;
+      if (!sourceData || typeof sourceData !== 'object') return false;
+      return typeof (sourceData as Record<string, unknown>).note === 'string';
+    };
+    const getCheckRuleSnippet = (note: string): string => {
+      const matched = note.match(/<检定规则>[\s\S]*?<\/检定规则>/);
+      return (matched?.[0] || '').slice(0, 500);
+    };
+
+    const checkRuleSheets = Object.entries(template).filter((entry): entry is [string, TemplateSheetDebug] => {
+      const [, sheet] = entry;
+      if (!isTemplateSheetWithNote(sheet)) return false;
+      return sheet.sourceData?.note?.includes('<检定规则>') === true;
+    });
+    console.info(`${debugPrefix} 可同步表扫描`, {
+      totalSheets: Object.keys(template).length,
+      matchedCount: checkRuleSheets.length,
+      matchedSheets: checkRuleSheets.map(([sheetKey, sheet]) => ({
+        sheetKey,
+        sheetName: String(sheet.name || ''),
+      })),
+    });
+    if (checkRuleSheets.length === 0) {
+      console.warn(`${debugPrefix} 没有找到包含 <检定规则> 标签的表，跳过 note 同步`);
+      return;
+    }
+
+    checkRuleSheets.forEach(([sheetKey, sheet]) => {
+      const sourceData = sheet.sourceData;
+      if (!sourceData || typeof sourceData.note !== 'string') return;
+      const originalNote = sourceData.note;
+      const nextNote = replaceTag(originalNote, '检定规则', guideContent);
+      const changed = nextNote !== originalNote;
+      console.info(`${debugPrefix} note 替换结果`, {
+        sheetKey,
+        sheetName: String(sheet.name || ''),
+        changed,
+        beforeSnippet: getCheckRuleSnippet(originalNote),
+        afterSnippet: getCheckRuleSnippet(nextNote),
+      });
+      if (changed) {
+        sourceData.note = nextNote;
+        modified = true;
+      }
+    });
+
+    const activeAttributePresetId = Store.get(STORAGE_KEY_ACTIVE_ATTR_PRESET, null) as string | null;
+    const attributeRuleModified = syncAttributeRuleTagsInTemplate(template, activeAttributePresetId, debugPrefix);
+    modified = modified || attributeRuleModified;
+
+    console.info(`${debugPrefix} 模板修改汇总`, { modified, presetId: preset.id });
+    if (modified && typeof dbApi.importTemplateFromData === 'function') {
+      console.info(`${debugPrefix} 准备保存模板`, { presetId: preset.id, scope: 'chat' });
+      dbApi
+        .importTemplateFromData(template, { scope: 'chat' })
+        .then((result: TemplateImportResultDebug) => {
+          console.info(`${debugPrefix} importTemplateFromData 返回`, {
+            presetId: preset.id,
+            result,
+          });
+          if (result.success) {
+            console.log('[DICE] updateTemplateForActiveCheckPreset 已更新表格模板，预设:', preset.id);
+          } else {
+            console.error('[DICE] updateTemplateForActiveCheckPreset 保存模板失败:', result.message);
+          }
+        })
+        .catch((err: Error) => {
+          console.error(`${debugPrefix} importTemplateFromData 异常`, err);
+        });
+    } else if (!modified) {
+      console.info(`${debugPrefix} 未保存：没有检测到 note 变化`, { presetId: preset.id });
+    } else {
+      console.warn(`${debugPrefix} importTemplateFromData 不可用，跳过保存`);
+    }
+  };
+
   /**
    * 根据激活的属性预设更新表格模板中的示例和范围
    * @param presetId 预设ID，null 表示使用默认逻辑
    */
   const updateTemplateForActivePreset = (presetId: string | null): void => {
+    const debugPrefix = '[DICE][属性规则同步]';
+    console.info(`${debugPrefix} updateTemplateForActivePreset 被调用`, { presetId });
+
     // 1. 获取预设对象（默认规则使用虚拟预设，确保统一处理路径）
     type AttributePreset = (typeof BUILTIN_ATTRIBUTE_PRESETS)[number];
+    type TemplateSourceDataDebug = { note?: unknown };
+    type TemplateSheetDebug = { name?: unknown; sourceData?: TemplateSourceDataDebug };
+    type TemplateRecordDebug = Record<string, unknown>;
+    type TemplateImportResultDebug = {
+      success?: boolean;
+      message?: string;
+      scope?: string;
+      presetName?: string;
+    };
     let preset: AttributePreset;
     if (presetId === null || presetId === '__default__') {
       // 使用虚拟默认预设
@@ -12119,6 +12840,13 @@ import {
       const found = AttributePresetManager.getAllPresets().find((p: AttributePreset) => p.id === presetId);
       preset = found || (DEFAULT_VIRTUAL_PRESET as AttributePreset);
     }
+    console.info(`${debugPrefix} 属性预设解析完成`, {
+      requestedPresetId: presetId,
+      resolvedPresetId: preset.id,
+      presetName: preset.name,
+      baseAttributeCount: preset.baseAttributes?.length || 0,
+      specialAttributeCount: preset.specialAttributes?.length || 0,
+    });
 
     // 2. 生成随机属性值
     // 注意：对于默认规则，传入 null 以使用 generateRPGAttributes 的内置默认逻辑
@@ -12150,14 +12878,31 @@ import {
 
     // 5. 获取数据库 API 并读取模板
     const dbApi = getCore().getDB();
+    console.info(`${debugPrefix} 数据库 API 状态`, {
+      hasDbApi: !!dbApi,
+      getTableTemplateType: typeof dbApi?.getTableTemplate,
+      importTemplateFromDataType: typeof dbApi?.importTemplateFromData,
+    });
     if (!dbApi || typeof dbApi.getTableTemplate !== 'function') {
-      console.warn('[DICE] updateTemplateForActivePreset: 数据库 API 不可用，跳过更新');
+      console.warn(`${debugPrefix} 数据库 API 不可用，跳过更新`);
       return;
     }
 
-    const template = dbApi.getTableTemplate();
+    const rawTemplate = dbApi.getTableTemplate();
+    const templateRecord = rawTemplate && typeof rawTemplate === 'object' ? (rawTemplate as TemplateRecordDebug) : null;
+    const templateKeys = templateRecord ? Object.keys(templateRecord) : [];
+    console.info(`${debugPrefix} getTableTemplate 返回`, {
+      rawType: typeof rawTemplate,
+      isArray: Array.isArray(rawTemplate),
+      keyCount: templateKeys.length,
+      firstKeys: templateKeys.slice(0, 12),
+      stringPreview: typeof rawTemplate === 'string' ? rawTemplate.slice(0, 180) : '',
+    });
+    const template = templateRecord;
     if (!template) {
-      console.warn('[DICE] updateTemplateForActivePreset: 无法获取表格模板，跳过更新');
+      console.warn(`${debugPrefix} 无法获取可修改的表格模板对象，跳过更新`, {
+        rawType: typeof rawTemplate,
+      });
       return;
     }
 
@@ -12188,60 +12933,109 @@ import {
 示例: "${baseExampleStr}"
 
 特有属性: 角色的特殊能力与技能，体现世界观特色与个体差异。
-格式: "{特有属性}:{数值}"，数值范围${specialRangeStr}，数值代表成功概率
+格式: "{特有属性}:{数值}"，数值范围${specialRangeStr}
 示例: "${specialExampleStr}"
 
 【属性标尺】
 ${attributeScaleStr}`;
+    console.info(`${debugPrefix} 已生成新的属性规则内容`, {
+      baseRangeStr,
+      specialRangeStr,
+      baseExampleStr,
+      specialExampleStr,
+      attributeScaleStr,
+    });
 
     let modified = false;
+    const isTemplateSheetWithNote = (value: unknown): value is TemplateSheetDebug => {
+      if (!value || typeof value !== 'object') return false;
+      const record = value as Record<string, unknown>;
+      const sourceData = record.sourceData;
+      if (!sourceData || typeof sourceData !== 'object') return false;
+      return typeof (sourceData as Record<string, unknown>).note === 'string';
+    };
+    const getAttributeRuleSnippet = (note: string): string => {
+      const matched = note.match(/<属性规则>[\s\S]*?<\/属性规则>/);
+      return (matched?.[0] || '').slice(0, 500);
+    };
+    const describeTemplateSheet = (sheetKey: string, sheet: TemplateSheetDebug | undefined): void => {
+      const note = sheet?.sourceData?.note;
+      console.info(`${debugPrefix} 目标表检查`, {
+        sheetKey,
+        hasSheet: !!sheet,
+        sheetName: String(sheet?.name || ''),
+        hasSourceData: !!sheet?.sourceData,
+        noteType: typeof note,
+        noteLength: typeof note === 'string' ? note.length : 0,
+        hasAttributeRuleTag: typeof note === 'string' ? note.includes('<属性规则>') : false,
+        currentAttributeRuleSnippet: typeof note === 'string' ? getAttributeRuleSnippet(note) : '',
+      });
+    };
+    const replaceAttributeRuleInSheet = (sheetKey: string, sheet: TemplateSheetDebug | undefined): void => {
+      const sourceData = sheet?.sourceData;
+      if (!sourceData || typeof sourceData.note !== 'string') {
+        console.warn(`${debugPrefix} 跳过 ${sheetKey}: note 不存在或不是字符串`, {
+          hasSheet: !!sheet,
+          noteType: typeof sourceData?.note,
+        });
+        return;
+      }
 
-    // 7.5 检测旧版模板格式（缺少 <属性规则> 标签）
-    const checkTemplateFormat = (note: string | undefined, sheetName: string): void => {
-      if (!note) return;
-      if (!note.includes('<属性规则>')) {
-        console.warn(
-          `[DICE] ${sheetName} 使用旧版模板格式，缺少 <属性规则> 标签。` +
-            `属性预设切换功能无法正常工作。请手动更新模板以添加 <属性规则>...</属性规则> 标签。`,
-        );
+      const originalNote = sourceData.note;
+      const nextNote = replaceTag(originalNote, '属性规则', attributeRulesContent);
+      const changed = nextNote !== originalNote;
+      console.info(`${debugPrefix} note 替换结果`, {
+        sheetKey,
+        changed,
+        beforeSnippet: getAttributeRuleSnippet(originalNote),
+        afterSnippet: getAttributeRuleSnippet(nextNote),
+      });
+
+      if (changed) {
+        sourceData.note = nextNote;
+        modified = true;
       }
     };
-    checkTemplateFormat(template.sheet_protagonist?.sourceData?.note as string, '主角信息表');
-    checkTemplateFormat(template.sheet_important_npc?.sourceData?.note as string, '重要人物表');
 
-    // 8. 替换 sheet_protagonist 的 note（使用 <属性规则> 标签）
-    const protagonistSheet = template.sheet_protagonist;
-    if (protagonistSheet?.sourceData?.note) {
-      let note = protagonistSheet.sourceData.note as string;
-      const originalNote = note;
-
-      note = replaceTag(note, '属性规则', attributeRulesContent);
-
-      if (note !== originalNote) {
-        protagonistSheet.sourceData.note = note;
-        modified = true;
-      }
+    // 7.5 扫描所有带 <属性规则> 标签的表；用户自定义角色表只要加入标签，也会自动同步。
+    const attributeRuleSheets = Object.entries(template).filter((entry): entry is [string, TemplateSheetDebug] => {
+      const [, sheet] = entry;
+      if (!isTemplateSheetWithNote(sheet)) return false;
+      return sheet.sourceData?.note?.includes('<属性规则>') === true;
+    });
+    console.info(`${debugPrefix} 可同步表扫描`, {
+      totalSheets: templateKeys.length,
+      matchedCount: attributeRuleSheets.length,
+      matchedSheets: attributeRuleSheets.map(([sheetKey, sheet]) => ({
+        sheetKey,
+        sheetName: String(sheet.name || ''),
+      })),
+    });
+    if (attributeRuleSheets.length === 0) {
+      console.warn(`${debugPrefix} 没有找到包含 <属性规则> 标签的表，跳过 note 同步`);
     }
 
-    // 9. 替换 sheet_important_npc 的 note（使用 <属性规则> 标签）
-    const npcSheet = template.sheet_important_npc;
-    if (npcSheet?.sourceData?.note) {
-      let note = npcSheet.sourceData.note as string;
-      const originalNote = note;
+    // 8. 替换所有带 <属性规则> 标签的 note。
+    attributeRuleSheets.forEach(([sheetKey, sheet]) => {
+      describeTemplateSheet(sheetKey, sheet);
+      replaceAttributeRuleInSheet(sheetKey, sheet);
+    });
 
-      note = replaceTag(note, '属性规则', attributeRulesContent);
+    const activeCheckPresetId = Store.get(STORAGE_KEY_ACTIVE_ADVANCED_PRESET, null) as string | null;
+    const checkRuleModified = syncCheckRuleTagsInTemplate(template, activeCheckPresetId, debugPrefix);
+    modified = modified || checkRuleModified;
+    console.info(`${debugPrefix} 模板修改汇总`, { modified, presetId });
 
-      if (note !== originalNote) {
-        npcSheet.sourceData.note = note;
-        modified = true;
-      }
-    }
-
-    // 10. 使用数据库 API 保存模板
+    // 9. 使用数据库 API 保存模板
     if (modified && typeof dbApi.importTemplateFromData === 'function') {
+      console.info(`${debugPrefix} 准备保存模板`, { presetId, scope: 'chat' });
       dbApi
-        .importTemplateFromData(template)
-        .then((result: { success: boolean; message: string }) => {
+        .importTemplateFromData(template, { scope: 'chat' })
+        .then((result: TemplateImportResultDebug) => {
+          console.info(`${debugPrefix} importTemplateFromData 返回`, {
+            presetId,
+            result,
+          });
           if (result.success) {
             console.log('[DICE] updateTemplateForActivePreset 已更新表格模板，预设:', presetId);
           } else {
@@ -12249,12 +13043,13 @@ ${attributeScaleStr}`;
           }
         })
         .catch((err: Error) => {
-          console.error('[DICE] updateTemplateForActivePreset 保存模板失败:', err);
+          console.error(`${debugPrefix} importTemplateFromData 异常`, err);
         });
     } else if (!modified) {
       console.log('[DICE] updateTemplateForActivePreset 无需更新（模板内容未变化），预设:', presetId);
+      console.info(`${debugPrefix} 未保存：没有检测到 note 变化`, { presetId });
     } else {
-      console.warn('[DICE] updateTemplateForActivePreset: importTemplateFromData 不可用，跳过保存');
+      console.warn(`${debugPrefix} importTemplateFromData 不可用，跳过保存`);
     }
   };
 
@@ -15232,7 +16027,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
   const parseAttributeString = str => {
     if (!str) return [];
-    const results = [];
+    const results: CharacterAttributeEntry[] = [];
     const rawStr = String(str).trim();
 
     // 尝试解析 JSON 格式 {"属性名":数值, ...}
@@ -16084,14 +16879,85 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return Boolean(a) && Boolean(b) && a === b;
   };
 
-  // [新增] 根据角色名和属性名获取属性值
-  const getAttributeValue = (characterName, attrName, aliasCandidates: string[] = []) => {
+  const getAttributeEntryForCharacter = (
+    characterName: string,
+    attrName: string,
+    aliasCandidates: string[] = [],
+  ): CharacterAttributeEntry | null => {
     if (!attrName) return null;
     const resolved = resolveAttributeAliasName(characterName, attrName, aliasCandidates);
     if (!resolved.name) return null;
-    const resolvedAttrName = resolved.name;
-    const found = getFullAttributesForCharacter(characterName).find(attr => attr.name === resolvedAttrName);
+    return getFullAttributesForCharacter(characterName).find(attr => attr.name === resolved.name) || null;
+  };
+
+  // [新增] 根据角色名和属性名获取属性值
+  const getAttributeValue = (characterName, attrName, aliasCandidates: string[] = []) => {
+    const found = getAttributeEntryForCharacter(characterName, attrName, aliasCandidates);
     return found ? found.value : null;
+  };
+
+  const getAdvancedPresetMappedTarget = (
+    preset: QuickSelectCheckPresetConfig | null | undefined,
+    attrName: string,
+  ): AttributeQuickSelectTarget | null => {
+    const mapping = preset?.attrTargetMapping || {};
+    for (const [target, names] of Object.entries(mapping)) {
+      if (!isAttributeQuickSelectTarget(target)) continue;
+      if (Array.isArray(names) && names.includes(attrName)) return target;
+    }
+    return null;
+  };
+
+  const getAttributePresetMappedTarget = (
+    preset: AttributePresetConfig | null | undefined,
+    attrName: string,
+    source: CharacterAttributeSource | null | undefined,
+  ): AttributeQuickSelectTarget | null => {
+    if (!preset?.quickSelect) return null;
+    const config = normalizeAttributeQuickSelectConfig(preset.quickSelect);
+    for (const [target, names] of Object.entries(config.nameTargetMapping)) {
+      if (!isAttributeQuickSelectTarget(target)) continue;
+      if (Array.isArray(names) && names.includes(attrName)) return target;
+    }
+    if (source === 'base') return config.baseTarget;
+    if (source === 'special') return config.specialTarget;
+    return config.fallbackTarget;
+  };
+
+  const isQuickSelectTargetAvailable = (
+    target: AttributeQuickSelectTarget,
+    preset: QuickSelectCheckPresetConfig | null | undefined,
+    mode: 'normal' | 'contest',
+  ): boolean => {
+    if (target === 'attribute') return true;
+    if (target === 'skillMod') {
+      if (!preset?.skillMod || preset.skillMod.hidden) return false;
+      return mode !== 'contest' || preset.contestRule?.hideSkillMod !== true;
+    }
+    if (target === 'mod') {
+      if (!preset?.mod || preset.mod.hidden) return false;
+      return mode !== 'contest' || preset.contestRule?.hideMod !== true;
+    }
+    return false;
+  };
+
+  const resolveQuickSelectTarget = (
+    attrName: string,
+    source: CharacterAttributeSource | null | undefined,
+    preset: QuickSelectCheckPresetConfig | null | undefined,
+    mode: 'normal' | 'contest',
+  ): AttributeQuickSelectTarget => {
+    const activeAttributePreset = AttributePresetManager.getActivePreset() as AttributePresetConfig | null;
+    const mappedByAttributePreset = getAttributePresetMappedTarget(activeAttributePreset, attrName, source);
+    const mappedByCheckPreset = mappedByAttributePreset || getAdvancedPresetMappedTarget(preset, attrName);
+    const target = mappedByCheckPreset || 'attribute';
+    return isQuickSelectTargetAvailable(target, preset, mode) ? target : 'attribute';
+  };
+
+  const getNormalQuickSelectInputSelector = (target: AttributeQuickSelectTarget): string => {
+    if (target === 'skillMod') return '#dice-skill-mod';
+    if (target === 'mod') return '#dice-modifier';
+    return '#dice-attr-value';
   };
   // [新增] 标准6维属性名
   const STANDARD_ATTRS = ['力量', '敏捷', '体质', '智力', '感知', '魅力'];
@@ -16869,18 +17735,21 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const getFullAttributesForCharacter = (
     characterName,
     dataOverride?: Record<string, { name: string; content: (string | number | null)[][] }>,
-  ) => {
+  ): CharacterAttributeEntry[] => {
     const rawData = (dataOverride || cachedRawData || getTableData()) as DiceRawData | null;
     const lookup = findCharacterAttributeRow(characterName, rawData);
     if (!lookup) return [];
 
-    const attrs: Array<{ name: string; value: number }> = [];
+    const attrs: CharacterAttributeEntry[] = [];
     const row = lookup.sheet.content[lookup.rowIndex] || [];
+    const { baseColIndex, specialColIndex } = findPrimaryAttributeColumns(lookup.headers);
     findAttributeColumnIndices(lookup.headers).forEach(idx => {
       const parsed = parseAttributeString(row[idx] || '');
       parsed.forEach(attr => {
         if (!attrs.some(existing => existing.name === attr.name)) {
-          attrs.push(attr);
+          const source: CharacterAttributeSource =
+            idx === baseColIndex ? 'base' : idx === specialColIndex ? 'special' : 'generic';
+          attrs.push({ ...attr, source });
         }
       });
     });
@@ -17869,16 +18738,16 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         // 尝试从当前角色获取该属性的值
         const attrValue = getAttributeValue(charName, attrName) || targetValue || '';
         if (attrValue) {
-          html += `<button class="acu-dice-attr-btn acu-dice-attr-btn-mvu" data-name="${escapeHtml(attrName)}" data-value="${attrValue}" title="从变量路径提取: ${escapeHtml(attrName)}">${escapeHtml(attrName)}:${attrValue}</button>`;
+          html += `<button class="acu-dice-attr-btn acu-dice-attr-btn-mvu" data-name="${escapeHtml(attrName)}" data-value="${attrValue}" data-source="generic" title="从变量路径提取: ${escapeHtml(attrName)}">${escapeHtml(attrName)}:${attrValue}</button>`;
         } else {
           // 即使没有值也显示，用户可以手动填入
-          html += `<button class="acu-dice-attr-btn acu-dice-attr-btn-mvu" data-name="${escapeHtml(attrName)}" data-value="" title="从变量路径提取: ${escapeHtml(attrName)}">${escapeHtml(attrName)}</button>`;
+          html += `<button class="acu-dice-attr-btn acu-dice-attr-btn-mvu" data-name="${escapeHtml(attrName)}" data-value="" data-source="generic" title="从变量路径提取: ${escapeHtml(attrName)}">${escapeHtml(attrName)}</button>`;
         }
       }
 
       // 现有属性按钮
       attrs.forEach(attr => {
-        html += `<button class="acu-dice-attr-btn" data-name="${escapeHtml(attr.name)}" data-value="${attr.value}">${escapeHtml(attr.name)}:${attr.value}</button>`;
+        html += `<button class="acu-dice-attr-btn" data-name="${escapeHtml(attr.name)}" data-value="${attr.value}" data-source="${escapeHtml(attr.source || 'generic')}">${escapeHtml(attr.name)}:${attr.value}</button>`;
       });
 
       // 生成属性按钮（始终显示）
@@ -17893,29 +18762,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       $container.find('.acu-dice-attr-btn').click(function () {
         const attrName = $(this).data('name');
         const attrValue = $(this).data('value');
+        const attrSource = String($(this).attr('data-source') || 'generic') as CharacterAttributeSource;
 
         // 填入属性名
         // 使用 change 触发提交态刷新，避免输入中每字符重绘导致焦点丢失
         const $attrNameInput = panel.find('#dice-attr-name');
         $attrNameInput.val(attrName).trigger('change');
 
-        // [新增] 根据 attrTargetMapping 决定填入哪个字段
-        let targetField = '#dice-attr-value'; // 默认填入属性值
-        if (currentAdvancedPreset?.attrTargetMapping) {
-          for (const [fieldId, names] of Object.entries(currentAdvancedPreset.attrTargetMapping)) {
-            if (Array.isArray(names) && names.includes(attrName)) {
-              if (fieldId === 'skillMod') {
-                targetField = '#dice-skill-mod';
-              } else if (fieldId === 'mod') {
-                targetField = '#dice-modifier';
-              } else if (fieldId === 'attribute') {
-                targetField = '#dice-attr-value';
-              }
-              // 其他 customField.id 可在此扩展
-              break;
-            }
-          }
-        }
+        const target = resolveQuickSelectTarget(attrName, attrSource, currentAdvancedPreset, 'normal');
+        const targetField = getNormalQuickSelectInputSelector(target);
 
         panel.find(targetField).val(attrValue);
 
@@ -18058,9 +18913,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     panel.find('#dice-attr-name').on('change.acuval', function () {
       const charName = panel.find('#dice-initiator-name').val().trim() || '<user>';
       const attrName = $(this).val().trim();
-      const attrValue = getAttributeValue(charName, attrName);
-      if (attrValue !== null) {
-        panel.find('#dice-attr-value').val(attrValue);
+      const attrEntry = getAttributeEntryForCharacter(charName, attrName);
+      if (attrEntry) {
+        const target = resolveQuickSelectTarget(attrEntry.name, attrEntry.source, currentAdvancedPreset, 'normal');
+        const targetField = getNormalQuickSelectInputSelector(target);
+        panel.find(targetField).val(attrEntry.value).trigger('change');
         // [修复] 不自动填写DC，让检定时根据预设的defaultValue处理
       }
     });
@@ -21697,6 +22554,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             attr.value +
             '" data-aname="' +
             escapeHtml(attr.name) +
+            '" data-source="' +
+            escapeHtml(attr.source || 'generic') +
             '" data-type="' +
             targetType +
             '">' +
@@ -21725,15 +22584,16 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       $container.find('.acu-contest-attr-btn').click(function () {
         const val = $(this).attr('data-val');
         const aname = $(this).attr('data-aname');
+        const source = String($(this).attr('data-source') || 'generic') as CharacterAttributeSource;
         const type = $(this).attr('data-type');
 
         if (type === 'init') {
-          const targetInput = getContestAttrTargetInput('init', aname || '');
+          const targetInput = getContestAttrTargetInput('init', aname || '', source);
           panel.find(targetInput).val(val);
           panel.find('#contest-init-name').val(aname);
           panel.find(targetInput).trigger('change');
         } else {
-          const targetInput = getContestAttrTargetInput('opp', aname || '');
+          const targetInput = getContestAttrTargetInput('opp', aname || '', source);
           panel.find(targetInput).val(val);
           panel.find('#contest-opp-name').val(aname);
           panel.find(targetInput).trigger('change');
@@ -21896,22 +22756,19 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     // [新增] 高级预设选择器（对抗检定）
     let currentContestAdvancedPreset: AdvancedDicePreset | LegacyAdvancedDicePreset | null = null;
 
-    const getContestAttrTargetInput = (party: 'init' | 'opp', attrName: string): string => {
-      let target = party === 'init' ? '#contest-init-value' : '#contest-opp-value';
-      const mapping = currentContestAdvancedPreset?.attrTargetMapping;
-      if (!mapping || !attrName) return target;
-      for (const [fieldId, names] of Object.entries(mapping)) {
-        if (!Array.isArray(names) || !names.includes(attrName)) continue;
-        if (fieldId === 'skillMod') {
-          target = party === 'init' ? '#contest-init-skill-mod' : '#contest-opp-skill-mod';
-        } else if (fieldId === 'mod') {
-          target = party === 'init' ? '#contest-init-mod' : '#contest-opp-mod';
-        } else if (fieldId === 'attribute') {
-          target = party === 'init' ? '#contest-init-value' : '#contest-opp-value';
-        }
-        break;
+    const getContestAttrTargetInput = (
+      party: 'init' | 'opp',
+      attrName: string,
+      attrSource?: CharacterAttributeSource,
+    ): string => {
+      const target = resolveQuickSelectTarget(attrName, attrSource, currentContestAdvancedPreset, 'contest');
+      if (target === 'skillMod') {
+        return party === 'init' ? '#contest-init-skill-mod' : '#contest-opp-skill-mod';
       }
-      return target;
+      if (target === 'mod') {
+        return party === 'init' ? '#contest-init-mod' : '#contest-opp-mod';
+      }
+      return party === 'init' ? '#contest-init-value' : '#contest-opp-value';
     };
 
     const applyContestAdvancedPreset = (presetId: string | null) => {
@@ -22570,10 +23427,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     panel.find('#contest-init-name').on('change.acuval', function () {
       const charName = panel.find('#contest-init-display').val().trim() || '<user>';
       const attrName = $(this).val().trim();
-      const attrValue = getAttributeValue(charName, attrName);
-      if (attrValue !== null) {
-        const targetInput = getContestAttrTargetInput('init', attrName);
-        panel.find(targetInput).val(attrValue).trigger('change');
+      const attrEntry = getAttributeEntryForCharacter(charName, attrName);
+      if (attrEntry) {
+        const targetInput = getContestAttrTargetInput('init', attrEntry.name, attrEntry.source);
+        panel.find(targetInput).val(attrEntry.value).trigger('change');
       }
     });
 
@@ -22581,10 +23438,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     panel.find('#contest-opp-name').on('change.acuval', function () {
       const charName = panel.find('#contest-opponent-display').val().trim();
       const attrName = $(this).val().trim();
-      const attrValue = getAttributeValue(charName, attrName);
-      if (attrValue !== null) {
-        const targetInput = getContestAttrTargetInput('opp', attrName);
-        panel.find(targetInput).val(attrValue).trigger('change');
+      const attrEntry = getAttributeEntryForCharacter(charName, attrName);
+      if (attrEntry) {
+        const targetInput = getContestAttrTargetInput('opp', attrEntry.name, attrEntry.source);
+        panel.find(targetInput).val(attrEntry.value).trigger('change');
       }
     });
 
@@ -33331,6 +34188,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           id: 'default_percentile',
           name: '六维属性百分制',
           description: '使用百分制生成六维基础属性（力量、敏捷、体质、智力、感知、魅力），范围5-95',
+          quickSelect: ATTRIBUTE_QUICK_SELECT_DEFAULT,
           baseAttributes: STANDARD_ATTRS.map(name => ({
             name,
             formula: '3d6*5',
@@ -33390,6 +34248,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         copyData = {
           name: '六维属性百分制 (副本)',
           description: '使用百分制生成六维基础属性（力量、敏捷、体质、智力、感知、魅力），范围5-95',
+          quickSelect: ATTRIBUTE_QUICK_SELECT_DEFAULT,
           baseAttributes: STANDARD_ATTRS.map(name => ({
             name,
             formula: '3d6*5',
@@ -33406,6 +34265,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         copyData = {
           name: preset.name + ' (副本)',
           description: preset.description || '',
+          quickSelect: JSON.parse(JSON.stringify(preset.quickSelect || ATTRIBUTE_QUICK_SELECT_DEFAULT)),
           baseAttributes: JSON.parse(JSON.stringify(preset.baseAttributes)),
           specialAttributes: JSON.parse(JSON.stringify(preset.specialAttributes || [])),
         };
@@ -33537,6 +34397,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         { name: '魅力', formula: '3d6', range: [3, 18] },
       ],
       specialAttributes: existingPreset?.specialAttributes || [],
+      quickSelect: normalizeAttributeQuickSelectConfig(existingPreset?.quickSelect),
     };
 
     const overlay = $(`
@@ -33571,6 +34432,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               <strong>配置格式说明：</strong><br/>
               • baseAttributes: 基本属性数组，每项包含 name、formula、range、modifier(可选)<br/>
               • specialAttributes: 特别属性数组，每项包含 name、formula、range(可选)<br/>
+              • quickSelect: 快捷选择填入位置，baseTarget/specialTarget 可选 attribute、skillMod、mod<br/>
               • 公式支持: 3d6, 4d6kh3, 变量引用(力量/2), 数学运算(+、-、*、/)
             </div>
           </div>
@@ -33596,6 +34458,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const data = {
         baseAttributes: defaultData.baseAttributes,
         specialAttributes: defaultData.specialAttributes,
+        quickSelect: defaultData.quickSelect,
       };
       $jsonTextarea.val(JSON.stringify(data, null, 2));
     };
@@ -33635,10 +34498,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         // 构建预设
         const preset = {
           format: 'acu_attr_preset_v1',
-          version: 1,
+          version: PRESET_FORMAT_VERSION,
           id: presetId || `custom_${Date.now()}`,
           name,
           description,
+          quickSelect: normalizeAttributeQuickSelectConfig(jsonData.quickSelect),
           baseAttributes: jsonData.baseAttributes,
           specialAttributes: jsonData.specialAttributes || [],
         };
@@ -34336,6 +35200,110 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     });
   };
 
+  const buildNewAdvancedPresetJsoncTemplate = (): string => `{
+  // 这是一个可直接使用的 CoC7 风格高级检定预设示例。
+  // diceExpression / customFields / outcomes / outcomePolicy 决定实际投骰与判定。
+  // checkSuggestionGuide 决定“检定建议表”里 <检定规则> 展示给 AI 的提示词；删除其中任意段时会自动生成缺失段。
+  // checkSuggestionAliases 决定 DSL 参数名和值的中文别名，只处理 key=value 参数，不处理角色名或属性名别名。
+  "kind": "advanced",
+  "name": "自定义 CoC7 检定",
+  "description": "1d100 小于等于属性值成功，支持最低成功等级与奖惩骰",
+  "diceExpression": "1d100",
+  "attribute": {
+    "label": "技能值",
+    "placeholder": "留空=50",
+    "defaultValue": 50,
+    "key": "技能值"
+  },
+  "dc": {
+    "hidden": true,
+    "defaultValue": 0
+  },
+  "mod": {
+    "hidden": true,
+    "defaultValue": 0
+  },
+  "customFields": [
+    {
+      "id": "bonusPenalty",
+      "type": "number",
+      "label": "奖惩骰",
+      "defaultValue": "",
+      "placeholder": "+1 奖励，-1 惩罚"
+    },
+    {
+      "id": "requiredRank",
+      "type": "select",
+      "label": "最低成功等级",
+      "defaultValue": 1,
+      "options": [
+        { "label": "成功", "value": 1 },
+        { "label": "困难成功", "value": 2 },
+        { "label": "极难成功", "value": 3 }
+      ],
+      "contestOverride": { "hidden": true }
+    }
+  ],
+  "derivedVars": [
+    { "id": "absBp", "expr": "abs($bonusPenalty)" }
+  ],
+  "dicePatches": [
+    { "when": "$bonusPenalty > 0", "op": "append", "template": "b$absBp" },
+    { "when": "$bonusPenalty < 0", "op": "append", "template": "p$absBp" }
+  ],
+  "outcomes": [
+    { "id": "crit_success", "name": "大成功", "condition": "$roll.total === 1", "priority": 1, "rank": 4, "contestRank": 100 },
+    { "id": "extreme_success", "name": "极难成功", "condition": "$roll.total <= $attr / 5", "priority": 10, "rank": 3, "contestRank": 100 },
+    { "id": "hard_success", "name": "困难成功", "condition": "$roll.total <= $attr / 2", "priority": 20, "rank": 2, "contestRank": 80 },
+    { "id": "success", "name": "成功", "condition": "$roll.total <= $attr", "priority": 30, "rank": 1, "contestRank": 60 },
+    { "id": "failure", "name": "失败", "condition": "$roll.total > $attr", "displayExpr": "$roll.total <= $attr", "priority": 50, "rank": 0, "contestRank": 40 },
+    { "id": "crit_failure", "name": "大失败", "condition": "($attr < 50 && $roll.total >= 96) || ($attr >= 50 && $roll.total === 100)", "priority": 5, "rank": -1, "contestRank": 20 },
+    { "id": "unmet", "name": "失败", "condition": "false", "priority": 999, "rank": -2 }
+  ],
+  "outcomePolicy": {
+    "kind": "minRank",
+    "requiredRankVarId": "requiredRank",
+    "unmetOutcomeId": "unmet",
+    "keepActualOutcome": true
+  },
+  "contestRule": {
+    "mode": "rank",
+    "tieBreakers": ["higher_attr", "initiator_wins"]
+  },
+  "outputTemplate": "<meta:检定结果>\\n$outcomeText\\n元叙事：$initiator 发起了 $attrName 检定，$formula=$roll，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\\n</meta:检定结果>",
+  "contestOutputTemplate": "<meta:检定结果>\\n元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。\\n$initiator $initAttrName：$formula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；\\n$opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。\\n最终结果：【$winner】\\n</meta:检定结果>",
+  "checkSuggestionGuide": {
+    "rule": "使用 CoC7 的 1d100 检定：掷 1d100，结果小于等于属性值则成功。需要更高门槛时，可写 难度=困难 或 难度=极难。",
+    "dsl": "普通检定：检定 <角色> <属性> [难度=普通|困难|极难] [奖惩=奖励1|惩罚1]\\n对抗检定：对抗 <发起者> <属性> vs <对手> <属性> [难度=普通|困难|极难] [奖惩=奖励1|惩罚1]\\n固定成功：必成\\n固定失败：必败\\n无需检定：无",
+    "examples": "1. 展示文本：<user>在昏暗走廊里寻找血迹。\\n   骰子命令：检定 <user> 侦查 难度=困难\\n2. 展示文本：<user>判断陌生人是否隐瞒了仪式真相。\\n   骰子命令：对抗 <user> 心理学 vs 陌生人 话术"
+  },
+  "checkSuggestionAliases": {
+    "params": {
+      "难度": "requiredRank",
+      "最低成功等级": "requiredRank",
+      "奖惩": "bonusPenalty",
+      "奖惩骰": "bonusPenalty"
+    },
+    "values": {
+      "requiredRank": {
+        "普通": 1,
+        "成功": 1,
+        "普通成功": 1,
+        "困难": 2,
+        "困难成功": 2,
+        "极难": 3,
+        "极难成功": 3
+      },
+      "bonusPenalty": {
+        "奖励1": 1,
+        "奖励骰1": 1,
+        "惩罚1": -1,
+        "惩罚骰1": -1
+      }
+    }
+  }
+}`;
+
   const showAdvancedPresetEditor = (presetId = null) => {
     const { $ } = getCore();
     $('.acu-edit-overlay').remove();
@@ -34345,93 +35313,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const isEdit = !!presetId;
     const existingPreset = isEdit ? AdvancedDicePresetManager.getAllPresets().find(p => p.id === presetId) : null;
 
-    // 默认值 - 完整示例模板，展示所有可用字段
-    const defaultData = existingPreset
-      ? JSON.parse(JSON.stringify(existingPreset))
-      : {
-          name: '新检定预设',
-          description: '自定义检定规则示例',
-          diceExpression: '1d20',
-          attribute: {
-            label: '属性值',
-            placeholder: '留空=10',
-            defaultValue: 10,
-            key: '属性值',
-          },
-          dc: {
-            label: '难度等级(DC)',
-            placeholder: '留空=10',
-            defaultValue: 10,
-          },
-          mod: {
-            label: '修正值',
-            placeholder: '留空=0',
-            defaultValue: 0,
-          },
-          customFields: [
-            {
-              id: 'advantage',
-              type: 'select',
-              label: '优势/劣势',
-              defaultValue: 0,
-              options: [
-                { label: '正常', value: 0 },
-                { label: '优势', value: 1 },
-                { label: '劣势', value: -1 },
-              ],
-            },
-          ],
-          derivedVars: [{ id: 'attrMod', expr: 'floor(($attr - 10) / 2)' }],
-          dicePatches: [
-            { when: '$advantage > 0', op: 'replace', template: '2d20kh1' },
-            { when: '$advantage < 0', op: 'replace', template: '2d20kl1' },
-          ],
-          outcomes: [
-            {
-              id: 'crit_success',
-              name: '大成功',
-              condition: "$roll.hasTag('nat20')",
-              priority: 1,
-              rank: 3,
-              contestRank: 100,
-            },
-            {
-              id: 'success',
-              name: '成功',
-              condition: '$roll.total + $attrMod + $mod >= $dc',
-              priority: 10,
-              rank: 1,
-              contestRank: 60,
-            },
-            {
-              id: 'failure',
-              name: '失败',
-              condition: '$roll.total + $attrMod + $mod < $dc',
-              displayExpr: '$roll.total + $attrMod + $mod >= $dc',
-              priority: 50,
-              rank: 0,
-              contestRank: 40,
-            },
-            {
-              id: 'crit_failure',
-              name: '大失败',
-              condition: "$roll.hasTag('nat1')",
-              priority: 2,
-              rank: -1,
-              contestRank: 20,
-            },
-          ],
-          contestRule: {
-            mode: 'rank',
-            tieBreakers: ['higher_roll', 'initiator_wins'],
-          },
-          outputTemplate:
-            '<meta:检定结果>\n$outcomeText\n元叙事：$initiator 发起了 $attrName 检定，$formula=$roll，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\n</meta:检定结果>',
-          contestOutputTemplate: '',
-          secondaryTriggerMode: 'first',
-          secondaryMaxDepth: 3,
-          secondaryEffects: [],
-        };
+    const defaultJsonText = existingPreset
+      ? JSON.stringify(JSON.parse(JSON.stringify(existingPreset)), null, 2)
+      : buildNewAdvancedPresetJsoncTemplate();
+    const defaultData = JSON.parse(stripJsonComments(defaultJsonText));
 
     const overlay = $(`
       <div class="acu-edit-overlay">
@@ -34456,7 +35341,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
             <div style="margin-bottom: 16px;">
               <label style="display: block; font-size: 12px; color: var(--acu-text-sub); margin-bottom: 8px;">
-                JSON配置 <span style="font-size: 10px; color: var(--acu-text-sub);">(支持直接编辑或导入)</span>
+                JSONC配置 <span style="font-size: 10px; color: var(--acu-text-sub);">(支持 // 与 /* */ 注释)</span>
               </label>
               <textarea id="advanced-preset-json" class="acu-preset-editor-textarea" style="width: 100%; height: 400px; padding: 10px; border: 1px solid var(--acu-border) !important; border-radius: 6px; background: var(--acu-input-bg) !important; color: var(--acu-text-main) !important; font-family: 'Consolas', 'Monaco', monospace !important; font-size: 12px; resize: vertical; box-sizing: border-box;"></textarea>
             </div>
@@ -34490,6 +35375,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               • derivedVars: 派生变量 [{ id, expr }] 如 { id: "mod", expr: "floor(($attr-10)/2)" }<br/>
               • dicePatches: 条件骰子 [{ when?, op, template }]<br/>
               • contestRule: 对抗规则 { disabled?, mode, tieBreakers }<br/>
+              • checkSuggestionGuide: 检定建议表中给 AI 看的规则/命令/示例<br/>
+              • checkSuggestionAliases: DSL 参数名和值的中文别名<br/>
               <br/>
               <strong>输出模板变量</strong><br/>
               • $roll, $attr, $dc, $mod, $outcomeName, $formula, $initiator 等<br/>
@@ -34512,8 +35399,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     const $jsonTextarea = overlay.find('#advanced-preset-json');
 
-    // 初始化JSON
-    $jsonTextarea.val(JSON.stringify(defaultData, null, 2));
+    // 初始化 JSON / JSONC
+    $jsonTextarea.val(defaultJsonText);
 
     // 关闭
     overlay.find('.acu-close-btn, #advanced-preset-cancel').on('click', () => {
@@ -34533,8 +35420,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           return;
         }
 
-        // 解析JSON
-        const jsonData = JSON.parse(jsonStr);
+        // 解析 JSONC
+        const jsonData = JSON.parse(stripJsonComments(jsonStr));
 
         // 校验必需字段
         if (
@@ -34582,7 +35469,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         refreshDicePanelPresets(); // 刷新检定面板预设按钮
       } catch (err) {
         console.error('[DICE]ACU 保存高级预设失败:', err);
-        const errMsg = err.message || '';
+        const errMsg = err instanceof Error ? err.message : '';
         if (errMsg.includes('JSON') || errMsg.includes('position') || errMsg.includes('token')) {
           if (window.toastr)
             window.toastr.error('JSON格式错误：请确保所有键名和字符串值都用双引号包裹，例如 "name": "值"');
@@ -36316,14 +37203,19 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
   type CheckSuggestionTieRule = 'initiator_win' | 'initiator_lose' | 'tie';
   type CheckSuggestionCriteria = 'lte' | 'gte';
+  type CheckSuggestionRawParams = Record<string, string>;
+  type CheckSuggestionParamValue = string | number | boolean;
+  type CheckSuggestionParams = Record<string, CheckSuggestionParamValue>;
   type CheckSuggestionParsedCommand =
     | {
         kind: 'check';
         characterName: string;
         attributeName: string;
         diceType: string;
+        hasExplicitDice: boolean;
         targetValue: number | null;
         criteria: CheckSuggestionCriteria;
+        rawParams: CheckSuggestionRawParams;
       }
     | {
         kind: 'contest';
@@ -36332,11 +37224,35 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         rightName: string;
         rightAttribute: string;
         diceType: string;
+        hasExplicitDice: boolean;
         tieRule: CheckSuggestionTieRule;
+        hasExplicitTieRule: boolean;
+        rawParams: CheckSuggestionRawParams;
       }
     | { kind: 'fixed'; success: boolean }
     | { kind: 'none' }
     | { kind: 'invalid'; reason: string };
+
+  const extractCheckSuggestionParams = (text: string): { rest: string; rawParams: CheckSuggestionRawParams } => {
+    const rawParams: CheckSuggestionRawParams = {};
+    const tokens = String(text || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    const restTokens: string[] = [];
+    tokens.forEach(token => {
+      const match = token.match(/^([^=\s]+)=([^\s]+)$/);
+      if (!match) {
+        restTokens.push(token);
+        return;
+      }
+      rawParams[match[1]] = match[2];
+    });
+    return {
+      rest: restTokens.join(' '),
+      rawParams,
+    };
+  };
 
   const normalizeCheckSuggestionDiceFormula = (rawFormula: string): string => {
     const cleaned = String(rawFormula || '')
@@ -36346,14 +37262,17 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return cleaned || '1d100';
   };
 
-  const extractCheckSuggestionDiceFormula = (text: string): { rest: string; diceType: string } => {
+  const extractCheckSuggestionDiceFormula = (
+    text: string,
+  ): { rest: string; diceType: string; hasExplicitDice: boolean } => {
     const match = text.match(/(^|\s)([.。]?r?(?:\d*)d(?:\d+|F)(?:[a-z]+\d+)?)(?=$|\s)/i);
-    if (!match || match.index === undefined) return { rest: text, diceType: '1d100' };
+    if (!match || match.index === undefined) return { rest: text, diceType: '1d100', hasExplicitDice: false };
     const before = text.slice(0, match.index);
     const after = text.slice(match.index + match[0].length);
     return {
       rest: `${before} ${after}`.replace(/\s+/g, ' ').trim(),
       diceType: normalizeCheckSuggestionDiceFormula(match[2]),
+      hasExplicitDice: true,
     };
   };
 
@@ -36383,12 +37302,16 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return 'initiator_lose';
   };
 
-  const extractCheckSuggestionTieRule = (text: string): { rest: string; tieRule: CheckSuggestionTieRule } => {
+  const extractCheckSuggestionTieRule = (
+    text: string,
+  ): { rest: string; tieRule: CheckSuggestionTieRule; hasExplicitTieRule: boolean } => {
     const match = text.match(/平局\s*=\s*([^\s，,。；;]+)/);
-    if (!match || match.index === undefined) return { rest: text, tieRule: 'initiator_lose' };
+    if (!match || match.index === undefined)
+      return { rest: text, tieRule: 'initiator_lose', hasExplicitTieRule: false };
     return {
       rest: `${text.slice(0, match.index)} ${text.slice(match.index + match[0].length)}`.replace(/\s+/g, ' ').trim(),
       tieRule: parseCheckSuggestionTieRule(match[1]),
+      hasExplicitTieRule: true,
     };
   };
 
@@ -36412,17 +37335,20 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     if (command.startsWith('检定 ')) {
       const withoutPrefix = command.replace(/^检定\s+/, '').trim();
-      const targetExtracted = extractCheckSuggestionTarget(withoutPrefix);
+      const paramsExtracted = extractCheckSuggestionParams(withoutPrefix);
+      const targetExtracted = extractCheckSuggestionTarget(paramsExtracted.rest);
       const diceExtracted = extractCheckSuggestionDiceFormula(targetExtracted.rest);
       const side = parseCheckSuggestionSide(diceExtracted.rest);
-      if (!side) return { kind: 'invalid', reason: '普通检定命令格式应为：检定 <角色> <属性> .r1d100 <=60' };
+      if (!side) return { kind: 'invalid', reason: '普通检定命令格式应为：检定 <角色> <属性> [key=value ...]' };
       return {
         kind: 'check',
         characterName: side.name,
         attributeName: side.attribute,
         diceType: diceExtracted.diceType,
+        hasExplicitDice: diceExtracted.hasExplicitDice,
         targetValue: targetExtracted.targetValue,
         criteria: targetExtracted.criteria,
+        rawParams: paramsExtracted.rawParams,
       };
     }
 
@@ -36430,9 +37356,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const withoutPrefix = command.replace(/^对抗\s+/, '').trim();
       const tieExtracted = extractCheckSuggestionTieRule(withoutPrefix);
       const diceExtracted = extractCheckSuggestionDiceFormula(tieExtracted.rest);
-      const sides = diceExtracted.rest.split(/\s+vs\s+/i);
+      const paramsExtracted = extractCheckSuggestionParams(diceExtracted.rest);
+      const sides = paramsExtracted.rest.split(/\s+vs\s+/i);
       if (sides.length !== 2) {
-        return { kind: 'invalid', reason: '对抗检定命令格式应为：对抗 <角色> <属性> vs <角色> <属性> .r1d100' };
+        return { kind: 'invalid', reason: '对抗检定命令格式应为：对抗 <角色> <属性> vs <角色> <属性> [key=value ...]' };
       }
       const left = parseCheckSuggestionSide(sides[0]);
       const right = parseCheckSuggestionSide(sides[1]);
@@ -36446,7 +37373,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         rightName: right.name,
         rightAttribute: right.attribute,
         diceType: diceExtracted.diceType,
+        hasExplicitDice: diceExtracted.hasExplicitDice,
         tieRule: tieExtracted.tieRule,
+        hasExplicitTieRule: tieExtracted.hasExplicitTieRule,
+        rawParams: paramsExtracted.rawParams,
       };
     }
 
@@ -36483,6 +37413,683 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   };
 
   const buildCheckSuggestionMetaBlock = (line: string): string => `<meta:检定结果>\n${line}\n</meta:检定结果>`;
+
+  const parseCheckSuggestionPrimitiveValue = (value: string): CheckSuggestionParamValue => {
+    const trimmed = String(value || '').trim();
+    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed);
+    if (/^(true|是|启用|开启)$/i.test(trimmed)) return true;
+    if (/^(false|否|禁用|关闭)$/i.test(trimmed)) return false;
+    return trimmed;
+  };
+
+  const normalizeCheckSuggestionParams = (
+    rawParams: CheckSuggestionRawParams,
+    preset: AdvancedDicePreset,
+  ): CheckSuggestionParams => {
+    const normalized: CheckSuggestionParams = {};
+    const aliases = preset.checkSuggestionAliases;
+    Object.entries(rawParams).forEach(([rawKey, rawValue]) => {
+      if (rawKey === 'preset') return;
+      const canonicalKey = aliases?.params?.[rawKey] || rawKey;
+      const valueAliases = aliases?.values?.[canonicalKey] || {};
+      const aliasedValue = valueAliases[rawValue];
+      normalized[canonicalKey] =
+        aliasedValue !== undefined ? aliasedValue : parseCheckSuggestionPrimitiveValue(rawValue);
+    });
+    return normalized;
+  };
+
+  const parseCheckSuggestionModifierValue = (value: string): number => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return 0;
+    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed);
+    const rollResult = rollComplexDiceExpression(trimmed);
+    if (!Number.isNaN(rollResult.total)) return rollResult.total;
+    const formulaValue = evaluateFormula(trimmed, {});
+    return Number.isFinite(formulaValue) ? formulaValue : 0;
+  };
+
+  const resolveCheckSuggestionDefaultValue = (
+    defaultValue: number | string | boolean | undefined,
+    context: Record<string, number>,
+  ): number => {
+    if (defaultValue === undefined || defaultValue === '') return 0;
+    if (typeof defaultValue === 'number') return defaultValue;
+    if (typeof defaultValue === 'boolean') return defaultValue ? 1 : 0;
+    const result = evaluateFormula(String(defaultValue), context);
+    return Number.isFinite(result) ? result : 0;
+  };
+
+  const resolveCheckSuggestionNumberParam = (
+    value: CheckSuggestionParamValue | undefined,
+    characterName: string,
+    fallback: number,
+    options?: { preferAttribute?: boolean },
+  ): number => {
+    if (value === undefined || value === '') return fallback;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'boolean') return value ? 1 : 0;
+    const text = String(value).trim();
+    if (!text) return fallback;
+    if (options?.preferAttribute !== false) {
+      const attrValue = getAttributeValue(characterName, text);
+      if (attrValue !== null) return attrValue;
+    }
+    const parsed = parseCheckSuggestionModifierValue(text);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const getCheckSuggestionMappedTarget = (
+    preset: AdvancedDicePreset,
+    attrName: string,
+    attrSource?: CharacterAttributeSource,
+  ): AttributeQuickSelectTarget => {
+    return resolveQuickSelectTarget(attrName, attrSource, preset, 'normal');
+  };
+
+  const getCheckSuggestionOutcomeResultType = (outcome: OutcomeLevel): string => {
+    if (outcome.priority <= 10) return 'critSuccess';
+    if (outcome.priority <= 30) return 'extremeSuccess';
+    if (outcome.priority < 50) return 'success';
+    if (outcome.priority === 50) return 'warning';
+    if (outcome.priority < 90) return 'failure';
+    return 'critFailure';
+  };
+
+  const isCheckSuggestionOutcomeSuccess = (outcome: OutcomeLevel): boolean => {
+    return (
+      getCheckSuggestionOutcomeResultType(outcome) === 'critSuccess' ||
+      getCheckSuggestionOutcomeResultType(outcome) === 'extremeSuccess' ||
+      getCheckSuggestionOutcomeResultType(outcome) === 'success'
+    );
+  };
+
+  const resolveCheckSuggestionFieldValue = (
+    field: CustomFieldConfig,
+    params: CheckSuggestionParams,
+    characterName: string,
+  ): string | number | boolean => {
+    const rawValue = params[field.id];
+    if (rawValue === undefined || rawValue === '') return field.defaultValue;
+    if (field.type === 'number') {
+      return resolveCheckSuggestionNumberParam(rawValue, characterName, Number(field.defaultValue) || 0);
+    }
+    if (field.type === 'toggle') {
+      if (typeof rawValue === 'boolean') return rawValue;
+      return /^(true|是|启用|开启|1)$/i.test(String(rawValue));
+    }
+    if (field.type === 'select') {
+      if (typeof rawValue === 'number' || typeof rawValue === 'boolean') return rawValue;
+      const parsed = parseCheckSuggestionPrimitiveValue(String(rawValue));
+      return parsed;
+    }
+    return rawValue;
+  };
+
+  interface CheckSuggestionPresetSideResult {
+    characterName: string;
+    attributeName: string;
+    attrValue: number;
+    attrMod: number;
+    dc: number;
+    mod: number;
+    skillMod: number;
+    customValues: Record<string, string | number | boolean>;
+    derivedValues: Record<string, number>;
+    diceExpression: string;
+    rollResult: RollResult;
+    rollTotal: number;
+    context: Record<string, string | number | boolean | RollResult>;
+    outcome: OutcomeLevel;
+    conditionExpr: string;
+    judgeResultText: string;
+    outputVars: Record<string, string | number | boolean>;
+  }
+
+  const replaceCheckSuggestionConditionVars = (
+    expression: string,
+    context: Record<string, string | number | boolean | RollResult>,
+    rollResult: RollResult,
+  ): string => {
+    let result = expression.replace(/\$roll\.hasTag\s*\(\s*['"]([^'"]+)['"]\s*\)/gi, (_match, tag) => {
+      return (rollResult.tags ?? []).includes(tag) ? '成立' : '不成立';
+    });
+    result = result.replace(/\$roll\.total/g, String(rollResult.total)).replace(/\$roll/g, String(rollResult.total));
+    const keys = Object.keys(context)
+      .filter(key => key !== '$roll' && key !== '$roll.total')
+      .sort((a, b) => b.length - a.length);
+    keys.forEach(key => {
+      const value = context[key];
+      if (typeof value === 'object') return;
+      const safeKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp(safeKey, 'g'), String(value));
+    });
+    return result.replace(/\s*\+\s*0(?=\s*[+\->=<]|\s*$)/g, '').replace(/^\s*0\s*\+\s*/g, '');
+  };
+
+  const evaluateCheckSuggestionOutcome = (
+    preset: AdvancedDicePreset,
+    context: Record<string, string | number | boolean | RollResult>,
+  ): OutcomeLevel => {
+    let matchedOutcome = evaluateOutcomes(preset.outcomes, context as Record<string, number>);
+    if (preset.outcomePolicy?.kind === 'minRank') {
+      const requiredRankVarId = preset.outcomePolicy.requiredRankVarId;
+      const varKey = requiredRankVarId.startsWith('$') ? requiredRankVarId : `$${requiredRankVarId}`;
+      const requiredRankValue = context[varKey];
+      const requiredRank =
+        typeof requiredRankValue === 'number' ? requiredRankValue : parseFloat(String(requiredRankValue || 0));
+      const actualRank = matchedOutcome.rank ?? 0;
+      if (Number.isFinite(requiredRank) && actualRank >= 1 && actualRank < requiredRank) {
+        const fallbackOutcome = preset.outcomes.find(outcome => outcome.id === preset.outcomePolicy?.unmetOutcomeId);
+        if (fallbackOutcome) matchedOutcome = fallbackOutcome;
+      }
+    }
+    return matchedOutcome;
+  };
+
+  const buildCheckSuggestionPresetSide = (
+    preset: AdvancedDicePreset,
+    input: {
+      characterName: string;
+      attributeName: string;
+      params: CheckSuggestionParams;
+      targetValue?: number | null;
+      diceExpression?: string;
+    },
+  ): CheckSuggestionPresetSideResult => {
+    const defaultAttr = resolveCheckSuggestionDefaultValue(preset.attribute?.defaultValue, {});
+    const rawAttrEntry = getAttributeEntryForCharacter(input.characterName, input.attributeName);
+    const mappedTarget = getCheckSuggestionMappedTarget(preset, input.attributeName, rawAttrEntry?.source);
+    const rawAttrValue = rawAttrEntry?.value ?? null;
+    let attrValue = defaultAttr;
+    if (input.params.attr !== undefined) {
+      attrValue = resolveCheckSuggestionNumberParam(input.params.attr, input.characterName, defaultAttr);
+    } else if (input.targetValue !== undefined && input.targetValue !== null) {
+      attrValue = input.targetValue;
+    } else if (mappedTarget !== 'skillMod' && rawAttrValue !== null) {
+      attrValue = rawAttrValue;
+    }
+
+    const dc = resolveCheckSuggestionNumberParam(
+      input.params.dc,
+      input.characterName,
+      resolveCheckSuggestionDefaultValue(preset.dc?.defaultValue, { $attr: attrValue }),
+    );
+    const mod = resolveCheckSuggestionNumberParam(
+      input.params.mod,
+      input.characterName,
+      preset.mod?.hidden && input.params.mod === undefined
+        ? 0
+        : resolveCheckSuggestionDefaultValue(preset.mod?.defaultValue, { $attr: attrValue }),
+      { preferAttribute: false },
+    );
+    let skillMod = resolveCheckSuggestionNumberParam(
+      input.params.skillMod,
+      input.characterName,
+      resolveCheckSuggestionDefaultValue(preset.skillMod?.defaultValue, { $attr: attrValue }),
+    );
+    if (input.params.skillMod === undefined && mappedTarget === 'skillMod' && rawAttrValue !== null) {
+      skillMod = rawAttrValue;
+    }
+
+    let attrMod = 0;
+    if (preset.attribute?.computeModifier) {
+      const modFormula = preset.attribute.computeModifier;
+      attrMod =
+        modFormula === 'floor(($attr - 10) / 2)'
+          ? Math.floor((attrValue - 10) / 2)
+          : resolveCheckSuggestionDefaultValue(modFormula, { $attr: attrValue });
+    }
+
+    const customValues: Record<string, string | number | boolean> = {};
+    if (Array.isArray(preset.customFields)) {
+      preset.customFields.forEach(field => {
+        customValues[`$${field.id}`] = resolveCheckSuggestionFieldValue(field, input.params, input.characterName);
+      });
+    }
+
+    const baseContext: Record<string, string | number | boolean | RollResult> = {
+      $attr: attrValue,
+      $attrMod: attrMod,
+      $skillMod: skillMod,
+      $dc: dc,
+      $mod: mod,
+      $isPushed: 0,
+      ...customValues,
+    };
+
+    const derivedValues: Record<string, number> = {};
+    if (Array.isArray(preset.derivedVars)) {
+      preset.derivedVars.forEach(spec => {
+        const id = spec?.id?.trim();
+        if (!id) return;
+        const varName = id.startsWith('$') ? id : `$${id}`;
+        const evalResult = evaluateCondition(spec.expr, { ...baseContext, ...derivedValues } as Record<string, number>);
+        if (!evalResult.success) {
+          console.warn(`[DICE] 检定建议派生变量 ${varName} 计算失败:`, evalResult.error);
+          derivedValues[varName] = 0;
+          return;
+        }
+        const rawValue = evalResult.value;
+        derivedValues[varName] =
+          typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? 1 : 0;
+      });
+    }
+
+    let diceExpression = input.diceExpression || preset.diceExpression || '1d100';
+    if (Array.isArray(preset.dicePatches)) {
+      const patchContext: Record<string, string | number | boolean | RollResult> = {
+        ...baseContext,
+        ...derivedValues,
+      };
+      preset.dicePatches.forEach(patch => {
+        if (!patch) return;
+        if (patch.when) {
+          const conditionResult = evaluateCondition(patch.when, patchContext as Record<string, number>);
+          if (!conditionResult.success) {
+            console.warn('[DICE] 检定建议 dicePatches 条件评估失败:', conditionResult.error);
+            return;
+          }
+          const shouldApply =
+            typeof conditionResult.value === 'number' ? conditionResult.value !== 0 : Boolean(conditionResult.value);
+          if (!shouldApply) return;
+        }
+        const resolvedTemplate = String(patch.template || '').replace(/\$[a-zA-Z_]\w*/g, match => {
+          const value = patchContext[match];
+          return typeof value === 'number' && Number.isFinite(value) ? String(value) : '0';
+        });
+        if (patch.op === 'append') diceExpression = `${diceExpression}${resolvedTemplate}`;
+        else if (patch.op === 'prepend') diceExpression = `${resolvedTemplate}${diceExpression}`;
+        else if (patch.op === 'replace') diceExpression = resolvedTemplate;
+      });
+    }
+
+    const rollResult = rollComplexDiceExpression(diceExpression);
+    if (Number.isNaN(rollResult.total)) {
+      throw new Error(`无效的骰子公式：${diceExpression}`);
+    }
+
+    const postRollDerivedValues: Record<string, number> = {};
+    if (Array.isArray(preset.derivedVars)) {
+      const postRollContext: Record<string, string | number | boolean | RollResult> = {
+        $roll: rollResult,
+        '$roll.total': rollResult.total,
+        ...baseContext,
+        ...customValues,
+      };
+      preset.derivedVars.forEach(spec => {
+        const id = spec?.id?.trim();
+        if (!id) return;
+        const varName = id.startsWith('$') ? id : `$${id}`;
+        const evalResult = evaluateCondition(spec.expr, { ...postRollContext, ...postRollDerivedValues } as Record<
+          string,
+          number
+        >);
+        if (!evalResult.success) {
+          console.warn(`[DICE] 检定建议派生变量 ${varName} (投骰后) 计算失败:`, evalResult.error);
+          postRollDerivedValues[varName] = 0;
+          return;
+        }
+        const rawValue = evalResult.value;
+        postRollDerivedValues[varName] =
+          typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? 1 : 0;
+      });
+    }
+
+    const context: Record<string, string | number | boolean | RollResult> = {
+      $roll: rollResult,
+      '$roll.total': rollResult.total,
+      ...baseContext,
+      ...postRollDerivedValues,
+    };
+    const outcome = evaluateCheckSuggestionOutcome(preset, context);
+    const displayExpr = outcome.displayExpr ?? outcome.condition;
+    const conditionExpr = replaceCheckSuggestionConditionVars(displayExpr, context, rollResult);
+    const displayExprResult = evaluateCondition(displayExpr, context as Record<string, number>);
+    const judgeResultText =
+      displayExprResult.success &&
+      (typeof displayExprResult.value === 'number' ? displayExprResult.value !== 0 : Boolean(displayExprResult.value))
+        ? '成立'
+        : '不成立';
+
+    const outputVars: Record<string, string | number | boolean> = {};
+    Object.entries({ ...customValues, ...postRollDerivedValues }).forEach(([key, value]) => {
+      outputVars[key.startsWith('$') ? key.slice(1) : key] = value;
+    });
+
+    return {
+      characterName: input.characterName,
+      attributeName: input.attributeName,
+      attrValue,
+      attrMod,
+      dc,
+      mod,
+      skillMod,
+      customValues,
+      derivedValues: postRollDerivedValues,
+      diceExpression,
+      rollResult,
+      rollTotal: rollResult.total,
+      context,
+      outcome,
+      conditionExpr,
+      judgeResultText,
+      outputVars,
+    };
+  };
+
+  const buildCheckSuggestionSideParams = (
+    params: CheckSuggestionParams,
+    side: 'left' | 'right',
+  ): CheckSuggestionParams => {
+    const result: CheckSuggestionParams = {};
+    Object.entries(params).forEach(([key, value]) => {
+      if (key === 'preset') return;
+      const lowerKey = key.toLowerCase();
+      const isLeft = lowerKey.startsWith('left');
+      const isRight = lowerKey.startsWith('right');
+      if (!isLeft && !isRight) {
+        result[key] = value;
+        return;
+      }
+      if ((side === 'left' && isLeft) || (side === 'right' && isRight)) {
+        const prefixLength = side === 'left' ? 4 : 5;
+        const stripped = key.slice(prefixLength);
+        const normalizedKey = stripped ? stripped.charAt(0).toLowerCase() + stripped.slice(1) : key;
+        result[normalizedKey] = value;
+      }
+    });
+    return result;
+  };
+
+  const resolveCheckSuggestionContestWinner = (
+    preset: AdvancedDicePreset,
+    left: CheckSuggestionPresetSideResult,
+    right: CheckSuggestionPresetSideResult,
+    command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>,
+  ): 'initiator' | 'opponent' | 'tie' => {
+    const contestRule = preset.contestRule;
+    let winner: 'initiator' | 'opponent' | 'tie' = 'tie';
+    const leftTotal = left.rollTotal + left.attrMod + left.skillMod + left.mod;
+    const rightTotal = right.rollTotal + right.attrMod + right.skillMod + right.mod;
+
+    switch (contestRule?.mode ?? 'rank') {
+      case 'rank': {
+        const leftRank = left.outcome.contestRank ?? 50;
+        const rightRank = right.outcome.contestRank ?? 50;
+        if (leftRank > rightRank) winner = 'initiator';
+        else if (rightRank > leftRank) winner = 'opponent';
+        break;
+      }
+      case 'value':
+      case 'margin': {
+        if (leftTotal > rightTotal) winner = 'initiator';
+        else if (rightTotal > leftTotal) winner = 'opponent';
+        break;
+      }
+      case 'custom': {
+        if (contestRule?.customExpr) {
+          const conditionResult = evaluateCondition(contestRule.customExpr, {
+            $initValue: leftTotal,
+            $oppValue: rightTotal,
+            $initRank: left.outcome.contestRank ?? 50,
+            $oppRank: right.outcome.contestRank ?? 50,
+          });
+          if (conditionResult.success) {
+            const matched =
+              typeof conditionResult.value === 'number' ? conditionResult.value !== 0 : Boolean(conditionResult.value);
+            winner = matched ? 'initiator' : 'opponent';
+          }
+        }
+        break;
+      }
+    }
+
+    if (winner === 'tie' && command.hasExplicitTieRule) {
+      if (command.tieRule === 'initiator_win') return 'initiator';
+      if (command.tieRule === 'initiator_lose') return 'opponent';
+      return 'tie';
+    }
+
+    const tieBreakers =
+      Array.isArray(contestRule?.tieBreakers) && contestRule.tieBreakers.length > 0
+        ? contestRule.tieBreakers
+        : contestRule?.tieBreaker
+          ? [contestRule.tieBreaker]
+          : [];
+    if (winner === 'tie') {
+      for (const tieBreaker of tieBreakers) {
+        if (tieBreaker === 'higher_attr') {
+          if (left.attrValue > right.attrValue) winner = 'initiator';
+          else if (right.attrValue > left.attrValue) winner = 'opponent';
+        } else if (tieBreaker === 'higher_roll') {
+          if (left.rollTotal > right.rollTotal) winner = 'initiator';
+          else if (right.rollTotal > left.rollTotal) winner = 'opponent';
+        } else if (tieBreaker === 'initiator_wins') {
+          winner = 'initiator';
+        } else if (tieBreaker === 'status_quo') {
+          winner = 'tie';
+        }
+        if (winner !== 'tie') break;
+      }
+    }
+    return winner;
+  };
+
+  const executeAdvancedCheckSuggestion = (command: Extract<CheckSuggestionParsedCommand, { kind: 'check' }>) => {
+    refreshNameAliasesForCheckSuggestion();
+    const presetId = command.rawParams.preset || null;
+    const preset = getCheckSuggestionPresetById(presetId);
+    if (!preset) throw new Error('未找到可用检定预设');
+    const params = normalizeCheckSuggestionParams(command.rawParams, preset);
+    const characterName = resolveCheckSuggestionCharacterName(command.characterName);
+    const side = buildCheckSuggestionPresetSide(preset, {
+      characterName,
+      attributeName: command.attributeName,
+      params,
+      targetValue: command.targetValue,
+      diceExpression: command.hasExplicitDice ? command.diceType : undefined,
+    });
+    const outcomeText = side.outcome.name || '判定完成';
+    const outcomeTextRaw = side.outcome.outputText || '';
+    const attrModStr = side.attrMod >= 0 ? `+${side.attrMod}` : String(side.attrMod);
+    const skillModStr = side.skillMod >= 0 ? `+${side.skillMod}` : String(side.skillMod);
+    const skillModText = side.skillMod !== 0 ? `+技能加值${skillModStr}` : '';
+    const modText = side.mod !== 0 ? `+额外加值${side.mod >= 0 ? '+' + side.mod : side.mod}` : '';
+    const attrModText = side.attrMod !== 0 ? `(调整值${attrModStr})` : '';
+    const effectVars = computePendingEffectVariables(side.outcome.effects);
+    const outputContext: Record<string, string | number | undefined> = {
+      initiator: characterName,
+      attrName: `【${command.attributeName}】`,
+      attrValue: side.attrValue,
+      attrMod: attrModStr,
+      skillMod: skillModStr,
+      skillModText,
+      modText,
+      attrModText,
+      formula: side.diceExpression,
+      roll: side.rollTotal,
+      'roll.total': side.rollTotal,
+      dc: side.dc,
+      mod: side.mod,
+      attr: side.attrValue,
+      conditionExpr: side.conditionExpr,
+      judgeResult: side.judgeResultText,
+      outcomeName: outcomeText,
+      outcomeText: formatOutputTemplate(String(outcomeTextRaw), {
+        ...side.outputVars,
+        ...effectVars,
+      } as Record<string, string | number | undefined>),
+      ...(side.outputVars as Record<string, string | number>),
+      ...(effectVars as Record<string, string | number>),
+    };
+    const template = preset.outputTemplate || DEFAULT_OUTPUT_TEMPLATE;
+    const diceResultText = formatOutputTemplate(template, outputContext);
+    smartInsertToTextarea(diceResultText, 'dice');
+
+    const isSuccess = isCheckSuggestionOutcomeSuccess(side.outcome);
+    const checkResult: AcuDice.CheckResult = {
+      success: isSuccess,
+      total: side.rollTotal,
+      target: side.dc || side.attrValue,
+      outcomeText,
+      attrName: command.attributeName,
+      criteria: 'advanced',
+      isAutoTarget: command.targetValue === null && params.attr === undefined,
+      formula: side.diceExpression,
+    };
+    const detailId = `check_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const checkResultWithTimestamp = {
+      ...checkResult,
+      timestamp: Date.now(),
+      detailId,
+      initiatorName: characterName,
+      historyType: 'check' as const,
+      detailLines: [
+        `发起者: ${replaceUserPlaceholders(characterName)}`,
+        `属性: ${command.attributeName} (值=${side.attrValue})`,
+        `预设: ${preset.name}`,
+        `公式: ${side.diceExpression}`,
+        `掷骰: ${side.rollTotal}`,
+        `目标: ${side.dc || side.attrValue}`,
+        `修正: attrMod=${attrModStr}, skillMod=${skillModStr}, mod=${side.mod >= 0 ? '+' + side.mod : side.mod}`,
+        `判定: ${side.conditionExpr}`,
+        `结果: ${outcomeText}`,
+      ],
+    };
+    checkHistory.push(checkResultWithTimestamp);
+    if (checkHistory.length > MAX_HISTORY) checkHistory.shift();
+    emitEvent('check', checkResultWithTimestamp);
+  };
+
+  const executeAdvancedContestCheckSuggestion = (
+    command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>,
+  ) => {
+    refreshNameAliasesForCheckSuggestion();
+    const presetId = command.rawParams.preset || null;
+    const preset = getCheckSuggestionPresetById(presetId);
+    if (!preset) throw new Error('未找到可用检定预设');
+    if (!AdvancedDicePresetManager.supportsContest(preset)) {
+      throw new Error(`当前检定预设「${preset.name}」不支持对抗检定`);
+    }
+    const params = normalizeCheckSuggestionParams(command.rawParams, preset);
+    const leftName = resolveCheckSuggestionCharacterName(command.leftName);
+    const rightName = resolveCheckSuggestionCharacterName(command.rightName);
+    const left = buildCheckSuggestionPresetSide(preset, {
+      characterName: leftName,
+      attributeName: command.leftAttribute,
+      params: buildCheckSuggestionSideParams(params, 'left'),
+      diceExpression: command.hasExplicitDice ? command.diceType : undefined,
+    });
+    const right = buildCheckSuggestionPresetSide(preset, {
+      characterName: rightName,
+      attributeName: command.rightAttribute,
+      params: buildCheckSuggestionSideParams(params, 'right'),
+      diceExpression: command.hasExplicitDice ? command.diceType : undefined,
+    });
+    const winnerSide = resolveCheckSuggestionContestWinner(preset, left, right, command);
+    const leftDisplayName = replaceUserPlaceholders(leftName);
+    const rightDisplayName = replaceUserPlaceholders(rightName);
+    const winnerText =
+      winnerSide === 'initiator'
+        ? `${leftDisplayName} 胜利`
+        : winnerSide === 'opponent'
+          ? `${rightDisplayName} 胜利`
+          : '平局';
+    const leftTotal = left.rollTotal + left.attrMod + left.skillMod + left.mod;
+    const rightTotal = right.rollTotal + right.attrMod + right.skillMod + right.mod;
+    const margin = leftTotal - rightTotal;
+    const signed = (value: number): string => (value >= 0 ? `+${value}` : String(value));
+    const template = preset.contestOutputTemplate || DEFAULT_CONTEST_OUTPUT_TEMPLATE;
+    const contestOutputContext: Record<string, string | number | undefined> = {
+      initiator: leftName,
+      opponent: rightName,
+      initAttrName: command.leftAttribute,
+      oppAttrName: command.rightAttribute,
+      initRoll: left.rollTotal,
+      oppRoll: right.rollTotal,
+      initTarget: left.dc,
+      oppTarget: right.dc,
+      initSuccessName: left.outcome.name,
+      oppSuccessName: right.outcome.name,
+      winner: winnerText,
+      outcomeText: left.outcome.outputText || left.outcome.name || '判定完成',
+      outcomeName: left.outcome.name,
+      conditionExpr: left.conditionExpr,
+      judgeResult: left.judgeResultText,
+      formula: left.diceExpression,
+      roll: left.rollTotal,
+      dc: left.dc,
+      mod: left.mod,
+      attr: left.attrValue,
+      attrName: `【${command.leftAttribute}】`,
+      initOutcomeText: left.outcome.outputText || left.outcome.name || '判定完成',
+      oppOutcomeText: right.outcome.outputText || right.outcome.name || '判定完成',
+      initConditionExpr: left.conditionExpr,
+      oppConditionExpr: right.conditionExpr,
+      initJudgeResult: left.judgeResultText,
+      oppJudgeResult: right.judgeResultText,
+      initAttrMod: left.attrMod,
+      oppAttrMod: right.attrMod,
+      initSkillMod: left.skillMod,
+      oppSkillMod: right.skillMod,
+      initMod: left.mod,
+      oppMod: right.mod,
+      initAttrModText: left.attrMod !== 0 ? `，调整值${signed(left.attrMod)}` : '',
+      oppAttrModText: right.attrMod !== 0 ? `，调整值${signed(right.attrMod)}` : '',
+      initSkillModText: left.skillMod !== 0 ? `+技能加值${signed(left.skillMod)}` : '',
+      oppSkillModText: right.skillMod !== 0 ? `+技能加值${signed(right.skillMod)}` : '',
+      initModText: left.mod !== 0 ? `+额外加值${signed(left.mod)}` : '',
+      oppModText: right.mod !== 0 ? `+额外加值${signed(right.mod)}` : '',
+      initTotal: leftTotal,
+      oppTotal: rightTotal,
+      margin,
+      shifts: margin,
+      initAttr: left.attrValue,
+      oppAttr: right.attrValue,
+    };
+    const contestResultText = formatOutputTemplate(template, contestOutputContext);
+    smartInsertToTextarea(contestResultText, 'dice');
+
+    const contestResult: AcuDice.ContestResult = {
+      left: {
+        name: leftName,
+        attribute: command.leftAttribute,
+        roll: left.rollTotal,
+        target: left.dc || left.attrValue,
+        successLevel: left.outcome.contestRank ?? 0,
+      },
+      right: {
+        name: rightName,
+        attribute: command.rightAttribute,
+        roll: right.rollTotal,
+        target: right.dc || right.attrValue,
+        successLevel: right.outcome.contestRank ?? 0,
+      },
+      winner: winnerSide === 'initiator' ? 'left' : winnerSide === 'opponent' ? 'right' : 'tie',
+      message: winnerText,
+    };
+    const timestamp = Date.now();
+    const contestResultWithTimestamp = {
+      ...contestResult,
+      timestamp,
+      detailId: `contest_${timestamp}_${Math.random().toString(36).slice(2, 8)}`,
+      historyType: 'contest' as const,
+      detailLines: [
+        `发起方: ${leftDisplayName} / 对抗方: ${rightDisplayName}`,
+        `属性: ${command.leftAttribute} vs ${command.rightAttribute}`,
+        `预设: ${preset.name}`,
+        `公式: ${left.diceExpression} vs ${right.diceExpression}`,
+        `掷骰: ${left.rollTotal} vs ${right.rollTotal}`,
+        `总值: ${leftTotal} vs ${rightTotal}`,
+        `判定: ${left.conditionExpr} | ${right.conditionExpr}`,
+        `结果: ${winnerText}`,
+      ],
+    };
+    contestHistory.push(contestResultWithTimestamp);
+    if (contestHistory.length > MAX_HISTORY) contestHistory.shift();
+    emitEvent('contest', contestResultWithTimestamp);
+  };
 
   const executeFixedCheckSuggestion = (success: boolean) => {
     const label = success ? '必定成功' : '必定失败';
@@ -36662,11 +38269,23 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         return;
       }
       if (parsed.kind === 'check') {
-        executeNormalCheckSuggestion(parsed);
+        try {
+          executeAdvancedCheckSuggestion(parsed);
+        } catch (advancedError) {
+          if (!parsed.hasExplicitDice && parsed.targetValue === null) throw advancedError;
+          console.warn('[DICE] 检定建议高级预设执行失败，回退旧式检定:', advancedError);
+          executeNormalCheckSuggestion(parsed);
+        }
         insertActionText();
         return;
       }
-      executeContestCheckSuggestion(parsed);
+      try {
+        executeAdvancedContestCheckSuggestion(parsed);
+      } catch (advancedError) {
+        if (!parsed.hasExplicitDice) throw advancedError;
+        console.warn('[DICE] 检定建议高级预设对抗执行失败，回退旧式对抗:', advancedError);
+        executeContestCheckSuggestion(parsed);
+      }
       insertActionText();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
