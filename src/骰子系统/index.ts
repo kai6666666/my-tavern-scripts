@@ -2069,7 +2069,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.3'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v5.64'; // 脚本版本号
+  const SCRIPT_VERSION = 'v5.65'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -11478,13 +11478,13 @@ import {
       },
       // DND对抗检定专用模板：双方总值直接比较，不使用固定DC
       contestOutputTemplate: `<meta:检定结果>
- 元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。
- $initiator $initAttrName：$formula=$initRoll$initAttrModText$initSkillModText$initModText，总值=$initTotal；
- $opponent $oppAttrName：$formula=$oppRoll$oppAttrModText$oppSkillModText$oppModText，总值=$oppTotal。
- 最终结果：【$winner】
- </meta:检定结果>`,
+元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。
+$initiator $initAttrName：$initCheckValueText$initModText，$formula=$initRoll，总值=$initTotal；
+$opponent $oppAttrName：$oppCheckValueText$oppModText，$formula=$oppRoll，总值=$oppTotal。
+最终结果：【$winner】
+</meta:检定结果>`,
       outputTemplate:
-        '<meta:检定结果>\n$outcomeText\n元叙事：$initiator 发起了 $attrName 检定，属性值$attrValue$attrModText$skillModText，$formula=$roll，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\n</meta:检定结果>',
+        '<meta:检定结果>\n$outcomeText\n元叙事：$initiator 发起了 $attrName 检定，$checkValueText$modText，$formula=$roll，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\n</meta:检定结果>',
     },
     {
       kind: 'advanced',
@@ -16954,6 +16954,50 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return isQuickSelectTargetAvailable(target, preset, mode) ? target : 'attribute';
   };
 
+  const formatSignedModifier = (value: number): string => (value >= 0 ? `+${value}` : String(value));
+
+  const getNamedCheckParamText = (value: string | number | boolean | undefined): string | null => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return null;
+    if (/^(true|false|是|否|启用|禁用|开启|关闭)$/i.test(trimmed)) return null;
+    return trimmed;
+  };
+
+  const buildCheckValueText = (options: {
+    preset: AdvancedDicePreset;
+    characterName: string;
+    actionName: string;
+    attrValue: number;
+    attrMod: number;
+    skillMod: number;
+    mode: 'normal' | 'contest';
+    attrNameOverride?: string | null;
+    skillNameOverride?: string | null;
+  }): string => {
+    const entry = getAttributeEntryForCharacter(options.characterName, options.actionName);
+    const resolvedActionName = entry?.name || options.actionName;
+    const mappedTarget = resolveQuickSelectTarget(resolvedActionName, entry?.source, options.preset, options.mode);
+    const attrModText = options.attrMod !== 0 ? `（调整值${formatSignedModifier(options.attrMod)}）` : '';
+    const attributeName =
+      options.attrNameOverride ||
+      (mappedTarget === 'skillMod'
+        ? options.attrMod !== 0
+          ? options.preset.attribute?.label || '属性值'
+          : null
+        : resolvedActionName);
+    const skillName = options.skillNameOverride || (mappedTarget === 'skillMod' ? resolvedActionName : null);
+
+    const parts: string[] = [];
+    if (attributeName) parts.push(`${attributeName}${options.attrValue}${attrModText}`);
+    if (skillName) parts.push(`${skillName}（技能加值${formatSignedModifier(options.skillMod)}）`);
+    else if (options.skillMod !== 0) parts.push(`技能加值${formatSignedModifier(options.skillMod)}`);
+
+    if (parts.length > 0) return parts.join('+');
+    return `${options.preset.attribute?.label || '属性值'}${options.attrValue}${attrModText}`;
+  };
+
   const getNormalQuickSelectInputSelector = (target: AttributeQuickSelectTarget): string => {
     if (target === 'skillMod') return '#dice-skill-mod';
     if (target === 'mod') return '#dice-modifier';
@@ -21420,6 +21464,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const modText = mod !== 0 ? `+额外加值${mod >= 0 ? '+' + mod : mod}` : '';
       // attrModText: 当attrMod非0时显示 "(调整值+N)"，否则为空
       const attrModText = attrMod !== 0 ? `(调整值${attrModStr})` : '';
+      const checkValueText = buildCheckValueText({
+        preset,
+        characterName: initiatorName,
+        actionName: attrName,
+        attrValue,
+        attrMod,
+        skillMod,
+        mode: 'normal',
+      });
 
       // [新增] 将派生变量转换为 outputContext 格式（去掉 $ 前缀）
       const derivedOutputVars: Record<string, number> = {};
@@ -21446,6 +21499,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         skillModText: skillModText,
         modText: modText,
         attrModText: attrModText,
+        checkValueText,
         formula: diceExpression,
         roll: rollTotal,
         'roll.total': rollTotal, // [新增] 支持 $roll.total 语法
@@ -24389,6 +24443,24 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       const oppAttrModText = oppAttrMod !== 0 ? `，调整值${oppAttrModStr}` : '';
       const oppSkillModText = oppSkillMod !== 0 ? `+技能加值${oppSkillModStr}` : '';
       const oppModText = oppMod !== 0 ? `+额外加值${oppMod >= 0 ? '+' + oppMod : oppMod}` : '';
+      const initCheckValueText = buildCheckValueText({
+        preset,
+        characterName: initName,
+        actionName: initAttrName,
+        attrValue: initValue,
+        attrMod: initAttrMod,
+        skillMod: initSkillMod,
+        mode: 'contest',
+      });
+      const oppCheckValueText = buildCheckValueText({
+        preset,
+        characterName: oppName,
+        actionName: oppAttrName,
+        attrValue: oppValue,
+        attrMod: oppAttrMod,
+        skillMod: oppSkillMod,
+        mode: 'contest',
+      });
 
       const contestOutputContext = {
         initiator: initName,
@@ -24433,6 +24505,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         oppSkillModText: oppSkillModText,
         initModText: initModText,
         oppModText: oppModText,
+        initCheckValueText: initCheckValueText,
+        oppCheckValueText: oppCheckValueText,
         // 总值和差值（用于 DND/Fate 等系统）
         initTotal: initTotal,
         oppTotal: oppTotal,
@@ -37898,6 +37972,17 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const modText = side.mod !== 0 ? `+额外加值${side.mod >= 0 ? '+' + side.mod : side.mod}` : '';
     const attrModText = side.attrMod !== 0 ? `(调整值${attrModStr})` : '';
     const effectVars = computePendingEffectVariables(side.outcome.effects);
+    const checkValueText = buildCheckValueText({
+      preset,
+      characterName,
+      actionName: command.attributeName,
+      attrValue: side.attrValue,
+      attrMod: side.attrMod,
+      skillMod: side.skillMod,
+      mode: 'normal',
+      attrNameOverride: getNamedCheckParamText(params.attr),
+      skillNameOverride: getNamedCheckParamText(params.skillMod),
+    });
     const outputContext: Record<string, string | number | undefined> = {
       initiator: characterName,
       attrName: `【${command.attributeName}】`,
@@ -37907,6 +37992,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       skillModText,
       modText,
       attrModText,
+      checkValueText,
       formula: side.diceExpression,
       roll: side.rollTotal,
       'roll.total': side.rollTotal,
@@ -37975,16 +38061,18 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const params = normalizeCheckSuggestionParams(command.rawParams, preset);
     const leftName = resolveCheckSuggestionCharacterName(command.leftName);
     const rightName = resolveCheckSuggestionCharacterName(command.rightName);
+    const leftParams = buildCheckSuggestionSideParams(params, 'left');
+    const rightParams = buildCheckSuggestionSideParams(params, 'right');
     const left = buildCheckSuggestionPresetSide(preset, {
       characterName: leftName,
       attributeName: command.leftAttribute,
-      params: buildCheckSuggestionSideParams(params, 'left'),
+      params: leftParams,
       diceExpression: command.hasExplicitDice ? command.diceType : undefined,
     });
     const right = buildCheckSuggestionPresetSide(preset, {
       characterName: rightName,
       attributeName: command.rightAttribute,
-      params: buildCheckSuggestionSideParams(params, 'right'),
+      params: rightParams,
       diceExpression: command.hasExplicitDice ? command.diceType : undefined,
     });
     const winnerSide = resolveCheckSuggestionContestWinner(preset, left, right, command);
@@ -38001,6 +38089,28 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const margin = leftTotal - rightTotal;
     const signed = (value: number): string => (value >= 0 ? `+${value}` : String(value));
     const template = preset.contestOutputTemplate || DEFAULT_CONTEST_OUTPUT_TEMPLATE;
+    const initCheckValueText = buildCheckValueText({
+      preset,
+      characterName: leftName,
+      actionName: command.leftAttribute,
+      attrValue: left.attrValue,
+      attrMod: left.attrMod,
+      skillMod: left.skillMod,
+      mode: 'contest',
+      attrNameOverride: getNamedCheckParamText(leftParams.attr),
+      skillNameOverride: getNamedCheckParamText(leftParams.skillMod),
+    });
+    const oppCheckValueText = buildCheckValueText({
+      preset,
+      characterName: rightName,
+      actionName: command.rightAttribute,
+      attrValue: right.attrValue,
+      attrMod: right.attrMod,
+      skillMod: right.skillMod,
+      mode: 'contest',
+      attrNameOverride: getNamedCheckParamText(rightParams.attr),
+      skillNameOverride: getNamedCheckParamText(rightParams.skillMod),
+    });
     const contestOutputContext: Record<string, string | number | undefined> = {
       initiator: leftName,
       opponent: rightName,
@@ -38041,6 +38151,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       oppSkillModText: right.skillMod !== 0 ? `+技能加值${signed(right.skillMod)}` : '',
       initModText: left.mod !== 0 ? `+额外加值${signed(left.mod)}` : '',
       oppModText: right.mod !== 0 ? `+额外加值${signed(right.mod)}` : '',
+      initCheckValueText,
+      oppCheckValueText,
       initTotal: leftTotal,
       oppTotal: rightTotal,
       margin,
