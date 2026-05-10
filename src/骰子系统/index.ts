@@ -2069,7 +2069,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.3'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v5.65'; // 脚本版本号
+  const SCRIPT_VERSION = 'v5.66'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -44674,6 +44674,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const GACHA_PICKUP_FALLBACK_LIMIT = 3;
   const GACHA_ALL_POOL_TAG: GachaPoolTag = '全部';
   const GACHA_CUSTOM_ONLY_POOL_TAG: GachaPoolTag = '自定义';
+  const GACHA_REWARD_FIELD_LIMITS: Record<GachaRewardTarget, { name: number; description: number }> = {
+    inventory: { name: 10, description: 60 },
+    equipment: { name: 12, description: 40 },
+  };
   const DEFAULT_GACHA_SETTINGS_ITEM_FILTERS: GachaSettingsItemFilterState = {
     search: '',
     source: 'all',
@@ -45012,6 +45016,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const order = Number(value);
     return Number.isFinite(order) ? Math.max(1, Math.floor(order)) : fallback;
   };
+
+  const normalizeGachaRewardTarget = (value: unknown): GachaRewardTarget =>
+    value === 'equipment' ? 'equipment' : 'inventory';
+
+  const getGachaRewardFieldLimits = (target: GachaRewardTarget): { name: number; description: number } =>
+    GACHA_REWARD_FIELD_LIMITS[normalizeGachaRewardTarget(target)];
+
+  const truncateGachaText = (value: unknown, maxLength: number): string =>
+    Array.from(String(value || '')).slice(0, maxLength).join('');
 
   const getStoredGachaItemSettings = (): GachaItemSettingsRecord => {
     const stored = Store.get(STORAGE_KEY_GACHA_ITEM_SETTINGS, null);
@@ -48519,6 +48532,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       baseItem.rewardTarget === 'equipment'
         ? { ...baseItem, type: inferEquipmentTableTypeForGachaItem(baseItem) }
         : baseItem;
+    const fieldLimits = getGachaRewardFieldLimits(item.rewardTarget);
     const config = getConfig();
     const poolOptionsHtml = pools
       .map(pool => {
@@ -48552,13 +48566,13 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             </div>
           </div>
           <div class="acu-gacha-item-editor-body">
-            <label class="acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="80" required /></label>
+            <label class="acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required /></label>
             <label class="acu-gacha-item-field acu-gacha-item-type-field"><span>类型</span><input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" /></label>
             <label class="acu-gacha-item-field acu-gacha-item-quality-field"><span>品质</span><select class="acu-gacha-item-quality">${rarityOptionsHtml}</select></label>
             <label class="acu-gacha-item-field acu-gacha-item-target-field"><span>发放目标</span><select class="acu-gacha-item-target">${targetOptionsHtml}</select></label>
             <label class="acu-gacha-item-field acu-gacha-item-weight-field"><span>权重</span><input class="acu-gacha-item-weight" type="number" min="0.01" step="0.01" value="${escapeHtml(String(item.weight || 1))}" /></label>
             <label class="acu-gacha-item-field acu-gacha-item-quantity-field"><span>发放数量</span><input class="acu-gacha-item-quantity" type="number" min="1" step="1" value="${escapeHtml(String(item.grantQuantity || 1))}" /></label>
-            <label class="wide acu-gacha-item-field acu-gacha-item-description-field"><span>描述</span><textarea class="acu-gacha-item-description" rows="3">${escapeHtml(item.description || '')}</textarea></label>
+            <label class="wide acu-gacha-item-field acu-gacha-item-description-field"><span>描述</span><textarea class="acu-gacha-item-description" rows="3" maxlength="${fieldLimits.description}">${escapeHtml(item.description || '')}</textarea></label>
             <div class="wide acu-gacha-item-pools">
               <span>所属卡池</span>
               <div>${poolOptionsHtml}</div>
@@ -48624,16 +48638,36 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       $preview.html(renderGachaItemIconContent(previewItem));
       hydrateGachaLocalIconsIn($preview);
     };
+    const getEditorRewardTarget = (): GachaRewardTarget =>
+      normalizeGachaRewardTarget(overlay.find('.acu-gacha-item-target').val());
+    const applyEditorFieldLimits = () => {
+      const limits = getGachaRewardFieldLimits(getEditorRewardTarget());
+      const $nameInput = overlay.find('.acu-gacha-item-name');
+      const $descriptionInput = overlay.find('.acu-gacha-item-description');
+      const clampField = ($field: JQuery, maxLength: number) => {
+        $field.attr('maxlength', String(maxLength));
+        const value = String($field.val() || '');
+        if (countUnicodeCharacters(value) > maxLength) {
+          $field.val(truncateGachaText(value, maxLength));
+        }
+      };
+      clampField($nameInput, limits.name);
+      clampField($descriptionInput, limits.description);
+    };
     const closeEditor = () => {
       revokePreviewObjectUrl();
       overlay.remove();
     };
     overlay.on('click', '.acu-gacha-item-editor-close', closeEditor);
     setupOverlayClose(overlay, 'acu-gacha-item-editor-overlay', closeEditor);
+    applyEditorFieldLimits();
     overlay.on(
       'input change',
-      '.acu-gacha-item-name, .acu-gacha-item-type, .acu-gacha-item-icon, .acu-gacha-item-icon-url, .acu-gacha-item-icon-file, .acu-gacha-item-clear-local-icon',
-      refreshEditorIconPreview,
+      '.acu-gacha-item-name, .acu-gacha-item-type, .acu-gacha-item-target, .acu-gacha-item-description, .acu-gacha-item-icon, .acu-gacha-item-icon-url, .acu-gacha-item-icon-file, .acu-gacha-item-clear-local-icon',
+      () => {
+        applyEditorFieldLimits();
+        refreshEditorIconPreview();
+      },
     );
 
     overlay.on('submit', '.acu-gacha-item-editor', function (event) {
@@ -48659,9 +48693,18 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           .toArray()
           .map(element => normalizeGachaPoolId((element as HTMLInputElement).value))
           .filter(Boolean);
+        const submitFieldLimits = getGachaRewardFieldLimits(rewardTarget);
 
         if (!name) {
           if (window.toastr) window.toastr.warning('请输入物品名称');
+          return;
+        }
+        if (countUnicodeCharacters(name) > submitFieldLimits.name) {
+          if (window.toastr) window.toastr.warning(`名称不能超过 ${submitFieldLimits.name} 字`);
+          return;
+        }
+        if (countUnicodeCharacters(description) > submitFieldLimits.description) {
+          if (window.toastr) window.toastr.warning(`描述不能超过 ${submitFieldLimits.description} 字`);
           return;
         }
         if (!GACHA_RARITY_ORDER.includes(quality)) {

@@ -124,8 +124,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '肾宝',
     type: '消耗品',
     quality: '普通',
-    description:
-      '可疑的补品。广告词：男人要肾好，就要喝肾宝，喝了以后比刘翔快，比姚明高，一瓶提神醒脑，两瓶永不疲劳，三瓶长生不老。',
+    description: '可疑补品，号称提神醒脑、缓解疲劳，效果和副作用都不太可靠。',
     poolTags: ['都市'],
     weight: 1.4,
     stackable: true,
@@ -255,8 +254,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '灵魂宝石',
     type: '道具',
     quality: '史诗',
-    description:
-      '可以寄居少女灵魂的宝石，灵魂可以通过灵魂宝石来操控自己的肉体进行战斗，并且用魔法来修复自己所受到的损伤。灵魂宝石需要定期用悲叹之种来进行净化，否则每次使用魔力，或随着时间流逝，灵魂宝石会逐步污浊，最终导致其内的灵魂失去理智，沦为魔女。',
+    description: '寄宿少女灵魂的宝石，可供施法与修复伤势，需定期净化避免污浊。',
     poolTags: ['奇幻'],
     weight: 1,
     stackable: false,
@@ -308,8 +306,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '老魔杖',
     type: '武器',
     quality: '传说',
-    description:
-      '极强的魔杖，施法威力显著提高，但所有权会随击败或缴械关系转移。使用时会引来追求强大魔法力量的巫师的觊觎。',
+    description: '强力魔杖，所有权会随击败或缴械转移。',
     poolTags: ['奇幻'],
     weight: 1,
     stackable: false,
@@ -397,7 +394,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
   },
   {
     id: 'fantasy_thunderfury',
-    name: '雷霆之怒，逐风者的祝福之剑',
+    name: '雷霆逐风剑',
     type: '武器',
     quality: '神话',
     description: '风暴属性传说长剑，可召唤雷电和强风。使用时会明显暴露持有者位置。',
@@ -582,8 +579,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '仁之剑',
     type: '武器',
     quality: '史诗',
-    description:
-      '刘备的双剑之一。单独使用为轻剑；与义之剑同时装备时，可提升防守和统率类行动。当持有者违背仁义之道时，失去所有能力。',
+    description: '刘备双剑之一，重防守统率，违背仁义会失效。',
     poolTags: ['历史'],
     weight: 1,
     stackable: false,
@@ -596,8 +592,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '义之剑',
     type: '武器',
     quality: '史诗',
-    description:
-      '刘备的双剑之一。单独使用为轻剑；与仁之剑同时装备时，可提升支援和结盟类行动。当持有者违背仁义之道时，失去所有能力。',
+    description: '刘备双剑之一，重支援结盟，违背仁义会失效。',
     poolTags: ['历史'],
     weight: 1,
     stackable: false,
@@ -766,8 +761,7 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '催眠APP',
     type: '道具',
     quality: '史诗',
-    description:
-      '不知为何突然出现在手机上的界面简陋的手机应用，将催眠APP的画面展示给智慧生物时可以施加强力的催眠效果。生效时间与同时作用人数有限，且催眠效果取决于催眠内容与对方自我认识与尝试的乖离程度。',
+    description: '神秘手机应用，展示画面可施加强力催眠，效果受目标认知影响。',
     poolTags: ['都市', '校园'],
     weight: 1,
     stackable: false,
@@ -1025,10 +1019,10 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
   },
   {
     id: 'fantasy_allezuhod_pen',
-    name: '0-08 阿勒苏霍德之笔',
+    name: '阿勒苏霍德之笔',
     type: '道具',
     quality: '神话',
-    description: '用这支笔写下的故事一定会成真，但是总会以离奇并讽刺的方式来反噬它的主人。',
+    description: '编号“0-08”。用这支笔写下的故事一定会成真，但是总会以离奇并讽刺的方式来反噬它的主人。',
     poolTags: ['奇幻', '都市'],
     weight: 1,
     stackable: false,
@@ -1288,7 +1282,8 @@ export const GACHA_ITEM_DEFINITIONS: readonly GachaItemDefinition[] = [
     name: '长生不老药',
     type: '消耗品',
     quality: '神话',
-    description: '帝王方士梦寐以求的丹药。服下可停止衰老并抵抗常规疾病，但不会免除痛苦、封印或厄运，还会引来所有觊觎长生者。',
+    description:
+      '帝王方士梦寐以求的丹药。服下可停止衰老并抵抗常规疾病，但不会免除痛苦、封印或厄运，还会引来所有觊觎长生者。',
     poolTags: ['修真', '历史', '奇幻'],
     weight: 1,
     stackable: true,
