@@ -4,6 +4,8 @@ export type GachaPoolTag = string;
 
 export type GachaRewardTarget = 'inventory' | 'equipment';
 
+export type GachaCustomFields = Record<string, string>;
+
 export interface GachaPoolDefinition {
   id: GachaPoolTag;
   name: string;
@@ -23,6 +25,7 @@ export interface GachaItemDefinition {
   icon?: string;
   iconUrl?: string;
   localIconKey?: string;
+  customFields?: GachaCustomFields;
   enabled?: boolean;
   order?: number;
   createdAt?: number;
@@ -36,7 +39,7 @@ export interface GachaItemDefinition {
 
 export const GACHA_CATALOG_EXPORT_KIND = 'acu-gacha-items';
 
-export const GACHA_CATALOG_VERSION = 1;
+export const GACHA_CATALOG_VERSION = 2;
 
 export const FORTUNE_CURRENCY_NAME = '骰运';
 

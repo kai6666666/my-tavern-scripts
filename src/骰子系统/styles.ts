@@ -5832,6 +5832,74 @@ export const MAIN_STYLES = `
                 .acu-diff-old, .acu-diff-new { max-width: 100px; }
                 .acu-change-action-btn { width: 28px; height: 28px; }
             }
+            @media (max-width: 768px) {
+                .acu-template-inspection-overlay .acu-edit-dialog {
+                    width: calc(100vw - 20px) !important;
+                    max-width: calc(100vw - 20px) !important;
+                    max-height: calc(100dvh - 24px) !important;
+                    padding: 12px !important;
+                }
+                .acu-template-inspection-overlay .acu-settings-content-scroll {
+                    max-height: calc(100dvh - 230px) !important;
+                    overflow-y: auto !important;
+                    padding: 10px 0 !important;
+                }
+                .acu-template-inspection-summary {
+                    padding: 10px !important;
+                    margin-bottom: 10px !important;
+                }
+                .acu-template-inspection-layout {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    gap: 10px !important;
+                }
+                .acu-template-inspection-tabs {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    gap: 8px !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    max-height: none !important;
+                    overflow-x: auto !important;
+                    overflow-y: hidden !important;
+                    padding: 0 0 6px 0 !important;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .acu-template-inspection-tab {
+                    width: auto !important;
+                    min-width: 136px !important;
+                    max-width: 210px !important;
+                    flex: 0 0 auto !important;
+                    padding: 8px 9px !important;
+                }
+                .acu-template-inspection-panels {
+                    max-height: none !important;
+                    overflow: visible !important;
+                    padding-right: 0 !important;
+                }
+                .acu-template-inspection-card .acu-changes-group-header {
+                    padding: 8px !important;
+                    align-items: flex-start !important;
+                    gap: 6px !important;
+                }
+                .acu-template-inspection-card .acu-changes-count {
+                    margin-left: 4px !important;
+                    flex-shrink: 0;
+                }
+                .acu-template-inspection-card .acu-change-item {
+                    padding: 8px !important;
+                    word-break: break-word;
+                }
+                .acu-template-inspection-overlay .acu-dialog-btns {
+                    gap: 8px !important;
+                    padding: 10px 12px !important;
+                }
+                .acu-template-inspection-overlay .acu-dialog-btn {
+                    min-width: 0 !important;
+                    white-space: normal !important;
+                }
+            }
             .acu-change-field-count { font-size: 11px; color: var(--acu-text-sub); margin-left: 4px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             /* 多字段整体编辑弹窗样式 */
             .acu-row-edit-field { margin-bottom: 12px; padding: 10px; background: var(--acu-table-head); border-radius: 6px; border: 1px solid transparent; }
@@ -8823,6 +8891,19 @@ export const MAIN_STYLES = `
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+    .acu-gacha-settings-item-custom-fields {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    .acu-gacha-settings-item-custom-fields .acu-gacha-custom-field-preview {
+        max-height: 42px;
+        overflow: hidden;
+    }
+    .acu-gacha-settings-item-custom-fields .acu-gacha-custom-field-chip,
+    .acu-gacha-settings-item-custom-fields .acu-gacha-custom-field-preview-more {
+        max-width: min(100%, 220px);
+    }
     .acu-gacha-settings-actions {
         display: inline-flex;
         align-items: center;
@@ -9328,6 +9409,183 @@ export const MAIN_STYLES = `
         background: var(--acu-accent);
         color: var(--acu-btn-active-text, var(--acu-button-text-on-accent, #fff));
     }
+    .acu-gacha-custom-fields {
+        grid-column: 1 / -1;
+        border: 1px solid color-mix(in srgb, var(--acu-border) 86%, var(--acu-accent));
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--acu-card-bg) 90%, transparent);
+        overflow: hidden;
+    }
+    .acu-gacha-custom-fields summary {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        color: var(--acu-text-main);
+        cursor: pointer;
+        list-style: none;
+    }
+    .acu-gacha-custom-fields summary::-webkit-details-marker {
+        display: none;
+    }
+    .acu-gacha-custom-fields summary::after {
+        content: '\f078';
+        flex: 0 0 auto;
+        color: var(--acu-text-sub);
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        transition: transform .14s ease, color .14s ease;
+    }
+    .acu-gacha-custom-fields[open] summary::after {
+        transform: rotate(180deg);
+        color: var(--acu-accent);
+    }
+    .acu-gacha-custom-fields summary > span {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 850;
+    }
+    .acu-gacha-custom-fields summary small {
+        min-width: 0;
+        color: var(--acu-text-sub);
+        font-size: 10px;
+        font-weight: 700;
+        text-align: right;
+    }
+    .acu-gacha-custom-field-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 0 12px 12px;
+    }
+    .acu-gacha-custom-field-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid color-mix(in srgb, var(--acu-border) 70%, transparent);
+    }
+    .acu-gacha-custom-field-toolbar > div {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    .acu-gacha-custom-field-toolbar strong {
+        color: var(--acu-text-main);
+        font-size: 12px;
+        line-height: 1.2;
+    }
+    .acu-gacha-custom-field-toolbar small {
+        color: var(--acu-text-sub);
+        font-size: 10px;
+        font-weight: 650;
+        line-height: 1.35;
+    }
+    .acu-gacha-custom-field-add {
+        flex: 0 0 auto;
+        min-height: 32px;
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+    .acu-gacha-custom-field-add:disabled {
+        opacity: .52;
+        cursor: not-allowed;
+    }
+    .acu-gacha-custom-field-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .acu-gacha-custom-field-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(120px, .85fr) minmax(0, 1.35fr) auto;
+        gap: 8px;
+        align-items: end;
+        padding: 8px;
+        border: 1px solid color-mix(in srgb, var(--acu-border) 72%, transparent);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--acu-btn-bg) 72%, transparent);
+    }
+    .acu-gacha-custom-field-row label {
+        margin: 0;
+    }
+    .acu-gacha-custom-field-value {
+        min-height: 38px;
+        max-height: min(32dvh, 220px);
+        overflow: auto;
+        resize: vertical;
+    }
+    .acu-gacha-custom-field-remove {
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        border: 1px solid color-mix(in srgb, var(--acu-error-border) 72%, var(--acu-border));
+        border-radius: 9px;
+        background: color-mix(in srgb, var(--acu-error-bg) 42%, var(--acu-btn-bg));
+        color: color-mix(in srgb, var(--acu-error-text) 80%, var(--acu-text-main));
+        cursor: pointer;
+        transition: border-color .14s ease, background-color .14s ease, color .14s ease;
+    }
+    .acu-gacha-custom-field-remove:hover:not(:disabled) {
+        border-color: var(--acu-error-text);
+        background: color-mix(in srgb, var(--acu-error-bg) 58%, var(--acu-btn-bg));
+        color: var(--acu-text-main);
+    }
+    .acu-gacha-custom-field-remove:disabled {
+        opacity: .48;
+        cursor: not-allowed;
+    }
+    .acu-gacha-custom-field-suggestions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+    .acu-gacha-custom-field-suggestions > span {
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        font-weight: 800;
+    }
+    .acu-gacha-custom-field-suggestion-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
+    }
+    .acu-gacha-custom-field-suggestion {
+        max-width: 100%;
+        min-height: 30px;
+        border: 1px solid color-mix(in srgb, var(--acu-accent) 36%, var(--acu-border));
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--acu-accent) 10%, var(--acu-btn-bg));
+        color: var(--acu-text-main);
+        padding: 5px 10px;
+        font-size: 11px;
+        font-weight: 800;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: border-color .14s ease, background-color .14s ease, color .14s ease;
+    }
+    .acu-gacha-custom-field-suggestion:hover {
+        border-color: var(--acu-accent);
+        background: color-mix(in srgb, var(--acu-accent) 18%, var(--acu-btn-bg));
+    }
+    .acu-gacha-custom-field-suggestion-empty {
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        font-style: normal;
+        font-weight: 650;
+    }
     .acu-gacha-item-pool-option,
     .acu-gacha-item-checkbox {
         flex-direction: row !important;
@@ -9510,7 +9768,7 @@ export const MAIN_STYLES = `
         font-size: 13px;
         line-height: 1;
     }
-    .acu-gacha-pickup-card > span:last-child {
+    .acu-gacha-pickup-desc {
         color: var(--acu-text-sub);
         font-size: 11px;
         line-height: 1.35;
@@ -9518,6 +9776,47 @@ export const MAIN_STYLES = `
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }
+    .acu-gacha-custom-field-preview {
+        min-width: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .acu-gacha-custom-field-preview-chip,
+    .acu-gacha-custom-field-chip,
+    .acu-gacha-custom-field-preview-more {
+        min-width: 0;
+        max-width: 100%;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        border: 1px solid color-mix(in srgb, var(--acu-accent) 18%, var(--acu-border));
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--acu-card-bg) 76%, var(--acu-accent));
+        color: var(--acu-text-main);
+        font-size: 10px;
+        font-weight: 750;
+        line-height: 1.3;
+    }
+    .acu-gacha-custom-field-preview-key {
+        flex: 0 1 auto;
+        max-width: 45%;
+        overflow: hidden;
+        color: var(--acu-text-sub);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .acu-gacha-custom-field-preview-value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .acu-gacha-custom-field-preview-more {
+        flex: 0 0 auto;
+        color: var(--acu-accent);
     }
     .acu-gacha-pickup-rarity {
         width: fit-content;
@@ -9689,6 +9988,107 @@ export const MAIN_STYLES = `
     }
     .acu-gacha-pickup-detail-overlay {
         z-index: 31365 !important;
+    }
+    .acu-gacha-custom-field-details,
+    .acu-gacha-custom-fields-details {
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid color-mix(in srgb, var(--acu-accent) 18%, var(--acu-border));
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--acu-card-bg) 94%, transparent);
+    }
+    .acu-gacha-custom-field-details summary,
+    .acu-gacha-custom-fields-details summary {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        color: var(--acu-text-main);
+        cursor: pointer;
+        list-style: none;
+    }
+    .acu-gacha-custom-field-details summary::-webkit-details-marker,
+    .acu-gacha-custom-fields-details summary::-webkit-details-marker {
+        display: none;
+    }
+    .acu-gacha-custom-field-details summary::after,
+    .acu-gacha-custom-fields-details summary::after {
+        content: '\f078';
+        flex: 0 0 auto;
+        color: var(--acu-text-sub);
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        transition: transform .14s ease, color .14s ease;
+    }
+    .acu-gacha-custom-field-details[open] summary::after,
+    .acu-gacha-custom-fields-details[open] summary::after {
+        transform: rotate(180deg);
+        color: var(--acu-accent);
+    }
+    .acu-gacha-custom-field-details summary > span,
+    .acu-gacha-custom-fields-details summary > span {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 850;
+    }
+    .acu-gacha-custom-field-details summary strong,
+    .acu-gacha-custom-fields-details summary strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .acu-gacha-custom-field-details summary small,
+    .acu-gacha-custom-fields-details summary small {
+        flex: 0 0 auto;
+        color: var(--acu-text-sub);
+        font-size: 10px;
+        font-weight: 700;
+    }
+    .acu-gacha-custom-field-detail-list {
+        max-height: min(34dvh, 320px);
+        overflow: hidden auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 0 12px 12px;
+    }
+    .acu-gacha-custom-field-detail-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        padding: 8px;
+        border: 1px solid color-mix(in srgb, var(--acu-border) 72%, transparent);
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--acu-btn-bg) 72%, transparent);
+    }
+    .acu-gacha-custom-field-detail-key,
+    .acu-gacha-custom-field-detail-value {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .acu-gacha-custom-field-detail-key {
+        color: var(--acu-text-sub);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.35;
+    }
+    .acu-gacha-custom-field-detail-value {
+        color: var(--acu-text-main);
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 1.45;
+        white-space: pre-wrap;
     }
     .acu-gacha-shard-shop {
         width: min(760px, 94vw);
@@ -9877,6 +10277,11 @@ export const MAIN_STYLES = `
         flex-direction: column;
         gap: 5px;
     }
+    .acu-gacha-shard-card-main .acu-gacha-custom-field-preview {
+        max-height: 38px;
+        overflow: hidden;
+        padding-right: 58px;
+    }
     .acu-gacha-shard-item-head {
         min-width: 0;
         display: flex;
@@ -9962,6 +10367,12 @@ export const MAIN_STYLES = `
         color: var(--acu-text-sub);
         font-size: 12px;
         font-weight: 800;
+    }
+    .acu-gacha-shard-confirm-text small {
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.35;
     }
     .acu-gacha-shard-confirm-actions {
         display: grid;
@@ -11080,6 +11491,16 @@ export const MAIN_STYLES = `
         .acu-gacha-settings-item-desc {
             display: none;
         }
+        .acu-gacha-settings-item-custom-fields {
+            grid-column: 1 / -1;
+        }
+        .acu-gacha-settings-item-custom-fields .acu-gacha-custom-field-preview {
+            max-height: 46px;
+        }
+        .acu-gacha-settings-item-custom-fields .acu-gacha-custom-field-chip,
+        .acu-gacha-settings-item-custom-fields .acu-gacha-custom-field-preview-more {
+            max-width: 100%;
+        }
         .acu-gacha-settings-pool-tabs {
             gap: 5px;
             padding-bottom: 6px;
@@ -11103,6 +11524,26 @@ export const MAIN_STYLES = `
         }
         .acu-gacha-icon-editor-fields {
             grid-template-columns: 1fr;
+        }
+        .acu-gacha-custom-fields summary {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .acu-gacha-custom-field-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .acu-gacha-custom-field-add {
+            width: 100%;
+            justify-content: center;
+        }
+        .acu-gacha-custom-field-row {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .acu-gacha-custom-field-remove {
+            width: 100%;
+            min-width: 0;
         }
         .acu-gacha-pickup-section {
             gap: 6px;
@@ -11133,9 +11574,22 @@ export const MAIN_STYLES = `
             height: 16px;
             font-size: 12px;
         }
-        .acu-gacha-pickup-card > span:last-child {
+        .acu-gacha-pickup-desc {
             -webkit-line-clamp: 1;
             font-size: 10px;
+        }
+        .acu-gacha-custom-field-preview {
+            gap: 3px;
+        }
+        .acu-gacha-custom-field-preview-chip,
+        .acu-gacha-custom-field-preview-more {
+            max-width: 100%;
+            padding: 1px 5px;
+            font-size: 9px;
+        }
+        .acu-gacha-custom-field-detail-row {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 4px;
         }
         .acu-gacha-draw-row {
             grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
@@ -11231,6 +11685,36 @@ export const MAIN_STYLES = `
             width: 64px;
             height: 64px;
             font-size: 38px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .acu-gacha-settings-item {
+            grid-template-columns: 18px 30px minmax(0, 1fr);
+        }
+        .acu-gacha-settings-item .acu-gacha-settings-actions {
+            grid-column: 1 / -1;
+            grid-row: auto;
+            align-self: stretch;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .acu-gacha-settings-more > summary {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+        }
+        .acu-gacha-custom-field-toolbar,
+        .acu-gacha-custom-field-suggestions,
+        .acu-gacha-custom-field-suggestion-list {
+            min-width: 0;
+        }
+        .acu-gacha-custom-field-suggestion {
+            max-width: 100%;
+        }
+        .acu-gacha-custom-field-detail-list {
+            max-height: min(38dvh, 300px);
         }
     }
 

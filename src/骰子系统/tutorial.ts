@@ -15,6 +15,10 @@ export type TutorialScope =
   | 'diceSettings'
   | 'advancedPresetManager'
   | 'advancedPresetEditor'
+  | 'actionPresetManager'
+  | 'actionPresetEditor'
+  | 'dashboardPresetManager'
+  | 'dashboardPresetEditor'
   | 'attributePresetEditor'
   | 'attributePresetManager'
   | 'map'
@@ -866,7 +870,158 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       placement: 'top',
     },
   ],
-  attributePresetEditor: [
+  actionPresetManager: [
+    {
+      selector: ['.acu-action-preset-manager-dialog', '#acu-action-presets-list'],
+      title: '交互规则管理',
+      content:
+        '交互规则决定表格条目旁显示哪些快捷按钮。列表中包含内置规则和自定义规则，启用后会按表名关键词匹配地点、人物、物品等表格。',
+      placement: 'left',
+    },
+    {
+      selector: '#acu-action-presets-list .acu-preset-item:first-child',
+      title: '规则列表',
+      content: '每个条目会显示匹配关键词和动作摘要。开关用于启用这一套规则，内置规则需要先复制后才能修改。',
+      placement: 'right',
+    },
+    {
+      selector: '.acu-action-preset-export',
+      title: '导出参考',
+      content: '导出会下载完整预设 JSON，适合备份或作为自定义规则的参考。',
+      placement: 'left',
+    },
+    {
+      selector: '#acu-action-preset-new',
+      title: '新建规则',
+      content: '这里会打开交互规则编辑器。初次自定义时可以先复制内置规则，再根据需要调整关键词和动作模板。',
+      placement: 'top',
+    },
+    {
+      selector: '#acu-action-preset-import',
+      title: '导入规则',
+      content: '这里可以导入之前导出的完整交互规则预设 JSON。',
+      placement: 'top',
+    },
+  ],
+  actionPresetEditor: [
+    {
+      selector: ['.acu-action-preset-editor-dialog', '#action-preset-json'],
+      title: '新建交互规则',
+      content:
+        '这里用于创建或编辑交互规则。',
+      placement: 'left',
+    },
+    {
+      selector: '#action-preset-name',
+      title: '规则名称',
+      content: '名称会显示在交互规则管理列表里，建议写清楚适用范围，例如“默认交互规则”。',
+      placement: 'bottom',
+    },
+    {
+      selector: '#action-preset-download-ai-prompt',
+      title: '下载 AI 提示词',
+      content:
+        '这个按钮会下载一份 .md 提示词。把它和你的需求一起交给外部 AI Agent，可生成能直接粘贴到编辑区的交互规则 JSON。',
+      placement: 'left',
+    },
+    {
+      selector: '#action-preset-validate',
+      title: '验证配置',
+      content: '验证只检查当前编辑区内容，不会保存。它会确认 JSON 是否能解析，以及每个规则组是否包含关键词和动作。',
+      placement: 'left',
+    },
+    {
+      selector: '#action-preset-json',
+      title: 'JSON 配置',
+      content:
+        '这里必须填写标准 JSON 数组。table_keywords 是表名关键词，actions 里的 label 是按钮文字，template 是点击后发送的文本，{Name} 会替换为当前条目名称。',
+      placement: 'top',
+    },
+    {
+      selector: '#action-preset-save',
+      title: '保存规则',
+      content: '保存会先执行同一套 JSON 校验，通过后写入自定义交互规则列表。',
+      placement: 'top',
+    },
+  ],
+  dashboardPresetManager: [
+    {
+      selector: ['.acu-dashboard-preset-manager-dialog', '#acu-dashboard-presets-list'],
+      title: '仪表盘预设管理',
+      content:
+        '仪表盘预设决定各个仪表盘区域从哪些表格和列取数。它适合把不同世界观的表格命名、字段名称和关系图来源整理成一套可切换配置。',
+      placement: 'left',
+    },
+    {
+      selector: '#acu-dashboard-presets-list .acu-preset-item:first-child',
+      title: '预设列表',
+      content:
+        '列表中包含内置预设和自定义预设。开关用于启用某一套配置，条目摘要会显示匹配模块、表名关键词和主要字段线索。',
+      placement: 'right',
+    },
+    {
+      selector: '.acu-dashboard-preset-copy',
+      title: '复制或导出参考',
+      content:
+        '内置预设不能直接编辑。需要调整时，请先复制成自定义预设，或导出 JSONC 作为参考；写好的配置也可以从导入按钮放回列表。',
+      placement: 'left',
+    },
+    {
+      selector: ['#acu-dashboard-preset-new', '#acu-dashboard-preset-import'],
+      title: '新建与导入',
+      content:
+        '新建会打开仪表盘预设编辑器。复杂映射建议先在编辑器下载 AI 提示词，再把规则需求、表格示例和字段命名一起交给 AI 生成配置。',
+      placement: 'top',
+    },
+  ],
+  dashboardPresetEditor: [
+    {
+      selector: ['.acu-dashboard-preset-editor-dialog', '#dashboard-preset-json'],
+      title: '新建仪表盘预设',
+      content:
+        '这里用于创建或编辑仪表盘预设。预设只负责匹配表格、列名和关系图来源；各区域的渲染方式是固定的，不能通过配置改成新的布局或卡片样式。',
+      placement: 'left',
+    },
+    {
+      selector: '#dashboard-preset-name',
+      title: '预设名称',
+      content: '名称会显示在仪表盘预设管理列表里，建议写清楚适用规则或世界观。',
+      placement: 'bottom',
+    },
+    {
+      selector: '#dashboard-preset-desc',
+      title: '描述',
+      content: '描述用于说明这套配置适合哪些表格结构，方便之后在列表中辨认。',
+      placement: 'bottom',
+    },
+    {
+      selector: '#dashboard-preset-download-ai-prompt',
+      title: '下载 AI 提示词',
+      content:
+        '这个按钮会下载一份 .md 提示词。把它和你的表格样例、字段命名、关系图需求一起交给外部 AI Agent，可生成能粘贴到编辑区的 JSONC。',
+      placement: 'left',
+    },
+    {
+      selector: '#dashboard-preset-validate',
+      title: '验证配置',
+      content:
+        '验证只检查当前编辑区内容，不会保存。它会解析 JSONC，并提示模块、关键词、字段结构或 relationshipGraph 配置中的问题。',
+      placement: 'left',
+    },
+    {
+      selector: '#dashboard-preset-json',
+      title: 'JSONC 配置',
+      content:
+        '普通模块用于描述各仪表盘区域匹配哪些表和列。relationshipGraph 是特殊模块，用来声明关系图来源；编辑区支持注释和尾随逗号。',
+      placement: 'top',
+    },
+    {
+      selector: '#dashboard-preset-save',
+      title: '保存预设',
+      content: '保存会先走同一套解析与校验，只有通过后才会写入自定义预设列表。',
+      placement: 'top',
+    },
+  ],  attributePresetEditor: [
     {
       selector: ['.acu-attribute-preset-editor-dialog', '#preset-json'],
       title: '新建属性规则',
@@ -937,7 +1092,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       placement: 'right',
     },
     {
-      selector: '.acu-preset-toggle',
+      selector: '#acu-presets-list .acu-preset-item:first-child .acu-toggle',
       title: '启用规则',
       content: '每次只能启用一套属性预设。关闭当前预设会回到默认的六维属性百分制。',
       placement: 'left',
