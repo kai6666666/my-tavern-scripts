@@ -4145,11 +4145,18 @@ export const MAIN_STYLES = `
             .acu-avatar-manager-overlay {
                 background: rgba(0,0,0,0.7);
                 z-index: 31300;
+                inset: 0;
+                box-sizing: border-box;
+                overflow: hidden;
             }
             .acu-avatar-manager {
                 width: min(500px, calc(100vw - 24px));
-                max-width: 500px;
-                max-height: 80vh;
+                max-width: 100%;
+                height: min(720px, calc(100vh - 24px));
+                height: min(720px, calc(100dvh - 24px));
+                max-height: min(720px, calc(100vh - 24px));
+                max-height: min(720px, calc(100dvh - 24px));
+                min-height: 0;
                 box-sizing: border-box;
             }
             .acu-avatar-title {
@@ -4451,20 +4458,59 @@ export const MAIN_STYLES = `
                 display: none;
             }
 
+            .acu-avatar-color-popover-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                min-width: 0;
+                min-height: 22px;
+            }
+
             .acu-avatar-color-panel-title {
                 color: var(--acu-text-sub);
                 font-size: 11px;
                 line-height: 1;
             }
 
+            .acu-avatar-manager-overlay .acu-avatar-color-close-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex: 0 0 auto;
+                width: 30px;
+                height: 30px;
+                min-width: 30px;
+                padding: 0;
+                border: 0 !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                color: var(--acu-text-sub) !important;
+                box-shadow: none !important;
+                cursor: pointer;
+                font-size: 14px;
+                transition:
+                    color var(--acu-motion-fast) var(--acu-ease-standard);
+            }
+
+            .acu-avatar-manager-overlay .acu-avatar-color-close-btn:hover,
+            .acu-avatar-manager-overlay .acu-avatar-color-close-btn:focus {
+                border: 0 !important;
+                background: transparent !important;
+                color: var(--acu-text-main) !important;
+                box-shadow: none !important;
+            }
+
             .acu-avatar-color-swatch-grid {
                 display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 6px;
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+                gap: 5px;
             }
 
             .acu-avatar-color-option {
-                height: 28px;
+                min-width: 0;
+                height: 24px;
+                padding: 0;
                 border: 1px solid var(--acu-border);
                 border-radius: 4px;
                 background: var(--acu-avatar-option-color) !important;
@@ -4583,8 +4629,24 @@ export const MAIN_STYLES = `
                 box-shadow: var(--acu-focus-ring) !important;
             }
 
+            .acu-avatar-color-action-row {
+                display: flex;
+                align-items: stretch;
+                gap: 6px;
+                min-width: 0;
+            }
+
+            .acu-avatar-color-action-row input.acu-avatar-color-hex,
+            .acu-avatar-color-action-row input.acu-avatar-color-hex:focus {
+                flex: 1 1 auto;
+                width: auto !important;
+            }
+
             .acu-avatar-color-generate-btn {
-                height: 32px;
+                flex: 0 0 auto;
+                min-width: 94px;
+                height: 34px;
+                padding: 0 10px;
                 border: 1px solid var(--acu-border);
                 border-radius: 4px;
                 background: var(--acu-btn-bg);
@@ -4920,9 +4982,15 @@ export const MAIN_STYLES = `
                 cursor: pointer !important;
             }
             @media (max-width: 768px) {
+                .acu-avatar-manager-overlay {
+                    padding: 10px;
+                }
                 .acu-avatar-manager {
                     width: calc(100vw - 20px);
-                    max-height: 85vh;
+                    height: calc(100vh - 20px);
+                    height: calc(100dvh - 20px);
+                    max-height: calc(100vh - 20px);
+                    max-height: calc(100dvh - 20px);
                 }
                 .acu-avatar-item {
                     padding: 10px 8px;
@@ -15751,7 +15819,38 @@ export const MAIN_STYLES = `
         max-width: 100%;
     }
 
-    .acu-panel-header > .acu-header-actions > .acu-search-wrapper {
+    .acu-panel-header > .acu-header-actions.acu-table-header-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        column-gap: 6px;
+        row-gap: 4px;
+        flex-wrap: nowrap;
+    }
+
+    .acu-panel-header .acu-table-action-set,
+    .acu-panel-header .acu-panel-control-set {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .acu-panel-header .acu-table-action-set {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        row-gap: 4px;
+    }
+
+    .acu-panel-header .acu-panel-control-set {
+        flex: 0 0 auto;
+        justify-content: flex-end;
+        align-self: start;
+        white-space: nowrap;
+    }
+
+    .acu-panel-header > .acu-header-actions > .acu-search-wrapper,
+    .acu-panel-header .acu-table-action-set > .acu-search-wrapper {
         flex: 0 1 140px;
         width: 140px;
         min-width: 104px;
@@ -15759,25 +15858,48 @@ export const MAIN_STYLES = `
     }
 
     .acu-wrapper.acu-dice-ui-root .acu-panel-header > .acu-header-actions > .acu-search-wrapper > input.acu-search-input,
-    .acu-wrapper.acu-dice-ui-root .acu-panel-header > .acu-header-actions > .acu-search-wrapper > input.acu-search-input:focus {
+    .acu-wrapper.acu-dice-ui-root .acu-panel-header > .acu-header-actions > .acu-search-wrapper > input.acu-search-input:focus,
+    .acu-wrapper.acu-dice-ui-root .acu-panel-header .acu-table-action-set > .acu-search-wrapper > input.acu-search-input,
+    .acu-wrapper.acu-dice-ui-root .acu-panel-header .acu-table-action-set > .acu-search-wrapper > input.acu-search-input:focus {
         width: 100% !important;
     }
 
     @media (max-width: 520px) {
-        .acu-panel-header > .acu-header-actions > .acu-search-wrapper {
+        .acu-panel-header > .acu-header-actions > .acu-search-wrapper,
+        .acu-panel-header .acu-table-action-set > .acu-search-wrapper {
             flex-basis: 110px;
             width: 110px;
+        }
+
+        .acu-panel-header > .acu-header-actions.acu-table-header-actions {
+            column-gap: 4px;
+        }
+
+        .acu-panel-header .acu-table-action-set,
+        .acu-panel-header .acu-panel-control-set {
+            gap: 4px;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .acu-panel-header .acu-table-action-set > .acu-search-wrapper {
+            flex-basis: 94px;
+            width: 94px;
+            min-width: 86px;
         }
     }
 
     .acu-panel-header .acu-header-actions > button,
+    .acu-panel-header .acu-table-action-set > button,
     .acu-panel-header .acu-fav-transfer-actions > button,
     .acu-panel-header .acu-changes-batch-actions > button,
     .acu-panel-header .acu-graph-actions > button,
     .acu-panel-header .acu-map-actions > button,
     .acu-panel-header .acu-avatar-header-actions > button,
     .acu-panel-header > .acu-settings-manager-close,
-    .acu-panel-header .acu-header-actions > .acu-height-control {
+    .acu-panel-header .acu-header-actions > .acu-height-control,
+    .acu-panel-header .acu-panel-control-set > button,
+    .acu-panel-header .acu-panel-control-set > .acu-height-control {
         width: 34px !important;
         height: 34px !important;
         min-width: 34px !important;
@@ -15803,6 +15925,7 @@ export const MAIN_STYLES = `
     }
 
     .acu-panel-header .acu-header-actions > button:hover,
+    .acu-panel-header .acu-table-action-set > button:hover,
     .acu-panel-header .acu-fav-transfer-actions > button:hover,
     .acu-panel-header .acu-changes-batch-actions > button:hover,
     .acu-panel-header .acu-graph-actions > button:hover,
@@ -15810,7 +15933,10 @@ export const MAIN_STYLES = `
     .acu-panel-header .acu-avatar-header-actions > button:hover,
     .acu-panel-header > .acu-settings-manager-close:hover,
     .acu-panel-header .acu-header-actions > .acu-height-control:hover,
-    .acu-panel-header .acu-header-actions > .acu-height-control.active {
+    .acu-panel-header .acu-header-actions > .acu-height-control.active,
+    .acu-panel-header .acu-panel-control-set > button:hover,
+    .acu-panel-header .acu-panel-control-set > .acu-height-control:hover,
+    .acu-panel-header .acu-panel-control-set > .acu-height-control.active {
         border-color: transparent !important;
         background: var(--acu-table-hover) !important;
         color: var(--acu-accent) !important;
@@ -15819,12 +15945,14 @@ export const MAIN_STYLES = `
     }
 
     .acu-panel-header .acu-header-actions > button:focus-visible,
+    .acu-panel-header .acu-table-action-set > button:focus-visible,
     .acu-panel-header .acu-fav-transfer-actions > button:focus-visible,
     .acu-panel-header .acu-changes-batch-actions > button:focus-visible,
     .acu-panel-header .acu-graph-actions > button:focus-visible,
     .acu-panel-header .acu-map-actions > button:focus-visible,
     .acu-panel-header .acu-avatar-header-actions > button:focus-visible,
-    .acu-panel-header > .acu-settings-manager-close:focus-visible {
+    .acu-panel-header > .acu-settings-manager-close:focus-visible,
+    .acu-panel-header .acu-panel-control-set > button:focus-visible {
         outline: none !important;
         border-color: transparent !important;
         box-shadow: var(--acu-focus-ring) !important;

@@ -143,7 +143,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       selector: ['.acu-dash-role-group', '.acu-dash-role-list', '.acu-dash-role-title'],
       title: '角色',
       content:
-        '这里展示故事中的角色和在场状态。标题旁可以打开人物关系图和头像管理页面，点击角色姓名可以显示详情，点击角色右侧的按钮发起对抗检定。',
+        '这里展示故事中的角色和在场状态。标题旁可以打开人物关系图和角色头像预设，点击角色姓名可以显示详情，点击角色右侧的按钮发起对抗检定。',
       placement: 'left',
     },
     {
@@ -510,10 +510,16 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       placement: 'left',
     },
     {
+      selector: '#settings-row-avatar-preset',
+      title: '角色头像预设',
+      content: '角色头像预设用于给角色配置头像、裁剪、角色颜色和别名映射。没有当前聊天角色时，也可以进入全局头像库管理已保存配置。',
+      placement: 'left',
+    },
+    {
       selector: '#settings-row-custom-table-name-icon-manager',
       title: '图标预设',
       content:
-        '图标预设用于给物品、地图标记、势力等非角色对象配置替换图标。配置后会自动应用，未配置或未命中时回退默认图标。角色头像请使用头像管理；全局数据表、选项表、检定建议表等系统表不会进入这里。',
+        '图标预设用于给物品、地图标记、势力等非角色对象配置替换图标。配置后会自动应用，未配置或未命中时回退默认图标。角色头像请使用角色头像预设；全局数据表、选项表、检定建议表等系统表不会进入这里。',
       placement: 'left',
     },
     {
@@ -1429,8 +1435,8 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
     },
     {
       selector: '#graph-manage-avatar',
-      title: '头像管理',
-      content: '这里可以管理关系图里角色头像的图片、缩放和裁剪，让图上的人物更容易辨认。',
+      title: '角色头像预设',
+      content: '这里可以管理关系图里角色头像的图片、缩放、裁剪和别名，让图上的人物更容易辨认。',
       placement: 'left',
     },
     {
@@ -1443,8 +1449,8 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
   avatarManager: [
     {
       selector: '.acu-avatar-manager',
-      title: '头像管理',
-      content: '这里用于给角色配置头像和别名。关系图、地图、物品栏等界面会优先使用这里保存的头像。',
+      title: '角色头像预设',
+      content: '这里用于给角色配置头像、别名和角色颜色。关系图、地图、物品栏等界面会优先使用这里保存的头像。',
       placement: 'left',
     },
     {
@@ -1494,7 +1500,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
     {
       selector: '.acu-custom-icon-guide-top',
       title: '图标预设管理',
-      content: '这个界面用于管理图标预设，给物品、地图标记、势力等非角色对象配置图标；角色头像和别名请使用头像管理。',
+      content: '这个界面用于管理图标预设，给物品、地图标记、势力等非角色对象配置图标；角色头像和别名请使用角色头像预设。',
       placement: 'bottom',
     },
     {

@@ -2178,7 +2178,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.06'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.08'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -20610,7 +20610,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     'global-interaction-panel': '交互面板',
     'global-interaction-map-marker': '地图标记',
     shop: '商店',
-    'avatar-manager': '头像管理',
+    'avatar-manager': '角色头像预设',
     'relationship-graph': '关系图',
     'map-character-node': '地图角色',
     'character-interaction-panel': '角色交互',
@@ -21398,7 +21398,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         overlay.find('#acu-custom-icon-list').html(`
           <div class="acu-import-empty">
             <i class="fa-solid fa-ban"></i> 没有可选择的白名单上下文<br>
-            <span class="acu-custom-icon-empty-note">角色、头像管理、全局数据表、选项表、检定建议表等非白名单上下文不会出现在这里。</span>
+            <span class="acu-custom-icon-empty-note">角色、角色头像预设、全局数据表、选项表、检定建议表等非白名单上下文不会出现在这里。</span>
           </div>
         `);
         await renderDetail();
@@ -31269,6 +31269,49 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     };
   };
 
+  interface AvatarManagerNode {
+    name: string;
+    isPlayer: boolean;
+    rowIndex?: number;
+    tableKey?: string;
+  }
+
+  type AvatarManagerViewMode = 'chat' | 'global';
+
+  interface AvatarManagerOptions {
+    initialView?: AvatarManagerViewMode;
+  }
+
+  const collectCurrentChatAvatarNodes = (allTables: Record<string, RelationGraphTableInput>): AvatarManagerNode[] => {
+    const npcListData = getDashboardNpcListData(allTables);
+    const playerResult = DashboardDataParser.findTable(allTables, 'player');
+    const nodeArr: AvatarManagerNode[] = [];
+
+    if (playerResult?.data?.rows?.[0]) {
+      const playerNameIdx = findNameColumnIndex(playerResult.data.headers || []);
+      const playerName = playerResult.data.rows[0][playerNameIdx];
+      if (playerName && typeof playerName === 'string' && playerName.trim()) {
+        nodeArr.push({ name: playerName.trim(), isPlayer: true });
+      }
+    }
+
+    npcListData.entries.forEach(npc => {
+      const npcName = String(npc.name || '').trim();
+      if (npcName) {
+        nodeArr.push({ name: npcName, isPlayer: false, rowIndex: npc.index, tableKey: npc.tableKey });
+      }
+    });
+
+    return nodeArr;
+  };
+
+  const getCurrentChatAvatarNodes = (): AvatarManagerNode[] => {
+    const rawData = cachedRawData || getTableData();
+    const allTables = processJsonData(rawData);
+    if (!allTables || allTables.length === 0) return [];
+    return collectCurrentChatAvatarNodes(allTables as Record<string, RelationGraphTableInput>);
+  };
+
   interface RelationGraphLayoutPosition {
     x: number;
     y: number;
@@ -33606,8 +33649,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     return AvatarManager.getImageColor(name);
   };
-  // 头像管理弹窗（简化版 - 使用裁剪弹窗）
-  const showAvatarManager = (nodeArr, onUpdate) => {
+  // 角色头像预设弹窗（简化版 - 使用裁剪弹窗）
+  const showAvatarManager = (
+    nodeArr: AvatarManagerNode[],
+    onUpdate?: () => void,
+    options: AvatarManagerOptions = {},
+  ) => {
     try {
       const { $ } = getCore();
       $('.acu-avatar-manager-overlay').remove();
@@ -33624,9 +33671,28 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         avatarSortOptions.some(option => option.value === value);
       const getAvatarSortLabel = (value: AvatarSortField): string =>
         avatarSortOptions.find(option => option.value === value)?.label ?? '名字';
+      const avatarColorPresetSwatches = [
+        '#D82F8E',
+        '#E76AA8',
+        '#D95B6A',
+        '#E8835E',
+        '#E2A36F',
+        '#D7B866',
+        '#B8C96A',
+        '#72C76B',
+        '#65BFA7',
+        '#59B9C7',
+        '#6AA8E7',
+        '#6787D9',
+        '#8A83E6',
+        '#B78BE8',
+        '#D179D8',
+        '#C870A0',
+        '#8CA0AA',
+      ] as const;
 
       // 视图和排序状态
-      let currentView = 'chat'; // 'chat' | 'global'
+      let currentView: AvatarManagerViewMode = options.initialView === 'global' ? 'global' : 'chat';
       let sortBy: AvatarSortField = 'name';
       let sortOrder = 'asc'; // 'asc' | 'desc'
       let searchQuery = '';
@@ -33642,17 +33708,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const source = storedColor ? data.imageColorSource || 'auto' : 'fallback';
         const swatches = [
           color,
+          ...avatarColorPresetSwatches,
           getAvatarFallbackColor(name),
-          '#E76AA8',
-          '#E2A36F',
-          '#65BFA7',
-          '#6AA8E7',
-          '#B78BE8',
-          '#D7B866',
         ];
         const uniqueSwatches = [
           ...new Set(swatches.map(item => normalizeAvatarHexColor(item)).filter((item): item is string => Boolean(item))),
-        ];
+        ].slice(0, 18);
         const hsl = avatarHexToHsl(color) || { h: 0, s: 0.54, l: 0.5 };
         const hue = Math.round(hsl.h);
         const saturation = Math.round(hsl.s * 100);
@@ -33663,7 +33724,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                                     <span class="acu-avatar-color-swatch" aria-hidden="true"></span>
                                 </button>
                                 <div class="acu-avatar-color-popover" hidden>
-                                    <div class="acu-avatar-color-panel-title">角色颜色</div>
+                                    <div class="acu-avatar-color-popover-header">
+                                        <div class="acu-avatar-color-panel-title">角色颜色</div>
+                                        <button class="acu-avatar-color-close-btn" type="button" title="关闭颜色面板" aria-label="关闭颜色面板"><i class="fa-solid fa-times"></i></button>
+                                    </div>
                                     <div class="acu-avatar-color-swatch-grid" aria-label="颜色候选">
                                         ${uniqueSwatches
                                           .map(
@@ -33687,8 +33751,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                                             <input type="range" class="acu-avatar-color-slider acu-avatar-color-lightness-slider" data-channel="l" min="20" max="80" value="${lightness}" aria-label="亮度" />
                                         </label>
                                     </div>
-                                    <input type="text" class="acu-input acu-avatar-color-hex" maxlength="7" value="${escapeHtml(color)}" aria-label="${escapeHtml(name)} 的角色颜色十六进制值" />
-                                    <button class="acu-avatar-color-generate-btn" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i> 自动生成</button>
+                                    <div class="acu-avatar-color-action-row">
+                                        <input type="text" class="acu-input acu-avatar-color-hex" maxlength="7" value="${escapeHtml(color)}" aria-label="${escapeHtml(name)} 的角色颜色十六进制值" />
+                                        <button class="acu-avatar-color-generate-btn" type="button"><i class="fa-solid fa-wand-magic-sparkles"></i> 自动生成</button>
+                                    </div>
                                 </div>
                             </div>
         `;
@@ -34063,21 +34129,22 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       };
 
       // 先显示加载状态
+      const isGlobalView = currentView === 'global';
       const managerHtml = `
             <div class="acu-avatar-manager-overlay acu-theme-${config.theme}">
                 <div class="acu-avatar-manager" role="dialog" aria-modal="true" aria-labelledby="acu-avatar-manager-title">
                     <div class="acu-panel-header">
-                        <div class="acu-avatar-title" id="acu-avatar-manager-title"><i class="fa-solid fa-user-circle"></i> 头像管理</div>
+                        <div class="acu-avatar-title" id="acu-avatar-manager-title"><i class="fa-solid fa-user-circle"></i> 角色头像预设</div>
                         <div class="acu-avatar-header-actions">
-                            ${getTutorialButtonHtml('avatarManager', '查看头像管理教程', 'acu-btn-icon')}
-                            <button class="acu-avatar-close" type="button" title="关闭" aria-label="关闭头像管理"><i class="fa-solid fa-times"></i></button>
+                            ${getTutorialButtonHtml('avatarManager', '查看角色头像预设教程', 'acu-btn-icon')}
+                            <button class="acu-avatar-close" type="button" title="关闭" aria-label="关闭角色头像预设"><i class="fa-solid fa-times"></i></button>
                         </div>
                     </div>
                     <div class="acu-avatar-toolbar">
                         <!-- 左侧:切换视图、排序、搜索 -->
                         <div class="acu-toolbar-group left acu-avatar-filter-controls">
-                            <button class="acu-btn-icon acu-view-toggle" type="button" title="当前聊天 / 全局头像库" aria-label="切换当前聊天和全局头像库" aria-pressed="false" data-view="chat">
-                                <i class="fa-solid fa-comments"></i>
+                            <button class="acu-btn-icon acu-view-toggle ${isGlobalView ? 'active' : ''}" type="button" title="当前聊天 / 全局头像库" aria-label="切换当前聊天和全局头像库" aria-pressed="${isGlobalView ? 'true' : 'false'}" data-view="${currentView}">
+                                <i class="fa-solid ${isGlobalView ? 'fa-globe' : 'fa-comments'}"></i>
                             </button>
                             <div class="acu-sort-menu" data-value="${sortBy}">
                                 <button class="acu-toolbar-select acu-sort-trigger" type="button" title="排序方式" aria-label="头像排序方式" aria-haspopup="listbox" aria-expanded="false">
@@ -34490,6 +34557,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           e.stopPropagation();
         });
 
+        $manager.on('click', '.acu-avatar-color-close-btn', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeAvatarColorPopovers();
+        });
+
         $manager.on('click', function (e) {
           if (!$(e.target).closest('.acu-avatar-color-container').length) {
             closeAvatarColorPopovers();
@@ -34743,7 +34816,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
               showImportConfirmDialog(jsonData, analysis, () => {
                 $manager.remove();
-                showAvatarManager(nodeArr, onUpdate);
+                showAvatarManager(nodeArr, onUpdate, options);
                 onUpdate && onUpdate();
               });
             } catch (err) {
@@ -34761,10 +34834,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       $manager.on('click', '.acu-avatar-close', closeManager);
       setupOverlayClose($manager, 'acu-avatar-manager-overlay', closeManager);
     } catch (error) {
-      console.error('头像管理器错误:', error);
+      console.error('角色头像预设错误:', error);
       if (window.toastr) {
         const errorMsg = error instanceof Error ? error.message : '未知错误';
-        showActionableErrorToast(`头像管理器加载失败: ${errorMsg}`);
+        showActionableErrorToast(`角色头像预设加载失败: ${errorMsg}`);
       }
       // 清理可能残留的DOM
       $('.acu-avatar-manager-overlay').remove();
@@ -35364,7 +35437,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     },
     {
       id: 'avatarMap',
-      name: '头像管理配置',
+      name: '角色头像预设',
       description: '角色头像 URL、裁剪偏移、缩放与别名映射。不包括本地上传的图片',
       storageKeys: [STORAGE_KEY_AVATAR_MAP, STORAGE_KEY_MAP_FOCUS],
     },
@@ -47977,7 +48050,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         { label: '人际关系', matches: ['人际关系'] },
         { label: '在场状态', matches: ['在场状态'] },
       ],
-      impact: 'NPC 检定、对抗检定、关系图、头像管理和角色仪表盘可能无法识别角色或关系。',
+      impact: 'NPC 检定、对抗检定、关系图、角色头像预设和角色仪表盘可能无法识别角色或关系。',
       suggestion: '优先使用“重要角色表”，至少保留姓名、基础属性、人际关系、在场状态；旧名“重要人物表”仍可兼容。',
     },
     {
@@ -48855,6 +48928,14 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                                     <i class="fa-solid fa-cog"></i> 管理
                                 </button>
                             </div>
+                            <div class="acu-setting-row" id="settings-row-avatar-preset">
+                                <div class="acu-setting-info">
+                                    <span class="acu-setting-label"><i class="fa-solid fa-user-circle"></i> 角色头像预设</span>
+                                </div>
+                                <button type="button" id="cfg-avatar-preset-manage" class="acu-setting-action-btn acu-settings-compact-action">
+                                    <i class="fa-solid fa-cog"></i> 管理
+                                </button>
+                            </div>
                             <div class="acu-setting-row" id="settings-row-custom-table-name-icon-manager">
                                 <div class="acu-setting-info">
                                     <span class="acu-setting-label"><i class="fa-solid fa-icons"></i> 图标预设</span>
@@ -49236,6 +49317,21 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       dialog.remove();
       isSettingsOpen = false;
       showRenderPresetManager();
+    });
+
+    // 管理角色头像预设按钮
+    dialog.find('#cfg-avatar-preset-manage').on('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      let nodeArr: AvatarManagerNode[] = [];
+      try {
+        nodeArr = getCurrentChatAvatarNodes();
+      } catch (error) {
+        console.warn('[DICE]角色头像预设入口读取当前聊天角色失败，改为打开全局头像库:', error);
+      }
+      dialog.remove();
+      isSettingsOpen = false;
+      showAvatarManager(nodeArr, undefined, { initialView: 'global' });
     });
 
     const openSettingsManagerDialog = (selector: string) => {
@@ -54655,7 +54751,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                         <span><i class="fa-solid fa-users"></i> 角色 (${allNPCs.length})</span>
                         <span class="acu-dash-section-actions">
                             <i class="fa-solid fa-project-diagram acu-dash-relation-graph-btn acu-dash-section-action" title="人物关系图"></i>
-                            <i class="fa-solid fa-user-circle acu-dash-avatar-manager-btn acu-dash-section-action" title="头像管理"></i>
+                            <i class="fa-solid fa-user-circle acu-dash-avatar-manager-btn acu-dash-section-action" title="角色头像预设"></i>
                         </span>
                     </h3>
                     <div class="acu-dash-role-list">
@@ -62198,20 +62294,25 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             .join('')
         : `<div class="acu-option-table-empty">${searchTerm ? '暂无匹配选项' : '暂无可点击选项'}</div>`;
 
+    const headerActionCount = 4 + (reverseBtnHtml ? 1 : 0);
     let html = `
             <div class="acu-panel-header">
                 <div class="acu-panel-title">
                     <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
                     <div class="acu-title-sub">(${displayStart}-${displayEnd} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
                 </div>
-                <div class="acu-header-actions">
-                    ${getTutorialButtonHtml('optionTable', '查看选项表教程')}
-                    ${reverseBtnHtml}
-                    <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索选项..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
-                    <div class="acu-height-control">
-                        <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                <div class="acu-header-actions acu-table-header-actions" data-action-count="${headerActionCount}">
+                    <div class="acu-table-action-set">
+                        ${getTutorialButtonHtml('optionTable', '查看选项表教程')}
+                        ${reverseBtnHtml}
+                        <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索选项..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
                     </div>
-                    <button class="acu-close-btn" title="关闭"><i class="fa-solid fa-times"></i></button>
+                    <div class="acu-panel-control-set" aria-label="${escapeHtml(tableName)}面板控制">
+                        <div class="acu-height-control">
+                            <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                        </div>
+                        <button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button>
+                    </div>
                 </div>
             </div>
             <div class="acu-panel-content acu-option-table-content">
@@ -62289,20 +62390,25 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             .join('')
         : `<div class="acu-option-table-empty">${searchTerm ? '暂无匹配建议' : '暂无检定建议'}</div>`;
 
+    const headerActionCount = 4 + (reverseBtnHtml ? 1 : 0);
     let html = `
             <div class="acu-panel-header">
                 <div class="acu-panel-title">
                     <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
                     <div class="acu-title-sub">(${displayStart}-${displayEnd} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
                 </div>
-                <div class="acu-header-actions">
-                    ${getTutorialButtonHtml('checkSuggestionTable', '查看检定建议表教程')}
-                    ${reverseBtnHtml}
-                    <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索建议..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
-                    <div class="acu-height-control">
-                        <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                <div class="acu-header-actions acu-table-header-actions" data-action-count="${headerActionCount}">
+                    <div class="acu-table-action-set">
+                        ${getTutorialButtonHtml('checkSuggestionTable', '查看检定建议表教程')}
+                        ${reverseBtnHtml}
+                        <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索建议..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
                     </div>
-                    <button class="acu-close-btn" title="关闭"><i class="fa-solid fa-times"></i></button>
+                    <div class="acu-panel-control-set" aria-label="${escapeHtml(tableName)}面板控制">
+                        <div class="acu-height-control">
+                            <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                        </div>
+                        <button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button>
+                    </div>
                 </div>
             </div>
             <div class="acu-panel-content acu-option-table-content">
@@ -62352,10 +62458,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return renderCheckSuggestionTableContent(tableData, tableName, reverseBtnHtml, isReversed);
     }
 
-    if (!tableData || !tableData.rows.length)
+    if (!tableData || !tableData.rows.length) {
+      const emptyHeaderActionCount = 3 + (reverseBtnHtml ? 1 : 0);
       return `
-            <div class="acu-panel-header"><div class="acu-panel-title"><div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div><div class="acu-title-sub">暂无可浏览条目</div></div><div class="acu-header-actions">${getTutorialButtonHtml('table', '查看表格教程')}${reverseBtnHtml}<div class="acu-height-control"><i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i></div><button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button></div></div>
+            <div class="acu-panel-header"><div class="acu-panel-title"><div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div><div class="acu-title-sub">暂无可浏览条目</div></div><div class="acu-header-actions acu-table-header-actions" data-action-count="${emptyHeaderActionCount}"><div class="acu-table-action-set">${getTutorialButtonHtml('table', '查看表格教程')}${reverseBtnHtml}</div><div class="acu-panel-control-set" aria-label="${escapeHtml(tableName)}面板控制"><div class="acu-height-control"><i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i></div><button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button></div></div></div>
             <div class="acu-panel-content"><div class="acu-empty-state"><i class="fa-regular fa-folder-open"></i><span>暂无数据</span></div></div>`;
+    }
 
     const config = getConfig();
     const headers = (tableData.headers || []).slice(1);
@@ -62368,6 +62476,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     // 获取当前表格的视图模式 (默认 list)
     const currentStyle = (getTableStyles() || {})[tableName] || 'list';
     const isGridMode = currentStyle === 'grid';
+    const showRelationGraphButton = isCharacterTable(tableName);
+    const showMapButton = tableName.includes('地图');
+    const showInventoryButton = tableName.includes('物品') || tableName.includes('背包') || tableName.includes('道具');
+    const headerActionCount =
+      5 +
+      (reverseBtnHtml ? 1 : 0) +
+      (showRelationGraphButton ? 1 : 0) +
+      (showMapButton ? 1 : 0) +
+      (showInventoryButton ? 1 : 0);
 
     let titleColIndex = 1;
     if (tableData.headers.length === 1) {
@@ -62441,20 +62558,24 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
     <div class="acu-title-sub">(${startIdx + 1}-${Math.min(endIdx, totalItems)} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
 </div>
-                <div class="acu-header-actions">
-                    ${getTutorialButtonHtml('table', '查看表格教程')}
-                    ${isCharacterTable(tableName) ? `<button type="button" class="acu-view-btn" id="acu-btn-relation-graph" data-table="${escapeHtml(tableName)}" title="查看人物关系图" aria-label="查看人物关系图"><i class="fa-solid fa-project-diagram"></i></button>` : ''}
-                    ${tableName.includes('地图') ? `<button type="button" class="acu-view-btn acu-table-map-btn" title="地图可视化" aria-label="地图可视化"><i class="fa-solid fa-map"></i></button>` : ''}
-                    ${tableName.includes('物品') || tableName.includes('背包') || tableName.includes('道具') ? `<button type="button" class="acu-view-btn acu-table-inventory-btn" title="物品栏可视化" aria-label="物品栏可视化"><i class="fa-solid fa-box-open"></i></button>` : ''}
-                    ${reverseBtnHtml}
-                    <button type="button" class="acu-view-btn" id="acu-btn-switch-style" data-table="${escapeHtml(tableName)}" title="切换视图模式，当前为${isGridMode ? '双列网格' : '单列列表'}" aria-label="切换视图模式">
-                        <i class="fa-solid ${isGridMode ? 'fa-th-large' : 'fa-list'}"></i>
-                    </button>
-                    <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索全部..." value="${(tableSearchStates[tableName] || '').replace(/"/g, '&quot;')}" /></div>
-                    <div class="acu-height-control">
-                        <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                <div class="acu-header-actions acu-table-header-actions" data-action-count="${headerActionCount}">
+                    <div class="acu-table-action-set">
+                        ${getTutorialButtonHtml('table', '查看表格教程')}
+                        ${showRelationGraphButton ? `<button type="button" class="acu-view-btn" id="acu-btn-relation-graph" data-table="${escapeHtml(tableName)}" title="查看人物关系图" aria-label="查看人物关系图"><i class="fa-solid fa-project-diagram"></i></button>` : ''}
+                        ${showMapButton ? `<button type="button" class="acu-view-btn acu-table-map-btn" title="地图可视化" aria-label="地图可视化"><i class="fa-solid fa-map"></i></button>` : ''}
+                        ${showInventoryButton ? `<button type="button" class="acu-view-btn acu-table-inventory-btn" title="物品栏可视化" aria-label="物品栏可视化"><i class="fa-solid fa-box-open"></i></button>` : ''}
+                        ${reverseBtnHtml}
+                        <button type="button" class="acu-view-btn" id="acu-btn-switch-style" data-table="${escapeHtml(tableName)}" title="切换视图模式，当前为${isGridMode ? '双列网格' : '单列列表'}" aria-label="切换视图模式">
+                            <i class="fa-solid ${isGridMode ? 'fa-th-large' : 'fa-list'}"></i>
+                        </button>
+                        <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索全部..." value="${(tableSearchStates[tableName] || '').replace(/"/g, '&quot;')}" /></div>
                     </div>
-                    <button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button>
+                    <div class="acu-panel-control-set" aria-label="${escapeHtml(tableName)}面板控制">
+                        <div class="acu-height-control">
+                            <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
+                        </div>
+                        <button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button>
+                    </div>
                 </div>
             </div>
             <div class="acu-panel-content"><div class="acu-card-grid">`;
@@ -62935,28 +63056,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           return;
         }
 
-        // 查找角色数据
-        const npcListData = getDashboardNpcListData(allTables as Record<string, RelationGraphTableInput>);
-        const playerResult = DashboardDataParser.findTable(allTables, 'player');
-
-        const nodeArr = [];
-
-        // 添加主角（更严格的数据校验）
-        if (playerResult?.data?.rows?.[0]) {
-          const playerNameIdx = findNameColumnIndex(playerResult.data.headers || []);
-          const playerName = playerResult.data.rows[0][playerNameIdx];
-          if (playerName && typeof playerName === 'string' && playerName.trim()) {
-            nodeArr.push({ name: playerName.trim(), isPlayer: true });
-          }
-        }
-
-        // 添加NPC（与仪表盘角色区保持同一套多来源规则）
-        npcListData.entries.forEach(npc => {
-          const npcName = String(npc.name || '').trim();
-          if (npcName) {
-            nodeArr.push({ name: npcName, isPlayer: false, rowIndex: npc.index, tableKey: npc.tableKey });
-          }
-        });
+        const nodeArr = collectCurrentChatAvatarNodes(allTables as Record<string, RelationGraphTableInput>);
 
         // 检查是否有可管理的角色
         if (nodeArr.length === 0) {
@@ -62986,16 +63086,16 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
           showAvatarManager(nodeArr, refreshDashboardFromAvatarManager);
         } catch (managerError) {
           console.error('showAvatarManager 执行失败:', managerError);
-          throw new Error('头像管理器初始化失败');
+          throw new Error('角色头像预设初始化失败');
         }
       } catch (error) {
         // 记录详细错误到控制台（用于开发者调试）
-        console.error('头像管理按钮错误:', error);
+        console.error('角色头像预设按钮错误:', error);
 
         // 向用户显示友好的错误提示
         const errorMsg = error instanceof Error ? error.message : '未知错误';
         if (window.toastr) {
-          showActionableErrorToast(`打开头像管理失败: ${errorMsg}`);
+          showActionableErrorToast(`打开角色头像预设失败: ${errorMsg}`);
         }
       }
     });
