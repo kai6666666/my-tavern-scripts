@@ -2178,7 +2178,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.04'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.06'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -50427,7 +50427,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     wrapper.style.setProperty('transform', 'none', 'important');
     wrapper.style.setProperty('overflow', 'visible', 'important');
     wrapper.style.setProperty('pointer-events', 'none', 'important');
-    wrapper.style.setProperty('z-index', '31030', 'important');
+    wrapper.style.setProperty('z-index', '1000', 'important');
 
     const expandTrigger = wrapper.querySelector<HTMLElement>('.acu-expand-trigger.acu-col-floating');
     if (expandTrigger) {
@@ -50570,7 +50570,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     wrapper.style.setProperty('top', 'auto', 'important');
     wrapper.style.setProperty('margin', '0', 'important');
     wrapper.style.setProperty('box-sizing', 'border-box', 'important');
-    wrapper.style.setProperty('z-index', '31000', 'important');
+    wrapper.style.setProperty('z-index', '1000', 'important');
 
     const navContainer = wrapper.querySelector<HTMLElement>('.acu-nav-container');
     if (navContainer) {
@@ -50588,6 +50588,29 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     }
 
     const visualViewport = targetWindow.visualViewport;
+    const getViewportHeight = () =>
+      visualViewport?.height || targetWindow.innerHeight || targetDocument.documentElement.clientHeight || 0;
+    const updateViewportNavigationSafety = (navigationAnchor: HTMLElement, bottomOffset: number) => {
+      const viewportTop = visualViewport?.offsetTop || 0;
+      const viewportHeight = getViewportHeight();
+      const navigationRect = navigationAnchor.getBoundingClientRect();
+      const navigationHeight = Math.max(0, Math.ceil(navigationRect.height || navigationAnchor.offsetHeight || 0));
+      if (viewportHeight > 0) {
+        const panelMaxHeight = Math.max(180, Math.floor(viewportHeight - bottomOffset - navigationHeight - 24));
+        wrapper.style.setProperty('--acu-viewport-panel-max-height', `${panelMaxHeight}px`);
+        wrapper.style.setProperty('--acu-viewport-nav-height', `${navigationHeight}px`);
+      }
+
+      // SillyTavern 移动/平板布局可能会移动宿主滚动根，fixed 子元素要按导航盘实际位置校正。
+      const rawRect = navigationAnchor.getBoundingClientRect();
+      if (viewportHeight > 0 && rawRect.height > 0) {
+        const desiredBottom = viewportTop + viewportHeight - bottomOffset;
+        const correctionY = desiredBottom - rawRect.bottom;
+        if (Number.isFinite(correctionY) && Math.abs(correctionY) > 1) {
+          wrapper.style.setProperty('transform', `translate3d(0, ${Math.round(correctionY)}px, 0)`, 'important');
+        }
+      }
+    };
     const viewportWidth =
       visualViewport?.width ||
       targetWindow.innerWidth ||
@@ -50597,9 +50620,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (viewportWidth > 0 && viewportWidth <= 768) {
       const left = visualViewport?.offsetLeft || 0;
       const bottomOffset = getViewportBottomOffset();
-      const viewportTop = visualViewport?.offsetTop || 0;
-      const viewportHeight =
-        visualViewport?.height || targetWindow.innerHeight || targetDocument.documentElement.clientHeight || 0;
       const navigationAnchor = navContainer || expandTrigger || wrapper;
       wrapper.style.setProperty('left', `${left}px`, 'important');
       wrapper.style.setProperty('right', 'auto', 'important');
@@ -50607,27 +50627,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       wrapper.style.setProperty('max-width', `${Math.max(280, Math.round(viewportWidth))}px`, 'important');
       wrapper.style.setProperty('transform', 'none', 'important');
       wrapper.style.setProperty('bottom', `${bottomOffset}px`, 'important');
-      const navigationRect = navigationAnchor.getBoundingClientRect();
-      const navigationHeight = Math.max(0, Math.ceil(navigationRect.height || navigationAnchor.offsetHeight || 0));
-      if (viewportHeight > 0) {
-        const panelMaxHeight = Math.max(180, Math.floor(viewportHeight - bottomOffset - navigationHeight - 24));
-        wrapper.style.setProperty('--acu-viewport-panel-max-height', `${panelMaxHeight}px`);
-        wrapper.style.setProperty('--acu-viewport-nav-height', `${navigationHeight}px`);
-      }
-
-      // SillyTavern 移动端会把 body 设为 position: fixed 并用负 bottom 偏移；
-      // fixed 子元素会跟着偏到屏幕外，这里按导航盘实际 rect 做一次可视位置校正。
-      const rawRect = navigationAnchor.getBoundingClientRect();
-      let correctionY = 0;
-      if (viewportHeight > 0 && rawRect.height > 0) {
-        const desiredBottom = viewportTop + viewportHeight - bottomOffset;
-        correctionY = desiredBottom - rawRect.bottom;
-        if (Number.isFinite(correctionY) && Math.abs(correctionY) > 1) {
-          wrapper.style.setProperty('transform', `translate3d(0, ${Math.round(correctionY)}px, 0)`, 'important');
-        } else {
-          correctionY = 0;
-        }
-      }
+      updateViewportNavigationSafety(navigationAnchor, bottomOffset);
       return;
     }
 
@@ -50646,8 +50646,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     wrapper.style.setProperty('max-width', `${width}px`, 'important');
     wrapper.style.setProperty('transform', 'none', 'important');
     wrapper.style.setProperty('bottom', `${bottomOffset}px`, 'important');
-    wrapper.style.removeProperty('--acu-viewport-panel-max-height');
-    wrapper.style.removeProperty('--acu-viewport-nav-height');
+    updateViewportNavigationSafety(navContainer || expandTrigger || wrapper, bottomOffset);
   };
 
   const updateFixedWrapperBounds = () => {
@@ -51385,7 +51384,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const navMetrics = getNavigationFontMetrics(config.navFontSize);
     const floatingCollapsePosition = isFloatingCollapsed ? clampFloatingCollapsePosition(getFloatingCollapsePosition(config)) : null;
     const floatingCollapseStyle = floatingCollapsePosition
-      ? `; position:fixed; left:${floatingCollapsePosition.left}px; top:${floatingCollapsePosition.top}px; right:auto; bottom:auto; width:${FLOATING_COLLAPSE_SIZE}px; height:${FLOATING_COLLAPSE_SIZE}px; max-width:${FLOATING_COLLAPSE_SIZE}px; display:block; visibility:visible; opacity:1; margin:0; transform:none; overflow:visible; pointer-events:none; z-index:31030`
+      ? `; position:fixed; left:${floatingCollapsePosition.left}px; top:${floatingCollapsePosition.top}px; right:auto; bottom:auto; width:${FLOATING_COLLAPSE_SIZE}px; height:${FLOATING_COLLAPSE_SIZE}px; max-width:${FLOATING_COLLAPSE_SIZE}px; display:block; visibility:visible; opacity:1; margin:0; transform:none; overflow:visible; pointer-events:none; z-index:1000`
       : '';
     let html = `<div class="acu-wrapper ${DICE_ROOT_CLASS} ${positionClass} ${collapsedStateClass} ${visiblePanelClass} acu-theme-${config.theme} ${layoutClass} ${horizontalScrollbarClass} ${desktopNavClass}" style="--acu-card-width:${config.cardWidth}px; --acu-font-size:${config.fontSize}px; --acu-opt-font-size:${config.optionFontSize || 12}px; --acu-nav-button-size:${navMetrics.buttonSize}px; --acu-nav-font-size:${navMetrics.fontSize}px; --acu-nav-icon-size:${navMetrics.iconSize}px; --acu-nav-button-padding-x:${navMetrics.paddingX}px; --acu-grid-cols:${finalGridCols}${floatingCollapseStyle}">`;
 

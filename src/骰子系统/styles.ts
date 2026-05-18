@@ -1662,17 +1662,17 @@ export const MAIN_STYLES = `
     .acu-theme-nightowl .acu-preset-item:hover {
         border-color: rgba(127, 219, 202, 0.4) !important;
     }
-    .acu-wrapper.acu-dice-ui-root { position: relative; width: 100%; margin: 15px 0; z-index: 31000 !important; font-family: 'Microsoft YaHei', sans-serif; display: flex; flex-direction: column-reverse; }
+    .acu-wrapper.acu-dice-ui-root { position: relative; width: 100%; margin: 15px 0; z-index: 1000 !important; font-family: 'Microsoft YaHei', sans-serif; display: flex; flex-direction: column-reverse; }
     .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-pill,
     .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-floating { pointer-events: none !important; }
     .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-pill .acu-expand-trigger,
     .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-floating .acu-expand-trigger { pointer-events: auto !important; }
     .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-bar { pointer-events: auto !important; }
-    .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-floating { position: fixed !important; right: auto !important; bottom: auto !important; width: 48px !important; max-width: 48px !important; height: 48px !important; margin: 0 !important; z-index: 31030 !important; display: block !important; visibility: visible !important; opacity: 1 !important; overflow: visible !important; }
+    .acu-wrapper.acu-dice-ui-root.acu-is-collapsed.acu-collapse-floating { position: fixed !important; right: auto !important; bottom: auto !important; width: 48px !important; max-width: 48px !important; height: 48px !important; margin: 0 !important; z-index: 1000 !important; display: block !important; visibility: visible !important; opacity: 1 !important; overflow: visible !important; }
     .acu-wrapper.acu-dice-ui-root.acu-mode-viewport { position: fixed !important; left: 0 !important; right: auto !important; bottom: max(8px, env(safe-area-inset-bottom)); width: 100% !important; max-width: 100% !important; margin: 0 !important; transform: none !important; z-index: 1000 !important; display: flex; flex-direction: column-reverse !important; }
     .acu-wrapper.acu-dice-ui-root.acu-mode-viewport .acu-nav-container { position: relative !important; z-index: 31020 !important; }
     .acu-wrapper.acu-dice-ui-root.acu-mode-viewport .acu-data-display { position: absolute !important; bottom: calc(100% + 10px) !important; left: 0 !important; right: 0 !important; width: 100% !important; max-height: min(80vh, var(--acu-viewport-panel-max-height, calc(100dvh - 96px))) !important; }
-    .acu-wrapper.acu-dice-ui-root.acu-mode-embedded { position: relative !important; width: 100% !important; margin-top: 8px !important; z-index: 31001 !important; clear: both; display: flex; flex-direction: column-reverse !important; padding: 0; }
+    .acu-wrapper.acu-dice-ui-root.acu-mode-embedded { position: relative !important; width: 100% !important; margin-top: 8px !important; z-index: 1000 !important; clear: both; display: flex; flex-direction: column-reverse !important; padding: 0; }
     .acu-wrapper.acu-dice-ui-root.acu-mode-embedded .acu-nav-container { position: relative !important; z-index: 31020 !important; border-radius: 0 !important; }
     .acu-wrapper.acu-dice-ui-root.acu-mode-embedded .acu-nav-container::before { border-radius: 0 !important; }
     .acu-wrapper.acu-dice-ui-root.acu-mode-embedded .acu-data-display { position: absolute !important; bottom: 100% !important; left: 0 !important; right: 0 !important; width: 100% !important; box-shadow: 0 -10px 30px rgba(0,0,0,0.25) !important; border: 1px solid var(--acu-border); margin-bottom: 5px; z-index: 31010 !important; max-height: 70vh !important; overflow-y: auto !important; }
@@ -2258,7 +2258,7 @@ export const MAIN_STYLES = `
             #acu-btn-collapse:hover { color: var(--acu-text-main); background: rgba(0,0,0,0.05); }
             @keyframes acu-breathe { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.85); color: #ff7e67; } 100% { opacity: 1; transform: scale(1); } } .acu-icon-breathe { animation: acu-breathe 3s infinite ease-in-out !important; display: inline-block; }
 
-            @media (min-width: 768px) {
+            @media (min-width: 769px) {
                 .acu-wrapper.acu-dice-ui-root.acu-mode-viewport { bottom: max(12px, env(safe-area-inset-bottom)); }
                 .acu-wrapper.acu-dice-ui-root.acu-mode-embedded .acu-nav-container { width: 100% !important; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0; border-radius: 0 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; border: 1px solid var(--acu-border); padding: 6px 10px; background: var(--acu-bg-nav) !important; }
                 .acu-wrapper.acu-dice-ui-root.acu-mode-embedded .acu-data-display { bottom: calc(100% + 12px) !important; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important; }
