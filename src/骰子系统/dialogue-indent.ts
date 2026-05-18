@@ -205,7 +205,7 @@ export const parseDialogueIndentSegments = (
     }
 
     const between = previousDialogueEnd >= 0 ? text.slice(previousDialogueEnd, candidate.start) : '';
-    const continuation = previousSpeakerPrimaryName === candidate.match.primaryName && !hasParagraphBreak(between);
+    const continuation = previousSpeakerPrimaryName === candidate.match.primaryName && isDialogueContinuationGap(between);
     segments.push({
       type: 'dialogue',
       speakerPrimaryName: candidate.match.primaryName,
@@ -338,7 +338,7 @@ const findSpeakerStartingContext = (
   allowShortAlias: boolean,
 ): SpeakerContextMatch | null => {
   const prefixPattern = /^\s*(?:[,，。！？!?、]\s*)?/;
-  const suffixPattern = new RegExp(`^\\s*(?:${speechVerbPattern})(?:[^\\n。！？!?]{0,18})?[。！？!?]?`);
+  const suffixPattern = new RegExp(`^\\s*(?:${speechVerbPattern})(?:[^\\n「『“"'‘’。！？!?]{0,18})?[。！？!?]?`);
 
   for (const alias of speakerIndex.aliases) {
     if (!allowShortAlias && alias.length <= 1) {
@@ -496,6 +496,11 @@ const hasReadableBoundary = (text: string, start: number, end: number): boolean 
 };
 
 const hasParagraphBreak = (text: string): boolean => /\n\s*\n|\r\s*\r/.test(text);
+
+const isDialogueContinuationGap = (text: string): boolean => {
+  if (hasParagraphBreak(text)) return false;
+  return !text.replace(/[\s,，、:：;；。！？!?'"「」『』“”‘’（）()【】[\]…—-]/g, '');
+};
 
 const normalizeVisibleText = (value: string): string => value.replace(/\s+/g, ' ').trim();
 

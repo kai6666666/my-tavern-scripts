@@ -1817,13 +1817,15 @@ export const MAIN_STYLES = `
             .acu-empty-state i { font-size: 20px; opacity: 0.7; }
             .acu-empty-state span { font-size: 12px; }
             /* 增加了 min-width 和 flex-shrink: 0 */
-            .acu-wrapper.acu-dice-ui-root .acu-panel-content { flex: 1; overflow-x: auto; overflow-y: hidden; padding: 15px; background: transparent; scrollbar-width: thin; scrollbar-color: var(--acu-scrollbar-thumb) var(--acu-scrollbar-track); overscroll-behavior-x: contain; overscroll-behavior-y: auto; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
+            .acu-wrapper.acu-dice-ui-root .acu-panel-content { flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; padding: 15px; background: transparent; scrollbar-width: thin; scrollbar-color: var(--acu-scrollbar-thumb) var(--acu-scrollbar-track); overscroll-behavior-x: contain; overscroll-behavior-y: auto; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
             /* 增加了 height: 100%; 让网格容器填满面板的高度 */
 .acu-wrapper.acu-dice-ui-root .acu-card-grid { display: flex; flex-wrap: nowrap; gap: 12px; align-items: flex-start; }
+.acu-wrapper.acu-dice-ui-root:not(.acu-layout-vertical) .acu-panel-content > .acu-card-grid { height: 100%; min-height: 0; }
+.acu-wrapper.acu-dice-ui-root:not(.acu-layout-vertical) .acu-panel-content > .acu-card-grid > .acu-data-card { max-height: 100%; min-height: 0; overflow-y: auto; }
             .acu-wrapper.acu-dice-ui-root.acu-layout-vertical .acu-panel-content { overflow-x: hidden !important; overflow-y: auto !important; overscroll-behavior: auto; touch-action: manipulation; min-height: 0; }
             /* 竖向布局时恢复 auto 高度 */
 .acu-wrapper.acu-dice-ui-root.acu-layout-vertical .acu-card-grid { flex-wrap: wrap !important; justify-content: center; padding-bottom: 20px; height: auto; }
-.acu-wrapper.acu-dice-ui-root:not(.acu-layout-vertical) .acu-manual-mode .acu-card-grid { height: 100%; } .acu-wrapper.acu-dice-ui-root .acu-manual-mode .acu-data-card { max-height: 100% !important; overscroll-behavior-y: auto; } .acu-wrapper.acu-dice-ui-root .acu-data-card, .acu-preview-overlay .acu-data-card { flex: 0 0 var(--acu-card-width, 260px); width: var(--acu-card-width, 260px); background: var(--acu-card-bg); border: 1px solid var(--acu-border); border-radius: 8px; height: auto; max-height: 60vh; overflow-y: auto; overscroll-behavior-y: auto; touch-action: manipulation; transition: border-color var(--acu-motion-fast) var(--acu-ease-standard), box-shadow var(--acu-motion-fast) var(--acu-ease-standard), transform var(--acu-motion-fast) var(--acu-ease-standard); display: flex; flex-direction: column; position: relative; }
+.acu-wrapper.acu-dice-ui-root:not(.acu-layout-vertical) .acu-manual-mode .acu-card-grid { height: 100%; min-height: 0; } .acu-wrapper.acu-dice-ui-root .acu-manual-mode .acu-data-card { max-height: 100% !important; min-height: 0; overscroll-behavior-y: auto; } .acu-wrapper.acu-dice-ui-root .acu-data-card, .acu-preview-overlay .acu-data-card { flex: 0 0 var(--acu-card-width, 260px); width: var(--acu-card-width, 260px); background: var(--acu-card-bg); border: 1px solid var(--acu-border); border-radius: 8px; height: auto; max-height: 60vh; overflow-y: auto; overscroll-behavior-y: auto; touch-action: manipulation; transition: border-color var(--acu-motion-fast) var(--acu-ease-standard), box-shadow var(--acu-motion-fast) var(--acu-ease-standard), transform var(--acu-motion-fast) var(--acu-ease-standard); display: flex; flex-direction: column; position: relative; }
             .acu-wrapper.acu-dice-ui-root .acu-data-card:hover,
             .acu-preview-overlay .acu-data-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--acu-shadow); border-color: var(--acu-accent); }
             .acu-wrapper.acu-dice-ui-root .acu-data-card.pending-deletion,
@@ -2204,15 +2206,20 @@ export const MAIN_STYLES = `
                     display: flex;
                     flex-wrap: nowrap;
                     gap: 15px;
+                    height: 100%;
+                    min-height: 0;
                     overflow-x: auto;
                     overflow-y: hidden;
                     padding-bottom: 10px;
+                    box-sizing: border-box;
                 }
                 .acu-dash-body.acu-dash-horizontal > div {
                     flex: 0 0 280px;
                     min-width: 280px;
-                    max-height: 60vh;
+                    min-height: 0;
+                    max-height: 100%;
                     overflow-y: auto;
+                    box-sizing: border-box;
                 }
                 @media (min-width: 769px) {
                     .acu-dash-body.acu-dash-horizontal > div {

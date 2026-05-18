@@ -2179,7 +2179,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.10'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.13'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -8135,6 +8135,19 @@ import {
       } catch (error) {
         console.warn('[DICE]正文头像渲染获取显示楼层失败，改用选择器:', error);
         return null;
+      }
+    },
+    emitMessageRendered: messageId => {
+      try {
+        if (
+          typeof eventSource !== 'undefined' &&
+          typeof event_types !== 'undefined' &&
+          event_types.CHARACTER_MESSAGE_RENDERED
+        ) {
+          void eventSource.emit(event_types.CHARACTER_MESSAGE_RENDERED, Number(messageId));
+        }
+      } catch (error) {
+        console.warn('[DICE]正文头像渲染通知前端块重新渲染失败:', error);
       }
     },
     getLatestAssistantMessage: () => {
