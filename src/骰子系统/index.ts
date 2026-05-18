@@ -2178,7 +2178,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.03'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.04'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -50666,20 +50666,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (!wrapper) return;
 
     const chat = targetDocument.querySelector<HTMLElement>('#chat');
-    const currentWrapperHeight = Math.ceil(wrapper.getBoundingClientRect().height || wrapper.offsetHeight || 0);
-    const shouldKeepChatPinnedToBottom =
-      chat && chat.scrollHeight > chat.clientHeight
-        ? chat.scrollHeight - chat.scrollTop - chat.clientHeight <=
-          Math.max(48, chat.clientHeight * 0.08, currentWrapperHeight + 48)
-        : true;
-    let movedWrapperToChatEnd = false;
     if (chat && wrapper.ownerDocument === targetDocument && wrapper.parentElement !== chat) {
       chat.appendChild(wrapper);
-      movedWrapperToChatEnd = true;
     }
     if (chat && wrapper.parentElement === chat && chat.lastElementChild !== wrapper) {
       chat.appendChild(wrapper);
-      movedWrapperToChatEnd = true;
     }
 
     const visualViewport = targetWindow.visualViewport;
@@ -50717,25 +50708,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       wrapper.style.removeProperty('--acu-viewport-nav-height');
     };
 
-    const keepFixedWrapperVisibleAfterLayout = () => {
-      if (!chat || !shouldKeepChatPinnedToBottom) return;
-      const chatRect = chat.getBoundingClientRect();
-      const wrapperRect = wrapper.getBoundingClientRect();
-      if (!movedWrapperToChatEnd && wrapperRect.bottom <= chatRect.bottom + 1) return;
-      const pinToBottom = () => {
-        chat.scrollTop = chat.scrollHeight;
-      };
-      pinToBottom();
-      requestAnimationFrame(pinToBottom);
-    };
-
     if (layoutViewportWidth > 0 && layoutViewportWidth <= TABLET_FIXED_NAV_FULL_WIDTH_MAX) {
       const fixedWidth =
         layoutViewportWidth <= MOBILE_FIXED_NAV_CONTENT_WIDTH_MAX
           ? Math.min(parentWidth, parentClientWidth)
           : parentWidth;
       applyFixedWrapperLayout(Math.round(fixedWidth), 0);
-      keepFixedWrapperVisibleAfterLayout();
       return;
     }
 
@@ -50755,7 +50733,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (width <= 0) return;
 
     applyFixedWrapperLayout(width, marginLeft);
-    keepFixedWrapperVisibleAfterLayout();
   };
 
   const scheduleFixedWrapperBoundsRefresh = () => {
@@ -62690,27 +62667,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     return $('#acu-data-area').first();
   };
 
-  function getScrollableAncestor(element: HTMLElement): HTMLElement | null {
-    const ownerDocument = element.ownerDocument || document;
-    const ownerWindow = ownerDocument.defaultView || window;
-    let current = element.parentElement;
-
-    while (current && current !== ownerDocument.body) {
-      const style = ownerWindow.getComputedStyle(current);
-      const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY);
-      if (canScrollY && current.scrollHeight > current.clientHeight + 1) return current;
-      current = current.parentElement;
-    }
-
-    const scrollingElement = ownerDocument.scrollingElement;
-    return scrollingElement instanceof ownerWindow.HTMLElement ? scrollingElement : ownerDocument.documentElement;
-  }
-
-  let lastNavigationVisibilityCorrectionElement: HTMLElement | null = null;
-  let lastNavigationVisibilityCorrectionAt = 0;
-
-  function ensurePanelNavigationVisible($root?: JQuery<HTMLElement>): void {
-    const { $ } = getCore();
+  function ensurePanelNavigationVisible(_$root?: JQuery<HTMLElement>): void {
     const config = getConfig();
     if (isFloatingCollapseActive(config)) return;
 
@@ -62723,61 +62680,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       scheduleFixedWrapperBoundsRefresh();
       return;
     }
-
-    const rootElement = (($root && $root.length ? $root : $(DICE_ROOT_SELECTOR).last()) as JQuery<HTMLElement>)[0];
-    const navigationElement = rootElement?.querySelector<HTMLElement>('.acu-nav-container, .acu-expand-trigger');
-    if (!navigationElement) return;
-
-    requestAnimationFrame(() => {
-      const targetWindow = getTavernHostWindow();
-      const targetDocument = navigationElement.ownerDocument || getTavernHostDocument();
-      const visualViewport = targetWindow.visualViewport;
-      const viewportTop = visualViewport?.offsetTop || 0;
-      const viewportHeight =
-        visualViewport?.height || targetWindow.innerHeight || targetDocument.documentElement.clientHeight || 0;
-      if (viewportHeight <= 0) return;
-
-      const safeTop = viewportTop + 8;
-      const safeBottom = viewportTop + viewportHeight - getViewportBottomOffset() - 8;
-      const rect = navigationElement.getBoundingClientRect();
-      if (rect.height <= 0) return;
-      if (config.positionMode === 'embedded') {
-        const nearbyRange = Math.max(160, viewportHeight * 0.35);
-        const isNearViewport = rect.bottom >= safeTop - nearbyRange && rect.top <= safeBottom + nearbyRange;
-        if (!isNearViewport) return;
-      }
-
-      const visibleTop = Math.max(rect.top, safeTop);
-      const visibleBottom = Math.min(rect.bottom, safeBottom);
-      const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-      const minimumVisibleHeight = Math.min(48, rect.height * 0.6);
-      if (visibleHeight >= minimumVisibleHeight) return;
-
-      const now = Date.now();
-      if (
-        lastNavigationVisibilityCorrectionElement === navigationElement &&
-        now - lastNavigationVisibilityCorrectionAt < 180
-      ) {
-        return;
-      }
-      lastNavigationVisibilityCorrectionElement = navigationElement;
-      lastNavigationVisibilityCorrectionAt = now;
-
-      const correction =
-        rect.bottom > safeBottom
-          ? Math.ceil(rect.bottom - safeBottom)
-          : rect.top < safeTop
-            ? Math.floor(rect.top - safeTop)
-            : 0;
-      if (Math.abs(correction) <= 1) return;
-
-      const scrollContainer = getScrollableAncestor(navigationElement);
-      if (scrollContainer) {
-        scrollContainer.scrollTop += correction;
-        return;
-      }
-      targetWindow.scrollBy({ top: correction, behavior: 'auto' });
-    });
   }
 
   const closePanel = ($root?: JQuery<HTMLElement>) => {
