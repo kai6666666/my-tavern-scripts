@@ -1461,7 +1461,8 @@ import {
 
   const getImageUrlValidationMessage = (label: string, reason: ImageUrlValidationReason | null): string => {
     if (reason === 'svg_url') return `${label}不支持 SVG 图片，请使用 PNG、JPEG、WebP 或 GIF。`;
-    if (reason === 'invalid_protocol') return `${label}仅支持 http/https 或当前站点相对路径，不支持 data:、file:、javascript: 等协议。`;
+    if (reason === 'invalid_protocol')
+      return `${label}仅支持 http/https 或当前站点相对路径，不支持 data:、file:、javascript: 等协议。`;
     return `${label}格式不正确，请填写完整图片链接。`;
   };
 
@@ -2178,7 +2179,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.08'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.10'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -7173,7 +7174,10 @@ import {
 
   const rgbToAvatarHex = (r: number, g: number, b: number): string => {
     const toHex = (value: number) =>
-      Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0').toUpperCase();
+      Math.max(0, Math.min(255, Math.round(value)))
+        .toString(16)
+        .padStart(2, '0')
+        .toUpperCase();
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
   };
 
@@ -7187,11 +7191,7 @@ import {
     };
   };
 
-  const rgbToAvatarHsl = (
-    r: number,
-    g: number,
-    b: number,
-  ): { h: number; s: number; l: number } => {
+  const rgbToAvatarHsl = (r: number, g: number, b: number): { h: number; s: number; l: number } => {
     const rn = r / 255;
     const gn = g / 255;
     const bn = b / 255;
@@ -7397,7 +7397,8 @@ import {
             };
           } else {
             const imageColor = normalizeAvatarHexColor(raw[name].imageColor);
-            const imageColorSource = raw[name].imageColorSource === 'manual' ? 'manual' : imageColor ? 'auto' : undefined;
+            const imageColorSource =
+              raw[name].imageColorSource === 'manual' ? 'manual' : imageColor ? 'auto' : undefined;
             this._cache[name] = {
               url: normalizeStorableImageUrl(raw[name].url),
               offsetX: raw[name].offsetX ?? 50,
@@ -8572,36 +8573,36 @@ import {
     rootEl
       .querySelectorAll<HTMLElement>('.acu-custom-table-name-url-icon[data-custom-table-name-icon-url]')
       .forEach(element => {
-      const url = String(element.dataset.customTableNameIconUrl || '').trim();
-      if (!url || !isCustomTableNameIconImageUrlValid(url) || CustomTableNameIconImageDB.hasUrlFailed(url)) return;
-      applyAsyncImageUrlToElement(element, url, 'customTableNameIconResolvedUrl', {
-        onError: () => {
-          CustomTableNameIconImageDB.markUrlFailed(url);
-        },
+        const url = String(element.dataset.customTableNameIconUrl || '').trim();
+        if (!url || !isCustomTableNameIconImageUrlValid(url) || CustomTableNameIconImageDB.hasUrlFailed(url)) return;
+        applyAsyncImageUrlToElement(element, url, 'customTableNameIconResolvedUrl', {
+          onError: () => {
+            CustomTableNameIconImageDB.markUrlFailed(url);
+          },
+        });
       });
-    });
     rootEl
       .querySelectorAll<HTMLElement>('.acu-custom-table-name-local-icon[data-custom-table-name-icon-local-key]')
       .forEach(element => {
-      const localKey = String(element.dataset.customTableNameIconLocalKey || '').trim();
-      if (!localKey || CustomTableNameIconImageDB.hasLocalKeyFailed(localKey)) return;
-      void CustomTableNameIconImageDB.get(localKey)
-        .then(url => {
-          if (!url) {
-            CustomTableNameIconImageDB.markLocalKeyFailed(localKey);
-            return;
-          }
-          if (!element.isConnected) return;
-          applyAsyncImageUrlToElement(element, url, 'customTableNameIconResolvedUrl', {
-            onError: () => {
+        const localKey = String(element.dataset.customTableNameIconLocalKey || '').trim();
+        if (!localKey || CustomTableNameIconImageDB.hasLocalKeyFailed(localKey)) return;
+        void CustomTableNameIconImageDB.get(localKey)
+          .then(url => {
+            if (!url) {
               CustomTableNameIconImageDB.markLocalKeyFailed(localKey);
-            },
+              return;
+            }
+            if (!element.isConnected) return;
+            applyAsyncImageUrlToElement(element, url, 'customTableNameIconResolvedUrl', {
+              onError: () => {
+                CustomTableNameIconImageDB.markLocalKeyFailed(localKey);
+              },
+            });
+          })
+          .catch(() => {
+            CustomTableNameIconImageDB.markLocalKeyFailed(localKey);
           });
-        })
-        .catch(() => {
-          CustomTableNameIconImageDB.markLocalKeyFailed(localKey);
-        });
-    });
+      });
   };
 
   const hydrateGachaLocalIconsIn = (root: HTMLElement | JQuery<HTMLElement> | Document = document) => {
@@ -19472,8 +19473,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const shouldSkipAutoRegexTransform = (key: string): boolean =>
     Boolean(
       key &&
-        key === lastAutoRegexTransformKey &&
-        Date.now() - lastAutoRegexTransformAt < AUTO_REGEX_TRANSFORM_COOLDOWN_MS,
+      key === lastAutoRegexTransformKey &&
+      Date.now() - lastAutoRegexTransformAt < AUTO_REGEX_TRANSFORM_COOLDOWN_MS,
     );
   const rememberAutoRegexTransform = (key: string): void => {
     if (!key) return;
@@ -20947,8 +20948,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const now = Date.now();
     const existingEntries = CustomTableNameIconStoreManager.getAll().reduce<Record<string, CustomTableNameIconEntry>>(
       (result, entry) => {
-      result[getCustomTableNameIconContextKey(entry)] = entry;
-      return result;
+        result[getCustomTableNameIconContextKey(entry)] = entry;
+        return result;
       },
       {},
     );
@@ -21586,8 +21587,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       'change input',
       '#acu-custom-icon-module-filter, #acu-custom-icon-table-filter, #acu-custom-icon-search',
       () => {
-      pendingLocalFile = null;
-      void refreshManager();
+        pendingLocalFile = null;
+        void refreshManager();
       },
     );
 
@@ -32537,7 +32538,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
                             const shadowWidth = 4; // 预留box-shadow的空间
                             const foSize = size + shadowWidth * 2;
                             const foOffset = foSize / 2;
-                            const avatarStyle = escapeHtml(buildAvatarBackgroundStyle(nodeAvatar, offsetX, offsetY, scaleVal));
+                            const avatarStyle = escapeHtml(
+                              buildAvatarBackgroundStyle(nodeAvatar, offsetX, offsetY, scaleVal),
+                            );
                             if (!avatarStyle) {
                               return `<text class="acu-node-char" dy="0.35em">${escapeHtml(nodeDisplayName.charAt(0))}</text>`;
                             }
@@ -33706,13 +33709,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const storedColor = normalizeAvatarHexColor(data.imageColor);
         const color = storedColor || AvatarManager.getImageColor(name);
         const source = storedColor ? data.imageColorSource || 'auto' : 'fallback';
-        const swatches = [
-          color,
-          ...avatarColorPresetSwatches,
-          getAvatarFallbackColor(name),
-        ];
+        const swatches = [color, ...avatarColorPresetSwatches, getAvatarFallbackColor(name)];
         const uniqueSwatches = [
-          ...new Set(swatches.map(item => normalizeAvatarHexColor(item)).filter((item): item is string => Boolean(item))),
+          ...new Set(
+            swatches.map(item => normalizeAvatarHexColor(item)).filter((item): item is string => Boolean(item)),
+          ),
         ].slice(0, 18);
         const hsl = avatarHexToHsl(color) || { h: 0, s: 0.54, l: 0.5 };
         const hue = Math.round(hsl.h);
@@ -34585,12 +34586,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             100,
             54,
           );
-          const lightness = clampAvatarNumber(
-            $container.find('.acu-avatar-color-lightness-slider').val(),
-            20,
-            80,
-            50,
-          );
+          const lightness = clampAvatarNumber($container.find('.acu-avatar-color-lightness-slider').val(), 20, 80, 50);
           markAvatarColorManualPending($container, hslToAvatarHex(hue, saturation / 100, lightness / 100));
         });
 
@@ -35557,9 +35553,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const getDiceConfigBackupWarningCount = (backup: DiceConfigBackupDocument): number =>
     Object.values(backup.modules).reduce((count, payload) => count + (payload?.warnings?.length || 0), 0);
 
-  const formatDiceConfigBackupSelectedModuleRiskLines = (
-    moduleIds: readonly DiceConfigBackupModuleId[],
-  ): string[] =>
+  const formatDiceConfigBackupSelectedModuleRiskLines = (moduleIds: readonly DiceConfigBackupModuleId[]): string[] =>
     moduleIds.map(moduleId => {
       const definition = getDiceConfigBackupModuleDefinition(moduleId);
       return `${definition?.name || moduleId}: ${DICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT[moduleId]}`;
@@ -35599,9 +35593,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     showDiceSystemConfirmDialog({
       title: mode === 'export' ? '导出配置备份' : '恢复配置备份',
       message:
-        mode === 'export'
-          ? '备份文件可能包含可识别的私密配置。'
-          : '恢复外来备份可能覆盖本地配置并启用对方规则。',
+        mode === 'export' ? '备份文件可能包含可识别的私密配置。' : '恢复外来备份可能覆盖本地配置并启用对方规则。',
       detail: formatDiceConfigBackupPrivacyDetail(mode, moduleIds, backup),
       iconClass: 'fa-triangle-exclamation',
       confirmText: mode === 'export' ? '确认导出' : '确认恢复',
@@ -36969,7 +36961,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         const resourceCount = getDiceConfigBackupModuleResourceCount(payload);
         const countText = getDiceConfigBackupModuleCountText(moduleId, storageCount, resourceCount, Boolean(payload));
         const deprecatedBadgeHtml =
-          definition.deprecated && definition.deprecatedReason ? renderDeprecatedBadge(definition.deprecatedReason) : '';
+          definition.deprecated && definition.deprecatedReason
+            ? renderDeprecatedBadge(definition.deprecatedReason)
+            : '';
         const warningHtml =
           payload?.warnings && payload.warnings.length > 0
             ? `<div class="acu-config-backup-module-warning">${payload.warnings
@@ -49250,9 +49244,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     dialog.find('#cfg-theme').on('change', function () {
       const newTheme = $(this).val();
       saveConfig({ theme: newTheme });
-      dialog
-        .removeClass(THEMES.map(t => `acu-theme-${t.id}`).join(' '))
-        .addClass(`acu-theme-${newTheme}`);
+      dialog.removeClass(THEMES.map(t => `acu-theme-${t.id}`).join(' ')).addClass(`acu-theme-${newTheme}`);
       dialog
         .find('.acu-edit-dialog')
         .removeClass(THEMES.map(t => `acu-theme-${t.id}`).join(' '))
@@ -50972,7 +50964,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const clearFloatingCollapseBoundsListeners = () => {
     if (floatingCollapseBoundsListenerWindow && floatingCollapseBoundsRefreshHandler) {
       floatingCollapseBoundsListenerWindow.removeEventListener('resize', floatingCollapseBoundsRefreshHandler);
-      floatingCollapseBoundsListenerWindow.removeEventListener('orientationchange', floatingCollapseBoundsRefreshHandler);
+      floatingCollapseBoundsListenerWindow.removeEventListener(
+        'orientationchange',
+        floatingCollapseBoundsRefreshHandler,
+      );
       floatingCollapseBoundsListenerWindow.visualViewport?.removeEventListener(
         'resize',
         floatingCollapseBoundsRefreshHandler,
@@ -51198,7 +51193,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         mutationLock = true;
         requestAnimationFrame(() => {
           const config = getConfig();
-          if (config.positionMode === 'embedded' || config.positionMode === 'viewport' || isFloatingCollapseActive(config)) {
+          if (
+            config.positionMode === 'embedded' ||
+            config.positionMode === 'viewport' ||
+            isFloatingCollapseActive(config)
+          ) {
             mutationLock = false;
             return;
           }
@@ -51379,7 +51378,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     const isGlobalInteractionsActive = !isCollapsed && Store.get(STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE, false);
     const isMvuActive = !isCollapsed && getActiveTabState() === MvuModule.MODULE_ID;
     const shouldShowPanel =
-      !isCollapsed && Boolean(isDashboardActive || isChangesPanelActive || isGlobalInteractionsActive || isMvuActive || currentTabName);
+      !isCollapsed &&
+      Boolean(isDashboardActive || isChangesPanelActive || isGlobalInteractionsActive || isMvuActive || currentTabName);
 
     const layoutClass = config.layout === 'vertical' ? 'acu-layout-vertical' : '';
     const horizontalScrollbarClass = config.showHorizontalScrollbar === true ? 'acu-show-horizontal-scrollbar' : '';
@@ -51478,7 +51478,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     // [修复] 悬浮收起模式需要特殊类，防止 wrapper 坍塌导致按钮消失
     const navMetrics = getNavigationFontMetrics(config.navFontSize);
-    const floatingCollapsePosition = isFloatingCollapsed ? clampFloatingCollapsePosition(getFloatingCollapsePosition(config)) : null;
+    const floatingCollapsePosition = isFloatingCollapsed
+      ? clampFloatingCollapsePosition(getFloatingCollapsePosition(config))
+      : null;
     const floatingCollapseStyle = floatingCollapsePosition
       ? `; position:fixed; left:${floatingCollapsePosition.left}px; top:${floatingCollapsePosition.top}px; right:auto; bottom:auto; width:${FLOATING_COLLAPSE_SIZE}px; height:${FLOATING_COLLAPSE_SIZE}px; max-width:${FLOATING_COLLAPSE_SIZE}px; display:block; visibility:visible; opacity:1; margin:0; transform:none; overflow:visible; pointer-events:none; z-index:1000`
       : '';
@@ -51487,8 +51489,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (isCollapsed) {
       const colStyleClass = collapseStyle === 'floating' ? 'acu-col-floating' : `acu-col-${collapseStyle}`;
       const alignClass = collapseStyle === 'floating' ? '' : `acu-align-${config.collapseAlign || 'right'}`;
-      const expandTitle =
-        collapseStyle === 'floating' ? '打开数据库助手，拖动可移动位置' : '打开数据库助手';
+      const expandTitle = collapseStyle === 'floating' ? '打开数据库助手，拖动可移动位置' : '打开数据库助手';
 
       html += `
                 <div class="acu-expand-trigger ${colStyleClass} ${alignClass}" id="acu-btn-expand" role="button" tabindex="0" title="${expandTitle}" aria-label="${expandTitle}">
@@ -52800,33 +52801,33 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       'pointerdown.globalInteractionEvents',
       '.acu-height-control',
       function (this: HTMLElement, e: JQuery.Event) {
-      const pointerEvent = e.originalEvent as PointerEvent | undefined;
-      if (!pointerEvent || typeof pointerEvent.pointerId !== 'number' || pointerEvent.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
+        const pointerEvent = e.originalEvent as PointerEvent | undefined;
+        if (!pointerEvent || typeof pointerEvent.pointerId !== 'number' || pointerEvent.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-      const controlEl = this;
-      const $control = $(controlEl);
-      const $handle = $control.find('.acu-height-drag-handle').first();
-      const tableName = String($control.attr('data-table') || $handle.attr('data-table') || '交互总览').trim();
-      controlEl.setPointerCapture(pointerEvent.pointerId);
-      $control.add($handle).addClass('active');
+        const controlEl = this;
+        const $control = $(controlEl);
+        const $handle = $control.find('.acu-height-drag-handle').first();
+        const tableName = String($control.attr('data-table') || $handle.attr('data-table') || '交互总览').trim();
+        controlEl.setPointerCapture(pointerEvent.pointerId);
+        $control.add($handle).addClass('active');
 
-      const startHeight = getPanelDragStartHeight($panel);
-      let requestedHeight = startHeight;
-      const startY = pointerEvent.clientY;
+        const startHeight = getPanelDragStartHeight($panel);
+        let requestedHeight = startHeight;
+        const startY = pointerEvent.clientY;
 
-      controlEl.onpointermove = (moveEvent: PointerEvent): void => {
-        const dy = moveEvent.clientY - startY;
-        requestedHeight = setPanelRequestedHeight($panel, startHeight - dy) || requestedHeight;
-      };
-      controlEl.onpointerup = (upEvent: PointerEvent): void => {
-        $control.add($handle).removeClass('active');
-        controlEl.releasePointerCapture(upEvent.pointerId);
-        controlEl.onpointermove = null;
-        controlEl.onpointerup = null;
-        savePanelRequestedHeight(tableName, requestedHeight);
-      };
+        controlEl.onpointermove = (moveEvent: PointerEvent): void => {
+          const dy = moveEvent.clientY - startY;
+          requestedHeight = setPanelRequestedHeight($panel, startHeight - dy) || requestedHeight;
+        };
+        controlEl.onpointerup = (upEvent: PointerEvent): void => {
+          $control.add($handle).removeClass('active');
+          controlEl.releasePointerCapture(upEvent.pointerId);
+          controlEl.onpointermove = null;
+          controlEl.onpointerup = null;
+          savePanelRequestedHeight(tableName, requestedHeight);
+        };
       },
     );
 
@@ -62892,84 +62893,80 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     if (!$trigger.length || !$trigger.hasClass('acu-col-floating')) return;
     const { $ } = getCore();
 
-    $trigger
-      .off('keydown.acu_floating_collapse')
-      .on('keydown.acu_floating_collapse', function (e) {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        $(this).trigger('click');
-      });
+    $trigger.off('keydown.acu_floating_collapse').on('keydown.acu_floating_collapse', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      $(this).trigger('click');
+    });
 
-    $trigger
-      .off('pointerdown.acu_floating_collapse')
-      .on('pointerdown.acu_floating_collapse', function (e) {
-        const pointerEvent = e.originalEvent as PointerEvent | undefined;
-        if (!pointerEvent || typeof pointerEvent.clientX !== 'number' || typeof pointerEvent.clientY !== 'number') return;
-        if (pointerEvent.pointerType === 'mouse' && pointerEvent.button !== 0) return;
+    $trigger.off('pointerdown.acu_floating_collapse').on('pointerdown.acu_floating_collapse', function (e) {
+      const pointerEvent = e.originalEvent as PointerEvent | undefined;
+      if (!pointerEvent || typeof pointerEvent.clientX !== 'number' || typeof pointerEvent.clientY !== 'number') return;
+      if (pointerEvent.pointerType === 'mouse' && pointerEvent.button !== 0) return;
 
-        const triggerElement = this;
-        const wrapper = triggerElement.closest<HTMLElement>(DICE_ROOT_SELECTOR);
-        if (!wrapper) return;
+      const triggerElement = this;
+      const wrapper = triggerElement.closest<HTMLElement>(DICE_ROOT_SELECTOR);
+      if (!wrapper) return;
 
-        const targetWindow = getTavernHostWindow();
-        const targetDocument = wrapper.ownerDocument || getTavernHostDocument();
-        const wrapperRect = wrapper.getBoundingClientRect();
-        const startPosition = clampFloatingCollapsePosition(
+      const targetWindow = getTavernHostWindow();
+      const targetDocument = wrapper.ownerDocument || getTavernHostDocument();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const startPosition = clampFloatingCollapsePosition(
+        {
+          left: wrapperRect.left,
+          top: wrapperRect.top,
+        },
+        targetWindow,
+        targetDocument,
+      );
+      const startClientX = pointerEvent.clientX;
+      const startClientY = pointerEvent.clientY;
+      let latestPosition = startPosition;
+      let didDrag = false;
+
+      e.preventDefault();
+      e.stopPropagation();
+      triggerElement.classList.add('acu-floating-dragging');
+      triggerElement.setPointerCapture?.(pointerEvent.pointerId);
+
+      const moveFloatingButton = (moveEvent: PointerEvent): void => {
+        const deltaX = moveEvent.clientX - startClientX;
+        const deltaY = moveEvent.clientY - startClientY;
+        if (!didDrag && Math.hypot(deltaX, deltaY) >= FLOATING_COLLAPSE_DRAG_THRESHOLD) {
+          didDrag = true;
+        }
+        latestPosition = clampFloatingCollapsePosition(
           {
-            left: wrapperRect.left,
-            top: wrapperRect.top,
+            left: startPosition.left + deltaX,
+            top: startPosition.top + deltaY,
           },
           targetWindow,
           targetDocument,
         );
-        const startClientX = pointerEvent.clientX;
-        const startClientY = pointerEvent.clientY;
-        let latestPosition = startPosition;
-        let didDrag = false;
+        wrapper.style.setProperty('left', `${latestPosition.left}px`, 'important');
+        wrapper.style.setProperty('top', `${latestPosition.top}px`, 'important');
+      };
 
-        e.preventDefault();
-        e.stopPropagation();
-        triggerElement.classList.add('acu-floating-dragging');
-        triggerElement.setPointerCapture?.(pointerEvent.pointerId);
+      const finishFloatingDrag = (upEvent: PointerEvent): void => {
+        triggerElement.onpointermove = null;
+        triggerElement.onpointerup = null;
+        triggerElement.onpointercancel = null;
+        triggerElement.classList.remove('acu-floating-dragging');
+        triggerElement.releasePointerCapture?.(upEvent.pointerId);
 
-        const moveFloatingButton = (moveEvent: PointerEvent): void => {
-          const deltaX = moveEvent.clientX - startClientX;
-          const deltaY = moveEvent.clientY - startClientY;
-          if (!didDrag && Math.hypot(deltaX, deltaY) >= FLOATING_COLLAPSE_DRAG_THRESHOLD) {
-            didDrag = true;
-          }
-          latestPosition = clampFloatingCollapsePosition(
-            {
-              left: startPosition.left + deltaX,
-              top: startPosition.top + deltaY,
-            },
-            targetWindow,
-            targetDocument,
-          );
-          wrapper.style.setProperty('left', `${latestPosition.left}px`, 'important');
-          wrapper.style.setProperty('top', `${latestPosition.top}px`, 'important');
-        };
+        if (!didDrag) return;
 
-        const finishFloatingDrag = (upEvent: PointerEvent): void => {
-          triggerElement.onpointermove = null;
-          triggerElement.onpointerup = null;
-          triggerElement.onpointercancel = null;
-          triggerElement.classList.remove('acu-floating-dragging');
-          triggerElement.releasePointerCapture?.(upEvent.pointerId);
+        suppressNextFloatingCollapseClick = true;
+        window.setTimeout(() => {
+          suppressNextFloatingCollapseClick = false;
+        }, 250);
+        saveConfig({ floatingCollapsePosition: latestPosition });
+      };
 
-          if (!didDrag) return;
-
-          suppressNextFloatingCollapseClick = true;
-          window.setTimeout(() => {
-            suppressNextFloatingCollapseClick = false;
-          }, 250);
-          saveConfig({ floatingCollapsePosition: latestPosition });
-        };
-
-        triggerElement.onpointermove = moveFloatingButton;
-        triggerElement.onpointerup = finishFloatingDrag;
-        triggerElement.onpointercancel = finishFloatingDrag;
-      });
+      triggerElement.onpointermove = moveFloatingButton;
+      triggerElement.onpointerup = finishFloatingDrag;
+      triggerElement.onpointercancel = finishFloatingDrag;
+    });
   };
 
   const bindEvents = tables => {
@@ -62987,10 +62984,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
     $wrapper
       .off('click.acu_dashboard_preset_settings')
       .on('click.acu_dashboard_preset_settings', '.acu-dashboard-preset-settings-btn', function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      showDashboardPresetManager();
-    });
+        e.stopPropagation();
+        e.preventDefault();
+        showDashboardPresetManager();
+      });
 
     // [新增] 仪表盘-人物关系图按钮
     $wrapper
@@ -63232,12 +63229,12 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               // 使用 switchPanel 实现平滑过渡
               switchPanel(
                 $panel => {
-                const rawData = cachedRawData || getTableData();
-                const tables = processJsonData(rawData || {});
-                $panel.html(renderDashboard(tables));
-                hydrateCustomTableNameIconsIn($panel as JQuery<HTMLElement>);
-                bindEvents(tables);
-                loadDashboardNpcAvatars();
+                  const rawData = cachedRawData || getTableData();
+                  const tables = processJsonData(rawData || {});
+                  $panel.html(renderDashboard(tables));
+                  hydrateCustomTableNameIconsIn($panel as JQuery<HTMLElement>);
+                  bindEvents(tables);
+                  loadDashboardNpcAvatars();
                 },
                 $currentRoot,
                 '仪表盘',
@@ -63268,9 +63265,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               // 使用 switchPanel 实现平滑过渡
               switchPanel(
                 $panel => {
-                const rawData = cachedRawData || getTableData();
-                $panel.html(renderChangesPanel(rawData));
-                bindChangesEvents();
+                  const rawData = cachedRawData || getTableData();
+                  $panel.html(renderChangesPanel(rawData));
+                  bindChangesEvents();
                 },
                 $currentRoot,
                 '审核面板',
@@ -63300,8 +63297,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               // 使用 switchPanel 实现平滑过渡
               switchPanel(
                 async $panel => {
-                $panel.html(await renderFavoritesPanel());
-                bindFavoritesEvents($panel);
+                  $panel.html(await renderFavoritesPanel());
+                  bindFavoritesEvents($panel);
                 },
                 $currentRoot,
                 '收藏夹',
@@ -63328,10 +63325,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
               switchPanel(
                 $panel => {
-                const rawData = cachedRawData || getTableData();
-                $panel.html(renderGlobalInteractionsPanel(rawData));
-                hydrateCustomTableNameIconsIn($panel);
-                bindGlobalInteractionEvents($panel);
+                  const rawData = cachedRawData || getTableData();
+                  $panel.html(renderGlobalInteractionsPanel(rawData));
+                  hydrateCustomTableNameIconsIn($panel);
+                  bindGlobalInteractionEvents($panel);
                 },
                 $currentRoot,
                 '交互总览',
@@ -63361,31 +63358,31 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               // 使用 switchPanel 实现平滑过渡
               switchPanel(
                 $panel => {
-                try {
-                  const panelHtml = MvuModule.renderPanel();
-                  $panel.html('<div class="acu-mvu-panel">' + panelHtml + '</div>');
-                  MvuModule.bindEvents($panel);
-                } catch (error) {
-                  console.error('[MVU] Error rendering panel:', error);
-                }
+                  try {
+                    const panelHtml = MvuModule.renderPanel();
+                    $panel.html('<div class="acu-mvu-panel">' + panelHtml + '</div>');
+                    MvuModule.bindEvents($panel);
+                  } catch (error) {
+                    console.error('[MVU] Error rendering panel:', error);
+                  }
 
-                // 可选：在后台尝试获取数据（不阻塞界面显示）
-                MvuModule.getDataWithRetry(5, 800)
-                  .then(mvuData => {
-                    // 如果获取到数据，刷新面板显示
-                    if (mvuData && canWriteMvuPanel()) {
-                      $panel.html('<div class="acu-mvu-panel">' + MvuModule.renderPanel() + '</div>');
-                      MvuModule.bindEvents($panel);
-                    }
-                  })
-                  .catch(err => {
-                    console.error('[DICE]MvuModule Error getting data:', err);
-                    if (canWriteMvuPanel()) {
-                      // 错误时也刷新面板，显示错误状态
-                      $panel.html('<div class="acu-mvu-panel">' + MvuModule.renderPanel() + '</div>');
-                      MvuModule.bindEvents($panel);
-                    }
-                  });
+                  // 可选：在后台尝试获取数据（不阻塞界面显示）
+                  MvuModule.getDataWithRetry(5, 800)
+                    .then(mvuData => {
+                      // 如果获取到数据，刷新面板显示
+                      if (mvuData && canWriteMvuPanel()) {
+                        $panel.html('<div class="acu-mvu-panel">' + MvuModule.renderPanel() + '</div>');
+                        MvuModule.bindEvents($panel);
+                      }
+                    })
+                    .catch(err => {
+                      console.error('[DICE]MvuModule Error getting data:', err);
+                      if (canWriteMvuPanel()) {
+                        // 错误时也刷新面板，显示错误状态
+                        $panel.html('<div class="acu-mvu-panel">' + MvuModule.renderPanel() + '</div>');
+                        MvuModule.bindEvents($panel);
+                      }
+                    });
                 },
                 $currentRoot,
                 MvuModule.MODULE_ID,
@@ -63441,19 +63438,17 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     const $expandButton = $('#acu-btn-expand') as JQuery<HTMLElement>;
     bindFloatingCollapseDrag($expandButton);
-    $expandButton
-      .off('click')
-      .on('click', e => {
-        e.stopPropagation();
-        const $button = $(e.currentTarget);
-        if ($button.hasClass('acu-col-floating') && suppressNextFloatingCollapseClick) {
-          suppressNextFloatingCollapseClick = false;
-          return;
-        }
-        if (isEditingOrder) return;
-        saveCollapsedState(false);
-        renderInterface();
-      });
+    $expandButton.off('click').on('click', e => {
+      e.stopPropagation();
+      const $button = $(e.currentTarget);
+      if ($button.hasClass('acu-col-floating') && suppressNextFloatingCollapseClick) {
+        suppressNextFloatingCollapseClick = false;
+        return;
+      }
+      if (isEditingOrder) return;
+      saveCollapsedState(false);
+      renderInterface();
+    });
     // [回归] 收起按钮逻辑
     $('#acu-btn-collapse')
       .off('click')
@@ -65877,10 +65872,10 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       showActionableErrorToast('脚本冲突：骰子系统与可视化前端不能同时启用', {
         title: '冲突检测',
         toastrOptions: {
-        timeOut: 0,
-        extendedTimeOut: 0,
-        closeButton: true,
-        preventDuplicates: true,
+          timeOut: 0,
+          extendedTimeOut: 0,
+          closeButton: true,
+          preventDuplicates: true,
         },
       });
     }
@@ -66051,7 +66046,11 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             mutationLock = true;
             requestAnimationFrame(() => {
               const config = getConfig();
-              if (config.positionMode === 'embedded' || config.positionMode === 'viewport' || isFloatingCollapseActive(config)) {
+              if (
+                config.positionMode === 'embedded' ||
+                config.positionMode === 'viewport' ||
+                isFloatingCollapseActive(config)
+              ) {
                 mutationLock = false;
                 return;
               }
