@@ -2294,7 +2294,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.21'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.22'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -62782,11 +62782,26 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const getGachaRewardTargetModuleName = (target: GachaRewardTarget): string =>
     target === 'equipment' ? '装备' : '物品';
 
+  const isGachaTargetTableAliasMatch = (candidate: unknown, targetTable: string): boolean => {
+    const normalizedCandidate = normalizeDiffText(candidate);
+    const normalizedTarget = normalizeDiffText(targetTable);
+    if (!normalizedCandidate || !normalizedTarget) return false;
+    return normalizedCandidate === normalizedTarget || normalizedCandidate.toLowerCase() === normalizedTarget.toLowerCase();
+  };
+
   const getGachaTargetTableMatches = (rawData, targetTable: string): Array<{ key: string; sheet: any }> => {
     const tableName = normalizeGachaTargetTable(targetTable);
     if (!tableName || !rawData || typeof rawData !== 'object') return [];
     return Object.entries(rawData as Record<string, any>)
-      .filter(([key, sheet]) => key.startsWith('sheet_') && sheet?.name === tableName)
+      .filter(([key, sheet]) => {
+        if (!key.startsWith('sheet_')) return false;
+        return (
+          isGachaTargetTableAliasMatch(sheet?.name, tableName) ||
+          isGachaTargetTableAliasMatch(key, tableName) ||
+          isGachaTargetTableAliasMatch(key.replace(/^sheet_/, ''), tableName) ||
+          isGachaTargetTableAliasMatch(getCrudSqlTableName(sheet), tableName)
+        );
+      })
       .map(([key, sheet]) => ({ key, sheet }));
   };
 
