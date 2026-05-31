@@ -13,7 +13,7 @@ import actionPresetAgentPromptTemplate from './docs/action-preset-agent-prompt.m
 import renderPresetAgentPromptTemplate from './docs/render-preset-agent-prompt.md?raw';
 import gachaCatalogAgentPromptTemplate from './docs/gacha-catalog-agent-prompt.md?raw';
 import tableTemplateRequirementPresetAgentPromptTemplate from './docs/table-template-requirement-preset-agent-prompt.md?raw';
-import defaultTableTemplateRequirementRaw from './骰子表格SQL_v4.2.json?raw';
+import defaultTableTemplateRequirementRaw from './骰子表格SQL_v4.3.json?raw';
 import {
   DEFAULT_TABLE_TEMPLATE_REQUIREMENT_PRESET_ID,
   TABLE_TEMPLATE_REQUIREMENT_PRESET_FORMAT,
@@ -2520,7 +2520,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.26'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.27'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -20456,10 +20456,15 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
   const collectAccessibleRuntimeWindows = (): Window[] => {
     const windows: Window[] = [];
+    const queuedWindows: Window[] = [];
+    const visitedWindows = new Set<Window>();
+
     const addWindow = (targetWindow: Window | null | undefined) => {
-      if (!targetWindow || windows.includes(targetWindow)) return;
+      if (!targetWindow || visitedWindows.has(targetWindow)) return;
       if (!getAccessibleDocument(targetWindow)) return;
+      visitedWindows.add(targetWindow);
       windows.push(targetWindow);
+      queuedWindows.push(targetWindow);
     };
 
     addWindow(window);
@@ -20487,10 +20492,31 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       // ignore
     }
 
+    for (let index = 0; index < queuedWindows.length; index++) {
+      const targetWindow = queuedWindows[index];
+
+      try {
+        for (let frameIndex = 0; frameIndex < targetWindow.frames.length; frameIndex++) {
+          addWindow(targetWindow.frames[frameIndex]);
+        }
+      } catch {
+        // ignore inaccessible child frames
+      }
+
+      const targetDocument = getAccessibleDocument(targetWindow);
+      targetDocument?.querySelectorAll<HTMLIFrameElement>('iframe').forEach(frame => {
+        try {
+          addWindow(frame.contentWindow);
+        } catch {
+          // ignore inaccessible iframe content windows
+        }
+      });
+    }
+
     return windows;
   };
 
-  const runMaybeAsyncDatabaseUiOpener = async (opener: () => unknown): Promise<boolean> => {
+  const runMaybeAsyncDatabaseUiOpener = async (opener: () => unknown, context = '数据库界面'): Promise<boolean> => {
     try {
       const result = opener();
       if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
@@ -20499,7 +20525,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       }
       return result !== false;
     } catch (error) {
-      console.warn('[DICE]打开数据库新 UI 入口失败:', error);
+      console.warn(`[DICE]打开${context}失败:`, error);
       return false;
     }
   };
@@ -20512,7 +20538,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       for (const methodName of ACU_DATABASE_NEW_UI_API_METHODS) {
         const method = api[methodName];
         if (typeof method !== 'function') continue;
-        const opened = await runMaybeAsyncDatabaseUiOpener(() => method.call(api));
+        const opened = await runMaybeAsyncDatabaseUiOpener(() => method.call(api), '数据库新 UI 入口');
         if (opened) return true;
       }
     }
@@ -20549,6 +20575,57 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
     if (window.toastr) {
       window.toastr.warning('数据库脚本未就绪或版本过低，无法打开数据库界面');
+    }
+  };
+
+  type DatabaseVisualizerNewUiOpenResult = 'opened' | 'unavailable' | 'failed';
+
+  const openDatabaseVisualizerNewUiViaApi = async (): Promise<DatabaseVisualizerNewUiOpenResult> => {
+    let hasNewUiVisualizerApi = false;
+
+    for (const targetWindow of collectAccessibleRuntimeWindows()) {
+      const api = (targetWindow as any).AutoCardUpdaterV2API;
+      if (!api || typeof api.openVisualizer !== 'function') continue;
+      hasNewUiVisualizerApi = true;
+      const opened = await runMaybeAsyncDatabaseUiOpener(
+        () => api.openVisualizer.call(api),
+        '新版可视化表格编辑器',
+      );
+      if (opened) return 'opened';
+    }
+
+    return hasNewUiVisualizerApi ? 'failed' : 'unavailable';
+  };
+
+  const openLegacyDatabaseVisualizer = async (): Promise<boolean> => {
+    for (const targetWindow of collectAccessibleRuntimeWindows()) {
+      const api = (targetWindow as any).AutoCardUpdaterAPI;
+      if (api && typeof api.openVisualizer === 'function') {
+        const opened = await runMaybeAsyncDatabaseUiOpener(() => api.openVisualizer.call(api), '旧版可视化表格编辑器');
+        if (opened) return true;
+      }
+
+      const legacyGlobal = (targetWindow as any).openNewVisualizer_ACU;
+      if (typeof legacyGlobal === 'function') {
+        const opened = await runMaybeAsyncDatabaseUiOpener(() => legacyGlobal.call(targetWindow), '旧版可视化表格编辑器');
+        if (opened) return true;
+      }
+    }
+
+    return false;
+  };
+
+  const openDatabaseVisualizerInterface = async (): Promise<void> => {
+    const newUiOpenResult = await openDatabaseVisualizerNewUiViaApi();
+    if (newUiOpenResult === 'opened') return;
+    if (newUiOpenResult === 'unavailable' && (await openLegacyDatabaseVisualizer())) return;
+
+    if (window.toastr) {
+      const message =
+        newUiOpenResult === 'failed'
+          ? '新版可视化编辑器入口调用失败，请检查数据库本体控制台日志'
+          : '可视化编辑器接口不可用，请确保数据库脚本已加载';
+      window.toastr.warning(message);
     }
   };
 
@@ -67814,21 +67891,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       .on('click', e => {
         e.stopPropagation();
         if (isEditingOrder) return;
-
-        // 调用数据库的可视化编辑器接口
-        const topWin = window.parent || window;
-        if (topWin.AutoCardUpdaterAPI && typeof topWin.AutoCardUpdaterAPI.openVisualizer === 'function') {
-          topWin.AutoCardUpdaterAPI.openVisualizer();
-        } else {
-          // 兜底：尝试直接调用全局函数
-          if (typeof (topWin as any).openNewVisualizer_ACU === 'function') {
-            (topWin as any).openNewVisualizer_ACU();
-          } else {
-            if (window.toastr) {
-              window.toastr.warning('可视化编辑器接口不可用，请确保数据库脚本已加载');
-            }
-          }
-        }
+        void openDatabaseVisualizerInterface();
       });
 
     // [修改] 将收起按钮改为手动更新按钮

@@ -613,12 +613,7 @@
       "ddl": "CREATE TABLE check_suggestions ( -- 检定建议表\n  row_id INTEGER PRIMARY KEY CHECK(row_id BETWEEN 1 AND 5), -- 行号，仅允许 1-5\n  display_text TEXT NOT NULL CHECK(TRIM(display_text) <> ''), -- 展示文本\n  dice_command TEXT NOT NULL CHECK(TRIM(dice_command) <> '') -- 骰子命令\n);"
     },
     "content": [
-      ["row_id", "展示文本", "骰子命令"],
-      [1, "观察当前线索，判断是否需要进行侦查或洞察。", "检定 <user> 感知 .r1d100"],
-      [2, "尝试以谈判、说服或威慑推动局面。", "检定 <user> 魅力 .r1d100"],
-      [3, "与在场对手进行能力冲突。", "对抗 <user> 敏捷 vs 对手 敏捷 .r1d100 平局=发起方失败"],
-      [4, "利用明确优势直接推进。", "必成"],
-      [5, "风险过高或条件不足，行动会直接失败。", "必败"]
+      ["row_id", "展示文本", "骰子命令"]
     ],
     "updateConfig": {
       "uiSentinel": -1,
