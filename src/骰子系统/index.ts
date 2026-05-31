@@ -2520,7 +2520,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.27'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.28'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -49668,7 +49668,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
    */
   const AcuDiceAPI = {
     /** API 版本号 */
-    version: '1.2.0',
+    version: '1.3.0',
 
     /**
      * 骰子投掷（同步）
@@ -50293,25 +50293,6 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return result;
     },
   };
-
-  // 使用 Object.defineProperty 防止意外覆盖
-  defineAcuDiceOnWindow(window);
-
-  if (rootWindow !== window) {
-    try {
-      defineAcuDiceOnWindow(rootWindow);
-    } catch (error) {
-      console.warn('[AcuDice] 无法写入顶层窗口，可能跨域', error);
-    }
-  }
-
-  notifyReady();
-  dispatchReadyEvent(window);
-  if (rootWindow !== window) {
-    dispatchReadyEvent(rootWindow);
-  }
-
-  console.info('[AcuDice] API v1.2.0 已加载');
 
   // ========================================
   // ========================================
@@ -62208,14 +62189,29 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   const performGachaDraw = async (drawCount: number) => {
     const safeDrawCount = drawCount >= 10 ? 10 : 1;
     const drawCost = safeDrawCount >= 10 ? GACHA_DRAW_COST_TEN : GACHA_DRAW_COST_SINGLE;
+    let drawResult = {
+      success: false,
+      drawCount: safeDrawCount,
+      cost: drawCost,
+      outcomes: [] as GachaDrawOutcome[],
+      state: null as GachaState | null,
+      message: '',
+      error: '',
+    };
     try {
       await runInSaveQueue(async () => {
         const rawData = getTableData({ silent: true }) || cachedRawData;
-        if (!rawData) return;
+        if (!rawData) {
+          drawResult.message = '未找到当前聊天数据库表格';
+          return;
+        }
         await ensureGachaCatalogLoaded(rawData);
 
         const state = touchGachaActivity(getGachaState(rawData, true));
-        if (!state) return;
+        if (!state) {
+          drawResult.message = '骰子商店状态不可用';
+          return;
+        }
         state.activePoolTag = getGachaActivePoolTag(state);
         const availableTargets = getAvailableGachaRewardTargets(rawData);
         const poolTargets = new Set(
@@ -62223,10 +62219,14 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         ) as Set<GachaRewardTarget>;
         if (poolTargets.size > 0 && Array.from(poolTargets).every(target => !availableTargets.has(target))) {
           const label = Array.from(poolTargets).map(getGachaRewardTargetTableLabel).join('或');
+          drawResult.state = cloneGachaState(state);
+          drawResult.message = `未找到${label}，暂时无法发放骰子商店奖励`;
           warnTableTemplateIssue(`未找到${label}，暂时无法发放骰子商店奖励`);
           return;
         }
         if (state.wallet.fortune < drawCost) {
+          drawResult.state = cloneGachaState(state);
+          drawResult.message = `${FORTUNE_CURRENCY_NAME}不足，无法抽取`;
           if (window.toastr) window.toastr.warning(`${FORTUNE_CURRENCY_NAME}不足，无法抽取`);
           return;
         }
@@ -62251,6 +62251,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
         if (outcomes.length === 0) {
           state.wallet.fortune += drawCost;
+          drawResult.state = cloneGachaState(state);
+          drawResult.message = '当前卡池没有可发放的奖励';
           if (window.toastr) window.toastr.warning('当前卡池没有可发放的奖励');
           return;
         }
@@ -62272,10 +62274,22 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
             '骰子商店',
           );
         }
+        drawResult = {
+          success: true,
+          drawCount: safeDrawCount,
+          cost: drawCost,
+          outcomes,
+          state: cloneGachaState(state),
+          message: `${safeDrawCount >= 10 ? '十连' : '单抽'}完成`,
+          error: '',
+        };
       });
     } catch (error) {
       showGachaSaveError(error, safeDrawCount >= 10 ? '十连抽取保存' : '单抽保存');
+      drawResult.error = getRuntimeErrorMessage(error) || String(error);
+      drawResult.message = safeDrawCount >= 10 ? '十连抽取保存失败' : '单抽保存失败';
     }
+    return drawResult;
   };
 
   const refreshGachaPoolSelectionUi = (poolTag: GachaPoolTag) => {
@@ -70364,6 +70378,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       console.info('[DICE]清理旧的 MutationObserver');
     }
     addStyles();
+    bindAcuDiceGachaRegexActions();
     const initCfg = getConfig();
     setDatabaseToastMute(initCfg.muteDatabaseToasts === true);
     // 2. 保留原有的 SillyTavern 事件监听（使用具名函数防止重复注册）
@@ -71212,6 +71227,612 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       return null;
     }
   };
+
+  const cloneAcuDiceApiValue = value => {
+    if (value === undefined) return undefined;
+    return JSON.parse(JSON.stringify(value));
+  };
+
+  const normalizeAcuDiceGachaInteger = (value: unknown, label: string, options: { allowNegative?: boolean } = {}) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) throw new Error(`[AcuDice][Gacha] ${label} 必须是有效数字`);
+    const integer = Math.trunc(numeric);
+    if (!options.allowNegative && integer < 0) throw new Error(`[AcuDice][Gacha] ${label} 不能小于 0`);
+    return integer;
+  };
+
+  const buildAcuDiceGachaStateSnapshot = (state?: GachaState | null) => {
+    const sourceState = state ? cloneGachaState(state) : getGachaState(undefined, true) || createDefaultGachaState();
+    sourceState.activePoolTag = getGachaActivePoolTag(sourceState);
+    return {
+      fortune: Math.max(0, Math.floor(Number(sourceState.wallet.fortune || 0))),
+      wallet: cloneAcuDiceApiValue(sourceState.wallet),
+      activePoolTag: sourceState.activePoolTag,
+      pity: cloneAcuDiceApiValue(sourceState.pity),
+      recentRewards: cloneAcuDiceApiValue(sourceState.recentRewards),
+      totalDraws: Math.max(0, Math.floor(Number(sourceState.totalDraws || 0))),
+      inputStats: cloneAcuDiceApiValue(sourceState.inputStats),
+      progress: getGachaFortuneProgressView(sourceState, { projectActiveProgress: true }),
+    };
+  };
+
+  const serializeAcuDiceGachaPool = (pool: GachaPoolDefinition) => ({
+    id: pool.id,
+    name: pool.name,
+    builtin: pool.builtin === true,
+    visibleInTabs: pool.visibleInTabs === true,
+    includeInAll: pool.includeInAll === true,
+    order: Number(pool.order) || 0,
+    canDelete: canDeleteGachaPoolDefinition(pool),
+  });
+
+  const serializeAcuDiceGachaItem = (item: GachaItemDefinition, customIds?: ReadonlySet<string>) => ({
+    ...serializeGachaCatalogItemForExport(item),
+    source: customIds?.has(item.id) ? 'custom' : 'builtin',
+  });
+
+  const serializeAcuDiceGachaDrawOutcome = (outcome: GachaDrawOutcome) => ({
+    kind: outcome.kind,
+    item: serializeAcuDiceGachaItem(outcome.item),
+    quantity: outcome.quantity,
+    duplicateConverted: outcome.duplicateConverted,
+    shardGain: outcome.shardGain,
+  });
+
+  const serializeAcuDiceGachaDrawResult = (result: Awaited<ReturnType<typeof performGachaDraw>>) => ({
+    success: result.success === true,
+    drawCount: result.drawCount,
+    cost: result.cost,
+    outcomes: result.outcomes.map(serializeAcuDiceGachaDrawOutcome),
+    state: buildAcuDiceGachaStateSnapshot(result.state),
+    message: result.message,
+    error: result.error || undefined,
+  });
+
+  const changeAcuDiceGachaFortune = async (
+    mode: 'set' | 'add',
+    value: unknown,
+    options: { silent?: boolean; reason?: string; detail?: string } = {},
+  ) => {
+    const amount = normalizeAcuDiceGachaInteger(value, mode === 'set' ? FORTUNE_CURRENCY_NAME : `${FORTUNE_CURRENCY_NAME}变化量`, {
+      allowNegative: mode === 'add',
+    });
+    let result: {
+      before: number;
+      after: number;
+      delta: number;
+      state: ReturnType<typeof buildAcuDiceGachaStateSnapshot>;
+    } | null = null;
+
+    await runInSaveQueue(async () => {
+      const state = touchGachaActivity(getGachaState(undefined, true));
+      if (!state) throw new Error('骰子商店状态不可用');
+      const before = Math.max(0, Math.floor(Number(state.wallet.fortune || 0)));
+      const after = mode === 'set' ? amount : Math.max(0, before + amount);
+      state.wallet.fortune = after;
+      const delta = after - before;
+      if (delta > 0) {
+        const reason = String(options.reason || 'API调整').trim() || 'API调整';
+        const detail = String(options.detail || reason).trim() || reason;
+        recordGachaFortuneGain(state, delta, reason, `${detail} +${delta}`);
+      }
+      assertSaveStoredGachaStateSnapshot(state);
+      refreshGachaVisualization();
+      result = {
+        before,
+        after,
+        delta,
+        state: buildAcuDiceGachaStateSnapshot(state),
+      };
+    });
+
+    if (!result) throw new Error('骰子商店状态保存失败');
+    if (!options.silent && window.toastr) {
+      if (result.delta === 0) {
+        window.toastr.info(`${FORTUNE_CURRENCY_NAME}保持 ${result.after}`, '骰子商店');
+      } else {
+        const verb = result.delta > 0 ? '增加' : '减少';
+        window.toastr.success(
+          `${FORTUNE_CURRENCY_NAME}${verb} ${Math.abs(result.delta)}，当前 ${result.after}`,
+          '骰子商店',
+        );
+      }
+    }
+    emitEvent('gacha:fortune', result);
+    return result;
+  };
+
+  const stringifyAcuDiceGachaCatalogInput = (input: unknown): string => {
+    if (typeof input === 'string') return input;
+    if (Array.isArray(input)) {
+      return JSON.stringify({ kind: GACHA_CATALOG_EXPORT_KIND, version: GACHA_CATALOG_VERSION, items: input });
+    }
+    if (input && typeof input === 'object') {
+      const record = input as Record<string, unknown>;
+      if (!Array.isArray(record.items) && record.name && record.quality) {
+        return JSON.stringify({ kind: GACHA_CATALOG_EXPORT_KIND, version: GACHA_CATALOG_VERSION, items: [record] });
+      }
+    }
+    return JSON.stringify(input);
+  };
+
+  const normalizeAcuDiceGachaImportMode = (mode: unknown): GachaCatalogImportMode => {
+    const value = String(mode || 'overwrite').trim();
+    return value === 'skip' || value === 'rename' || value === 'overwrite' ? value : 'overwrite';
+  };
+
+  const importAcuDiceGachaCatalog = async (
+    input: unknown,
+    options: { mode?: GachaCatalogImportMode; silent?: boolean } = {},
+  ) => {
+    const jsonString = stringifyAcuDiceGachaCatalogInput(input);
+    const mode = normalizeAcuDiceGachaImportMode(options.mode);
+    let stats: GachaCatalogImportStats | null = null;
+
+    await runInSaveQueue(async () => {
+      const rawData = getRuntimeGachaRawData();
+      await ensureGachaCatalogLoaded(rawData);
+      const analysis = analyzeGachaCatalogImport(jsonString, rawData);
+      if (!analysis || analysis.items.length === 0) {
+        throw new Error(getGachaCatalogImportFailureMessage(analysis));
+      }
+      stats = await applyGachaCatalogImport(rawData, analysis, mode);
+      refreshGachaVisualization();
+      refreshGachaShardShop();
+      if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
+    });
+
+    if (!stats) throw new Error('骰子商店目录导入失败');
+    if (!options.silent && window.toastr) {
+      const title = stats.warnings.length > 0 ? '骰子商店导入完成，有部分跳过' : '骰子商店导入完成';
+      window.toastr.success(formatGachaCatalogImportStatsText(stats), title);
+    }
+    const result = cloneAcuDiceApiValue(stats);
+    emitEvent('gacha:catalog', { action: 'import', mode, stats: result });
+    return result;
+  };
+
+  const upsertAcuDiceGachaPool = async (input: unknown, options: { silent?: boolean } = {}) => {
+    const normalizedPool =
+      typeof input === 'string'
+        ? normalizeGachaPoolDefinition({ id: input, name: input, includeInAll: true, visibleInTabs: true })
+        : normalizeGachaPoolDefinition(input);
+    if (!normalizedPool || !normalizedPool.id || normalizedPool.id === GACHA_ALL_POOL_TAG) {
+      throw new Error('[AcuDice][Gacha] upsertPool() 需要有效卡池 id');
+    }
+
+    const pools = getConfiguredGachaPoolDefinitions();
+    const index = pools.findIndex(pool => pool.id === normalizedPool.id);
+    const existing = index >= 0 ? pools[index] : null;
+    const nextPool = {
+      ...(existing || buildDefaultGachaPoolDefinition(normalizedPool.id, normalizedPool)),
+      ...normalizedPool,
+      builtin: existing?.builtin === true || isBuiltinGachaPoolId(normalizedPool.id),
+      visibleInTabs: normalizedPool.includeInAll === true,
+      includeInAll: normalizedPool.includeInAll === true,
+    };
+    if (index >= 0) pools[index] = nextPool;
+    else pools.push(nextPool);
+    saveGachaPoolSettings(pools);
+    refreshGachaVisualization();
+    refreshGachaShardShop();
+    if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
+    const result = serializeAcuDiceGachaPool(nextPool);
+    if (!options.silent && window.toastr) window.toastr.success(`卡池「${result.name}」已保存`, '骰子商店');
+    emitEvent('gacha:catalog', { action: 'upsertPool', pool: result });
+    return result;
+  };
+
+  const removeAcuDiceGachaCustomItem = async (itemId: unknown, options: { silent?: boolean } = {}) => {
+    const id = String(itemId || '').trim();
+    if (!id) throw new Error('[AcuDice][Gacha] removeCustomItem() 需要物品 id');
+    let result: { removed: boolean; item: ReturnType<typeof serializeAcuDiceGachaItem> | null } | null = null;
+
+    await runInSaveQueue(async () => {
+      const rawData = getRuntimeGachaRawData();
+      await ensureGachaCatalogLoaded(rawData);
+      const customItems = getCustomGachaItemDefinitions(rawData);
+      const item = customItems.find(candidate => candidate.id === id) || null;
+      if (!item) {
+        if (GACHA_ITEM_DEFINITIONS.some(candidate => candidate.id === id)) {
+          throw new Error('内置物品不能通过 API 删除，只能在商店设置里禁用');
+        }
+        result = { removed: false, item: null };
+        return;
+      }
+      const nextItems = customItems.filter(candidate => candidate.id !== id);
+      const saved = await saveStoredGachaCatalog(nextItems);
+      if (!saved) throw new Error('自定义物品删除保存失败');
+      deleteGachaItemSetting(id);
+      refreshGachaVisualization();
+      refreshGachaShardShop();
+      if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
+      result = { removed: true, item: serializeAcuDiceGachaItem(item, new Set([id])) };
+    });
+
+    if (!result) throw new Error('自定义物品删除失败');
+    if (result.removed && !options.silent && window.toastr) window.toastr.success('自定义物品已删除', '骰子商店');
+    emitEvent('gacha:catalog', { action: 'removeCustomItem', ...result });
+    return result;
+  };
+
+  const removeAcuDiceGachaCustomPool = async (poolId: unknown, options: { silent?: boolean } = {}) => {
+    const id = normalizeGachaPoolId(poolId);
+    if (!id || id === GACHA_ALL_POOL_TAG) throw new Error('[AcuDice][Gacha] removeCustomPool() 需要有效的自定义卡池 id');
+    let removed = false;
+
+    await runInSaveQueue(async () => {
+      const rawData = getRuntimeGachaRawData();
+      await ensureGachaCatalogLoaded(rawData);
+      const pool = getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === id);
+      if (pool && !canDeleteGachaPoolDefinition(pool)) {
+        throw new Error('内置卡池不能通过 API 删除，只能调整是否参与全部池');
+      }
+      removed = await deleteGachaPoolConfig(id, rawData);
+      refreshGachaVisualization();
+      refreshGachaShardShop();
+      if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
+    });
+
+    const result = { removed, poolId: id };
+    if (removed && !options.silent && window.toastr) window.toastr.success(`卡池「${id}」已删除`, '骰子商店');
+    emitEvent('gacha:catalog', { action: 'removeCustomPool', ...result });
+    return result;
+  };
+
+  const AcuDiceGachaAPI = {
+    costs: {
+      singleDraw: GACHA_DRAW_COST_SINGLE,
+      tenDraw: GACHA_DRAW_COST_TEN,
+    },
+    currencyName: FORTUNE_CURRENCY_NAME,
+    rarities: [...GACHA_RARITY_ORDER],
+    rewardTargets: [...GACHA_REWARD_TARGETS],
+
+    getState() {
+      return buildAcuDiceGachaStateSnapshot();
+    },
+
+    async setFortune(amount: number, options: { silent?: boolean; reason?: string; detail?: string } = {}) {
+      return await changeAcuDiceGachaFortune('set', amount, options);
+    },
+
+    async addFortune(delta: number, options: { silent?: boolean; reason?: string; detail?: string } = {}) {
+      return await changeAcuDiceGachaFortune('add', delta, options);
+    },
+
+    async clearFortune(options: { silent?: boolean; confirm?: boolean; reason?: string; detail?: string } = {}) {
+      if (options.confirm === true) {
+        const currentFortune = buildAcuDiceGachaStateSnapshot().fortune;
+        if (currentFortune > 0) {
+          const confirmed = await showDiceSystemConfirmDialog({
+            title: `清空${FORTUNE_CURRENCY_NAME}`,
+            message: `确定要清空当前${FORTUNE_CURRENCY_NAME}余额吗？`,
+            detail: `当前余额：${currentFortune}\n这次调用来自 AcuDice.gacha API。`,
+            iconClass: 'fa-eraser',
+            confirmText: `清空${FORTUNE_CURRENCY_NAME}`,
+            cancelText: '取消',
+            tone: 'danger',
+          });
+          if (!confirmed) {
+            const state = buildAcuDiceGachaStateSnapshot();
+            return { before: currentFortune, after: currentFortune, delta: 0, canceled: true, state };
+          }
+        }
+      }
+      const result = await changeAcuDiceGachaFortune('set', 0, {
+        silent: options.silent,
+        reason: options.reason || 'API清空',
+        detail: options.detail || `清空${FORTUNE_CURRENCY_NAME}`,
+      });
+      return { ...result, canceled: false };
+    },
+
+    async draw(count: number = 1) {
+      const result = serializeAcuDiceGachaDrawResult(await performGachaDraw(count));
+      emitEvent('gacha:draw', result);
+      return result;
+    },
+
+    async singleDraw() {
+      return await AcuDiceGachaAPI.draw(1);
+    },
+
+    async tenDraw() {
+      return await AcuDiceGachaAPI.draw(10);
+    },
+
+    setActivePool(poolTag: string) {
+      const id = normalizeGachaPoolId(poolTag);
+      if (!id) throw new Error('[AcuDice][Gacha] setActivePool() 需要卡池 id');
+      const visiblePools = getVisibleGachaPoolConfigDefinitions();
+      if (!visiblePools.some(pool => pool.id === id)) throw new Error(`[AcuDice][Gacha] 未找到可见卡池: ${id}`);
+      updateGachaPoolTag(id);
+      const state = buildAcuDiceGachaStateSnapshot();
+      emitEvent('gacha:pool_change', { poolTag: id, state });
+      return state;
+    },
+
+    setPool(poolTag: string) {
+      return AcuDiceGachaAPI.setActivePool(poolTag);
+    },
+
+    async listPools(options: { includeHidden?: boolean } = {}) {
+      const rawData = getRuntimeGachaRawData();
+      await ensureGachaCatalogLoaded(rawData);
+      const pools = options.includeHidden ? getAllGachaPoolConfigDefinitions(rawData) : getVisibleGachaPoolConfigDefinitions(rawData);
+      return pools.map(serializeAcuDiceGachaPool);
+    },
+
+    async listItems(
+      options: { poolTag?: string; includeDisabled?: boolean; customOnly?: boolean; source?: 'all' | 'custom' | 'builtin' } = {},
+    ) {
+      const rawData = getRuntimeGachaRawData();
+      await ensureGachaCatalogLoaded(rawData);
+      const customIds = new Set(getCustomGachaItemDefinitions(rawData).map(item => item.id));
+      let items = getAllGachaItemDefinitions(rawData);
+      const poolTag = normalizeGachaPoolId(options.poolTag);
+      if (poolTag) {
+        const activeTags = getActiveGachaPoolTags(poolTag);
+        items = items.filter(item => item.poolTags.some(tag => activeTags.includes(tag)));
+      }
+      if (options.includeDisabled !== true) items = items.filter(isGachaItemEnabled);
+      if (options.customOnly === true || options.source === 'custom') items = items.filter(item => customIds.has(item.id));
+      if (options.source === 'builtin') items = items.filter(item => !customIds.has(item.id));
+      return items.sort(compareGachaItemDefinitionsForDisplay).map(item => serializeAcuDiceGachaItem(item, customIds));
+    },
+
+    async exportCatalog(options: { poolTag?: string } = {}) {
+      const rawData = getRuntimeGachaRawData();
+      await ensureGachaCatalogLoaded(rawData);
+      return exportGachaCatalogJson(rawData, normalizeGachaPoolId(options.poolTag));
+    },
+
+    async importCatalog(input: unknown, options: { mode?: GachaCatalogImportMode; silent?: boolean } = {}) {
+      return await importAcuDiceGachaCatalog(input, options);
+    },
+
+    async upsertItems(input: unknown, options: { mode?: GachaCatalogImportMode; silent?: boolean } = {}) {
+      return await importAcuDiceGachaCatalog(input, { mode: options.mode || 'overwrite', silent: options.silent });
+    },
+
+    async upsertPool(input: unknown, options: { silent?: boolean } = {}) {
+      return await upsertAcuDiceGachaPool(input, options);
+    },
+
+    async removeCustomItem(itemId: string, options: { silent?: boolean } = {}) {
+      return await removeAcuDiceGachaCustomItem(itemId, options);
+    },
+
+    async removeCustomPool(poolId: string, options: { silent?: boolean } = {}) {
+      return await removeAcuDiceGachaCustomPool(poolId, options);
+    },
+
+    async openShop() {
+      await showGachaVisualization();
+      return buildAcuDiceGachaStateSnapshot();
+    },
+
+    closeShop() {
+      closeGachaVisualization();
+    },
+
+    async openShardShop() {
+      await showGachaShardShop();
+      return buildAcuDiceGachaStateSnapshot();
+    },
+
+    async openSettings() {
+      await showGachaSettingsDialog();
+    },
+  };
+
+  const ACUDICE_GACHA_REGEX_ACTION_SELECTOR = '[data-acu-gacha-action]';
+
+  const getAcuDiceGachaRegexToastr = () => {
+    try {
+      return window.toastr || (rootWindow !== window ? (rootWindow as unknown as { toastr?: typeof window.toastr }).toastr : undefined);
+    } catch {
+      return window.toastr;
+    }
+  };
+
+  const setAcuDiceGachaRegexActionBusy = (element: HTMLElement, busy: boolean) => {
+    element.classList.toggle('is-busy', busy);
+    if (busy) {
+      element.dataset.acuGachaBusy = '1';
+      element.setAttribute('aria-disabled', 'true');
+    } else {
+      delete element.dataset.acuGachaBusy;
+      element.removeAttribute('aria-disabled');
+    }
+  };
+
+  const getAcuDiceGachaRegexInteger = (element: HTMLElement, key: string, fallback = 0): number => {
+    const raw = element.dataset[key] ?? element.getAttribute(`data-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`);
+    const value = Number.parseInt(String(raw ?? ''), 10);
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  const executeAcuDiceGachaRegexAction = async (element: HTMLElement) => {
+    const action = String(element.dataset.acuGachaAction || '').trim();
+    const toastr = getAcuDiceGachaRegexToastr();
+
+    switch (action) {
+      case 'openShop':
+      case 'shop':
+        await AcuDiceGachaAPI.openShop();
+        break;
+
+      case 'addFortune': {
+        const amount = getAcuDiceGachaRegexInteger(element, 'acuGachaAmount');
+        const result = await AcuDiceGachaAPI.addFortune(amount, {
+          reason: '正则按钮',
+          detail: String(element.dataset.acuGachaDetail || ''),
+        });
+        toastr?.success?.(`当前${FORTUNE_CURRENCY_NAME}：${result.after}`, '骰子商店');
+        break;
+      }
+
+      case 'clearFortune': {
+        const result = await AcuDiceGachaAPI.clearFortune({ confirm: true, reason: '正则按钮' });
+        if (!result.canceled) toastr?.success?.(`${FORTUNE_CURRENCY_NAME}已清空`, '骰子商店');
+        break;
+      }
+
+      case 'state': {
+        const state = AcuDiceGachaAPI.getState();
+        console.log('[AcuDice.gacha] state', state);
+        toastr?.info?.(`当前${FORTUNE_CURRENCY_NAME}：${state.fortune}`, '骰子商店');
+        break;
+      }
+
+      case 'singleDraw': {
+        const result = await AcuDiceGachaAPI.singleDraw();
+        console.log('[AcuDice.gacha] singleDraw', result);
+        break;
+      }
+
+      case 'tenDraw': {
+        const result = await AcuDiceGachaAPI.tenDraw();
+        console.log('[AcuDice.gacha] tenDraw', result);
+        break;
+      }
+
+      case 'openShardShop':
+      case 'shardShop':
+        await AcuDiceGachaAPI.openShardShop();
+        break;
+
+      case 'createTestCatalog':
+        await AcuDiceGachaAPI.upsertPool({ id: 'API测试', name: 'API测试', includeInAll: true, order: 990 }, { silent: true });
+        await AcuDiceGachaAPI.upsertItems(
+          {
+            items: [
+              {
+                id: 'regex_test_candy',
+                name: '测试糖',
+                type: '道具',
+                quality: '普通',
+                description: '正则按钮测试用糖果',
+                poolTags: ['API测试'],
+                weight: 1,
+                stackable: true,
+                unique: false,
+                grantQuantity: 1,
+                rewardTarget: 'inventory',
+              },
+            ],
+          },
+          { mode: 'overwrite', silent: true },
+        );
+        AcuDiceGachaAPI.setActivePool('API测试');
+        toastr?.success?.('已创建 API测试 池和 测试糖', '骰子商店');
+        break;
+
+      case 'drawTestCatalog': {
+        AcuDiceGachaAPI.setActivePool('API测试');
+        await AcuDiceGachaAPI.addFortune(20, { silent: true, reason: '正则奖池测试' });
+        const result = await AcuDiceGachaAPI.singleDraw();
+        console.log('[AcuDice.gacha] API测试池单抽', result);
+        break;
+      }
+
+      case 'listTestCatalog': {
+        const items = await AcuDiceGachaAPI.listItems({ poolTag: 'API测试', includeDisabled: true });
+        console.log('[AcuDice.gacha] API测试池物品', items);
+        toastr?.info?.(`API测试池物品数：${items.length}`, '骰子商店');
+        break;
+      }
+
+      case 'clearTestCatalog':
+        await AcuDiceGachaAPI.removeCustomItem('regex_test_candy', { silent: true });
+        await AcuDiceGachaAPI.removeCustomPool('API测试', { silent: true });
+        toastr?.success?.('已清理 API测试 池', '骰子商店');
+        break;
+
+      case 'listPools': {
+        const pools = await AcuDiceGachaAPI.listPools({ includeHidden: true });
+        console.log('[AcuDice.gacha] pools', pools);
+        toastr?.info?.(`卡池数：${pools.length}`, '骰子商店');
+        break;
+      }
+
+      case 'exportCatalog': {
+        const json = await AcuDiceGachaAPI.exportCatalog();
+        console.log('[AcuDice.gacha] custom catalog JSON', json);
+        toastr?.info?.('已输出到浏览器控制台', '骰子商店');
+        break;
+      }
+
+      case 'openSettings':
+      case 'settings':
+        await AcuDiceGachaAPI.openSettings();
+        break;
+
+      default:
+        console.warn('[AcuDice][GachaRegex] 未知按钮动作:', action);
+        toastr?.warning?.(`未知骰子商店动作：${action || '(空)'}`, '骰子商店');
+    }
+  };
+
+  const handleAcuDiceGachaRegexAction = async (element: HTMLElement) => {
+    if (element.dataset.acuGachaBusy === '1' || element.getAttribute('aria-disabled') === 'true') return;
+
+    setAcuDiceGachaRegexActionBusy(element, true);
+    try {
+      await executeAcuDiceGachaRegexAction(element);
+    } catch (error) {
+      const message = getRuntimeErrorMessage(error);
+      console.error('[AcuDice][GachaRegex] 按钮执行失败:', error);
+      showActionableErrorToast(`骰子商店按钮执行失败：${message}`, { title: '骰子商店', developerHint: true });
+    } finally {
+      setAcuDiceGachaRegexActionBusy(element, false);
+    }
+  };
+
+  function bindAcuDiceGachaRegexActions() {
+    const { $ } = getCore();
+    if (!$) return;
+
+    $('body')
+      .off('click.acu_gacha_regex_action')
+      .on('click.acu_gacha_regex_action', ACUDICE_GACHA_REGEX_ACTION_SELECTOR, function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        void handleAcuDiceGachaRegexAction(this as HTMLElement);
+      });
+
+    $('body')
+      .off('keydown.acu_gacha_regex_action')
+      .on('keydown.acu_gacha_regex_action', ACUDICE_GACHA_REGEX_ACTION_SELECTOR, function (event) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        event.stopPropagation();
+        void handleAcuDiceGachaRegexAction(this as HTMLElement);
+      });
+  }
+
+  (AcuDiceAPI as Record<string, unknown>).gacha = AcuDiceGachaAPI;
+
+  // 使用 Object.defineProperty 防止意外覆盖；在 gacha 子 API 完成后再通知 ready。
+  defineAcuDiceOnWindow(window);
+
+  if (rootWindow !== window) {
+    try {
+      defineAcuDiceOnWindow(rootWindow);
+    } catch (error) {
+      console.warn('[AcuDice] 无法写入顶层窗口，可能跨域', error);
+    }
+  }
+
+  notifyReady();
+  dispatchReadyEvent(window);
+  if (rootWindow !== window) {
+    dispatchReadyEvent(rootWindow);
+  }
+
+  console.info('[AcuDice] API v1.3.0 已加载');
 
   const { $ } = getCore();
   if ($) $(document).ready(init);

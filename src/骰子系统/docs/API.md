@@ -16,6 +16,11 @@ const check = await AcuDice.check({
 });
 console.log(check.success); // true 或 false
 console.log(check.message); // "成功！掷出 35 <= 50"
+
+// 骰子商店
+await AcuDice.gacha.addFortune(10, { reason: '按钮奖励' });
+const draw = await AcuDice.gacha.tenDraw();
+console.log(draw.success, draw.outcomes.map(item => item.item.name));
 ```
 
 ## API 参考
@@ -27,7 +32,7 @@ console.log(check.message); // "成功！掷出 35 <= 50"
 当前 API 版本号。
 
 ```javascript
-console.log(AcuDice.version); // "1.2.0"
+console.log(AcuDice.version); // "1.3.0"
 ```
 
 ---
@@ -400,6 +405,147 @@ if (activeId) {
 
 ---
 
+### `AcuDice.gacha`
+
+骰子商店 API，面向角色卡前端界面、酒馆正则替换生成的按钮、以及其他同源插件。它只暴露骰运、抽卡、卡池选择、自定义物品目录和自定义卡池的受控操作；不会暴露底层 `Store`、聊天数据库原始对象或任意配置恢复入口。
+
+常用方法：
+
+- `AcuDice.gacha.getState()`：读取当前聊天/上下文的骰运、碎片、保底、最近收获和进度。
+- `AcuDice.gacha.addFortune(delta, options?)`：增加或减少骰运，`delta` 可以是负数，最低归零。
+- `AcuDice.gacha.setFortune(amount, options?)`：设置骰运余额。
+- `AcuDice.gacha.clearFortune(options?)`：清空骰运；传 `{ confirm: true }` 时会使用骰子系统确认弹窗。
+- `AcuDice.gacha.singleDraw()` / `AcuDice.gacha.tenDraw()` / `AcuDice.gacha.draw(count)`：执行单抽或十连。
+- `AcuDice.gacha.setActivePool(poolTag)`：切换当前卡池。
+- `AcuDice.gacha.listPools()` / `AcuDice.gacha.listItems(options?)`：读取卡池和物品摘要。
+- `AcuDice.gacha.exportCatalog(options?)`：导出自定义目录 JSON；可传 `{ poolTag }`。
+- `AcuDice.gacha.importCatalog(input, options?)`：导入自定义物品目录，冲突策略为 `overwrite`、`skip` 或 `rename`。
+- `AcuDice.gacha.upsertItems(input, options?)`：`importCatalog` 的语义化别名，适合按钮脚本添加或更新自定义奖品。
+- `AcuDice.gacha.upsertPool(input)`：新增或更新卡池配置。
+- `AcuDice.gacha.removeCustomItem(id)` / `AcuDice.gacha.removeCustomPool(id)`：只允许删除自定义物品或自定义卡池；内置项只能禁用或调整显示。
+- `AcuDice.gacha.openShop()` / `openShardShop()` / `openSettings()` / `closeShop()`：打开或关闭商店相关界面。
+
+**骰运按钮示例**：
+
+```html
+<span class="acu-gacha-regex-action" role="button" tabindex="0" data-acu-gacha-action="addFortune" data-acu-gacha-amount="100">获得 100 骰运</span>
+<span class="acu-gacha-regex-action" role="button" tabindex="0" data-acu-gacha-action="addFortune" data-acu-gacha-amount="-100">消耗 100 骰运</span>
+<span class="acu-gacha-regex-action" role="button" tabindex="0" data-acu-gacha-action="clearFortune">清空骰运</span>
+```
+
+**抽卡按钮示例**：
+
+```html
+<span class="acu-gacha-regex-action" role="button" tabindex="0" data-acu-gacha-action="singleDraw">单抽</span>
+<span class="acu-gacha-regex-action" role="button" tabindex="0" data-acu-gacha-action="tenDraw">十连抽</span>
+```
+
+酒馆正则替换中推荐使用 `data-acu-gacha-action` 按钮：骰子系统会做事件委托，不需要内联 `onclick`。示例正则的面板视觉全部写在 `replaceString` 的内联样式里，不依赖骰子系统全局 CSS 或主题变量。完整示例见 `docs/acudice-gacha-regex-examples.json`。
+
+**导入/更新自定义奖品示例**：
+
+```javascript
+await AcuDice.gacha.upsertItems(
+  {
+    items: [
+      {
+        id: 'custom_story_ticket',
+        name: '剧情兑换券',
+        type: '道具',
+        quality: '稀有',
+        description: '可以要求一次小型剧情便利。',
+        poolTags: ['自定义'],
+        weight: 1,
+        stackable: true,
+        unique: false,
+        grantQuantity: 1,
+        rewardTarget: 'inventory',
+      },
+    ],
+  },
+  { mode: 'overwrite' },
+);
+```
+
+边界建议：
+
+- 正则替换生成的按钮只应绑定到点击事件，不要在消息渲染时自动执行会改状态的方法。
+- 自定义目录导入会复用商店设置页的校验逻辑：物品必须有有效 `name`、`quality`、`poolTags`、`weight`、`grantQuantity`，并且目标表结构要能写入。
+- 配置方案仍使用 `AcuDice.profiles` 管理；不要把整套配置恢复混进商店按钮 API。
+
+---
+
+### `AcuDice.profiles`
+
+管理骰子系统配置方案。配置方案是一份可保存、导入、导出和应用的配置包，外层格式为 `acu_dice_profile_v1`，内部 `backup` 字段继续复用现有 `acu_dice_config_backup_v1` 备份格式。
+
+角色卡可以内置配置方案标记：
+
+```html
+<!-- ACUDICE_PROFILE_V1:BASE64_JSON -->
+```
+
+`BASE64_JSON` 是完整配置方案包的 UTF-8 JSON Base64。建议作者把标记放在角色卡正则元数据里；也支持放在 first greeting/首条消息中。系统检测到后会先保存到方案库，再要求用户确认是否应用。
+
+界面中可用“配置方案与备份 → 方案管理”，在对应方案行点击“转正则”，把已保存的配置方案转成 SillyTavern 正则 JSON。生成的正则默认禁用且永不匹配，只把说明注释和隐藏标记放在 `replaceString` 里作为角色卡元数据；导入角色卡正则后，不需要在开场白里放占位符。
+
+**方法**:
+
+- `AcuDice.profiles.list()`：列出方案库摘要。
+- `AcuDice.profiles.saveCurrent(options)`：把当前配置保存成配置方案。
+- `AcuDice.profiles.import(input, options?)`：导入配置方案包、传统备份或角色卡标记文本。
+- `AcuDice.profiles.apply(profileId, options?)`：应用指定配置方案，默认应用包内模块。
+- `AcuDice.profiles.export(profileId)`：返回指定配置方案的 JSON 文本。
+- `AcuDice.profiles.detectCharacterProfile(options?)`：检测当前角色卡可用的内置配置方案。
+
+**示例**:
+
+```javascript
+// 把当前全套配置存为方案
+const profile = await AcuDice.profiles.saveCurrent({
+  name: '默认配置',
+});
+
+// 只应用配置方案中指定的模块；应用前会自动创建“快照”
+await AcuDice.profiles.apply(profile.id);
+
+// 导出配置方案 JSON
+const jsonText = await AcuDice.profiles.export(profile.id);
+
+// 检测当前角色卡内置配置方案，用户跳过后也可以手动再应用
+const detected = await AcuDice.profiles.detectCharacterProfile({ includeSkipped: true });
+if (detected?.profile) {
+  await AcuDice.profiles.apply(detected.profile.id);
+}
+```
+
+**配置方案包结构**:
+
+```typescript
+interface AcuDiceConfigPlanPackage {
+  format: 'acu_dice_profile_v1';
+  id: string;
+  name: string;
+  source: {
+    type: string;
+    characterName?: string;
+    characterId?: string;
+    chatId?: string;
+    label?: string;
+    profileId?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  moduleIds: string[];
+  backup: DiceConfigBackupDocument;
+  fingerprint: string;
+}
+```
+
+应用配置方案会写入当前骰子系统全局配置，不是隔离沙盒。未包含在 `moduleIds` 中的模块保持当前状态；同名或同 ID 的自定义项按现有备份恢复逻辑覆盖，不同名项合并。
+
+---
+
 ## 类型定义
 
 ```typescript
@@ -524,6 +670,71 @@ interface HistoryOptions {
   type?: 'check' | 'contest';
 }
 
+interface AcuDiceConfigPlanSummary {
+  id: string;
+  name: string;
+  source: {
+    type: string;
+    characterName?: string;
+    characterId?: string;
+    chatId?: string;
+    label?: string;
+    profileId?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+  moduleIds: string[];
+  fingerprint: string;
+}
+
+interface AcuDiceConfigPlanDetection {
+  profile: AcuDiceConfigPlanSummary;
+  promptKey: string;
+  skipped: boolean;
+}
+
+interface GachaStateSnapshot {
+  fortune: number;
+  wallet: {
+    fortune: number;
+    shards: Record<'普通' | '优秀' | '稀有' | '史诗' | '传说' | '神话', number>;
+  };
+  activePoolTag: string;
+  pity: { rare: number; legend: number };
+  recentRewards: Array<Record<string, unknown>>;
+  totalDraws: number;
+  inputStats: Record<string, unknown>;
+  progress: Record<string, unknown>;
+}
+
+interface GachaAPI {
+  costs: { singleDraw: number; tenDraw: number };
+  currencyName: string;
+  rarities: string[];
+  rewardTargets: Array<'inventory' | 'equipment'>;
+  getState(): GachaStateSnapshot;
+  setFortune(amount: number, options?: { silent?: boolean; reason?: string; detail?: string }): Promise<unknown>;
+  addFortune(delta: number, options?: { silent?: boolean; reason?: string; detail?: string }): Promise<unknown>;
+  clearFortune(options?: { silent?: boolean; confirm?: boolean; reason?: string; detail?: string }): Promise<unknown>;
+  draw(count?: 1 | 10 | number): Promise<unknown>;
+  singleDraw(): Promise<unknown>;
+  tenDraw(): Promise<unknown>;
+  setActivePool(poolTag: string): GachaStateSnapshot;
+  setPool(poolTag: string): GachaStateSnapshot;
+  listPools(options?: { includeHidden?: boolean }): Promise<unknown[]>;
+  listItems(options?: { poolTag?: string; includeDisabled?: boolean; customOnly?: boolean; source?: 'all' | 'custom' | 'builtin' }): Promise<unknown[]>;
+  exportCatalog(options?: { poolTag?: string }): Promise<string>;
+  importCatalog(input: string | object, options?: { mode?: 'overwrite' | 'skip' | 'rename'; silent?: boolean }): Promise<unknown>;
+  upsertItems(input: string | object, options?: { mode?: 'overwrite' | 'skip' | 'rename'; silent?: boolean }): Promise<unknown>;
+  upsertPool(input: string | object, options?: { silent?: boolean }): Promise<unknown>;
+  removeCustomItem(itemId: string, options?: { silent?: boolean }): Promise<unknown>;
+  removeCustomPool(poolId: string, options?: { silent?: boolean }): Promise<unknown>;
+  openShop(): Promise<GachaStateSnapshot>;
+  closeShop(): void;
+  openShardShop(): Promise<GachaStateSnapshot>;
+  openSettings(): Promise<void>;
+}
+
 interface AcuDiceAPI {
   version: string;
   roll(formula: string): RollResult;
@@ -549,6 +760,19 @@ interface AcuDiceAPI {
   listPresets(): PresetSummary[];
   getPresetSummary(id: string): PresetSummary | null;
   getActivePresetId(): string | null;
+
+  // v1.3.0
+  gacha: GachaAPI;
+
+  // 配置方案与备份
+  profiles: {
+    list(): Promise<AcuDiceConfigPlanSummary[]>;
+    saveCurrent(options?: { name?: string; moduleIds?: string[] }): Promise<AcuDiceConfigPlanSummary>;
+    import(input: string | object, options?: { name?: string; moduleIds?: string[] }): Promise<AcuDiceConfigPlanSummary>;
+    apply(profileId: string, options?: { moduleIds?: string[]; confirm?: boolean; createSnapshot?: boolean }): Promise<unknown>;
+    export(profileId: string): Promise<string>;
+    detectCharacterProfile(options?: { includeSkipped?: boolean }): Promise<AcuDiceConfigPlanDetection | null>;
+  };
 }
 
 declare global {
@@ -719,6 +943,13 @@ function getAcuDice() {
 ---
 
 ## 更新日志
+
+### v1.3.0 (2026-05-31)
+
+- 新增 `AcuDice.gacha` 骰子商店 API。
+- 支持外部脚本增减/清空骰运、执行单抽/十连、切换卡池、打开商店界面。
+- 支持受控导入、导出、增删自定义物品目录与自定义卡池。
+- `acudice:ready` 会在 `gacha` 子 API 挂载完成后再触发。
 
 ### v1.2.0 (2026-02-08)
 
