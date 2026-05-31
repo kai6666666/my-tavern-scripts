@@ -2520,7 +2520,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.28'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.29'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -13053,7 +13053,7 @@ import {
       '默认只选择最贴合行动的基础属性或特有属性。只有当这次行动确实同时依赖基础素质和具体技能/能力时，命令里才同时写基础属性和特有属性。',
     dsl:
       '普通检定：检定 <角色> <属性或技能> dc=<目标值> [attr=<相关基础属性>] [mod=<额外加值>] [优势=优势|正常|劣势]\n' +
-      '对抗检定：对抗 <发起者> <技能> vs <对手> <技能> [leftAttr=<发起者相关基础属性>] [rightAttr=<对手相关基础属性>] [优势=优势|正常|劣势]\n' +
+      '对抗检定：对抗 <发起者> <技能> vs <对手> <技能> [leftAttr=<发起者相关基础属性>] [rightAttr=<对手相关基础属性>] [优势=优势|正常|劣势] [leftAdvantage=优势|正常|劣势] [rightAdvantage=优势|正常|劣势]\n' +
       '固定成功：必成\n固定失败：必败\n无需检定：无',
     examples:
       '1. 展示文本：<user>拼尽全力尝试在崩塌前冲过断桥。\n' +
@@ -13062,9 +13062,11 @@ import {
       '   骰子命令：检定 <角色A> 空间移动 dc=15\n' +
       '3. 展示文本：<角色A>贴着阴影移动，尝试躲过<角色B>的视线。\n' +
       '   骰子命令：对抗 <角色A> 隐匿 vs <角色B> 察觉 leftAttr=敏捷 rightAttr=感知\n' +
-      '4. 展示文本：<user>试图用夸张的宫廷传闻吸引贵族的注意力。\n' +
+      '4. 展示文本：<角色A>借助地形优势压制<角色B>，而<角色B>视野受阻。\n' +
+      '   骰子命令：对抗 <角色A> 运动 vs <角色B> 体操 leftAttr=力量 rightAttr=敏捷 leftAdvantage=优势 rightAdvantage=劣势\n' +
+      '5. 展示文本：<user>试图用夸张的宫廷传闻吸引贵族的注意力。\n' +
       '   骰子命令：检定 <user> 游说 attr=魅力 dc=13\n' +
-      '5. 展示文本：被封印的石门没有任何正面突破的希望，只能另寻道路。\n' +
+      '6. 展示文本：被封印的石门没有任何正面突破的希望，只能另寻道路。\n' +
       '   骰子命令：无',
   };
 
@@ -13578,8 +13580,8 @@ import {
       // DND对抗检定专用模板：双方总值直接比较，不使用固定DC
       contestOutputTemplate: `<meta:检定结果>
 元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。
-$initiator $initAttrName：$initCheckValueText$initModText，$formula=$initRoll，总值=$initTotal；
-$opponent $oppAttrName：$oppCheckValueText$oppModText，$formula=$oppRoll，总值=$oppTotal。
+$initiator $initAttrName：$initCheckValueText$initModText，$initFormula=$initRoll，总值=$initTotal；
+$opponent $oppAttrName：$oppCheckValueText$oppModText，$oppFormula=$oppRoll，总值=$oppTotal。
 最终结果：【$winner】
 </meta:检定结果>`,
       outputTemplate:
@@ -13659,8 +13661,8 @@ $opponent $oppAttrName：$oppCheckValueText$oppModText，$formula=$oppRoll，总
         '<meta:检定结果>\n$outcomeText\n元叙事：$initiator 发起了 $attrName 检定，技能等级$attrValue，修正值$mod，$formula=$roll，总值=$roll+$attr+$mod，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\n</meta:检定结果>',
       contestOutputTemplate: `<meta:检定结果>
  元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的Fate对抗检定。
- $initiator $initAttrName：$formula=$initRoll，技能等级$initAttr+修正值$initMod，总值=$initTotal；
- $opponent $oppAttrName：$formula=$oppRoll，技能等级$oppAttr+修正值$oppMod，总值=$oppTotal。
+ $initiator $initAttrName：$initFormula=$initRoll，技能等级$initAttr+修正值$initMod，总值=$initTotal；
+ $opponent $oppAttrName：$oppFormula=$oppRoll，技能等级$oppAttr+修正值$oppMod，总值=$oppTotal。
  差值(Shifts)：$margin（正数表示$initiator领先，负数表示$opponent领先）
  最终结果：【$winner】
  </meta:检定结果>`,
@@ -17776,8 +17778,8 @@ $outcomeText
   // 默认对抗检定输出模板
   const DEFAULT_CONTEST_OUTPUT_TEMPLATE = `<meta:检定结果>
 元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。
-$initiator $initAttrName：$formula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；
-$opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。
+$initiator $initAttrName：$initFormula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；
+$opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。
 最终结果：【$winner】
 </meta:检定结果>`;
 
@@ -30999,7 +31001,9 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
         outcomeName: initOutcome.name,
         conditionExpr: initConditionExpr,
         judgeResult: initJudgeResult,
-        formula: formula,
+        formula: initFormula,
+        initFormula: initFormula,
+        oppFormula: oppFormula,
         roll: initRollTotal,
         dc: initTarget,
         mod: initMod,
@@ -45916,7 +45920,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
 
   // outputTemplate / contestOutputTemplate 必须保留 <meta:检定结果> 包裹，方便隐藏投骰结果和后续解析。
   "outputTemplate": "<meta:检定结果>\\n$outcomeText\\n元叙事：$initiator 发起了 $attrName 检定，$formula=$roll，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\\n</meta:检定结果>",
-  "contestOutputTemplate": "<meta:检定结果>\\n元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。\\n$initiator $initAttrName：$formula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；\\n$opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。\\n最终结果：【$winner】\\n</meta:检定结果>",
+  "contestOutputTemplate": "<meta:检定结果>\\n元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。\\n$initiator $initAttrName：$initFormula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；\\n$opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。\\n最终结果：【$winner】\\n</meta:检定结果>",
 
   // checkSuggestionGuide：同步到表格模板 <检定规则>，让 AI 知道如何生成“检定/对抗”命令。
   "checkSuggestionGuide": {
@@ -46116,6 +46120,7 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
               <br/>
               <strong>输出模板变量</strong><br/>
               • 常用: $initiator, $attrName, $formula, $roll, $conditionExpr, $judgeResult, $outcomeName, $outcomeText<br/>
+              • 对抗: $initFormula, $oppFormula, $initRoll, $oppRoll, $initTotal, $oppTotal, $winner<br/>
               • 默认会输出 &lt;meta:检定结果&gt;；自定义 outputTemplate 时也必须保留这个包裹<br/>
               </div>
             </div>
@@ -48762,10 +48767,25 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
   ): CheckSuggestionParams => {
     const normalized: CheckSuggestionParams = {};
     const aliases = preset.checkSuggestionAliases;
+    const normalizeSidePrefixedKey = (rawKey: string): { key: string; valueAliasKey: string } => {
+      const lowerKey = rawKey.toLowerCase();
+      const sidePrefix = lowerKey.startsWith('left') ? 'left' : lowerKey.startsWith('right') ? 'right' : '';
+      if (!sidePrefix) {
+        const canonicalKey = aliases?.params?.[rawKey] || rawKey;
+        return { key: canonicalKey, valueAliasKey: canonicalKey };
+      }
+      const prefixLength = sidePrefix.length;
+      const stripped = rawKey.slice(prefixLength);
+      if (!stripped) return { key: rawKey, valueAliasKey: rawKey };
+      const normalizedStripped = stripped.charAt(0).toLowerCase() + stripped.slice(1);
+      const canonicalStripped = aliases?.params?.[stripped] || aliases?.params?.[normalizedStripped] || normalizedStripped;
+      const sideKey = `${sidePrefix}${canonicalStripped.charAt(0).toUpperCase()}${canonicalStripped.slice(1)}`;
+      return { key: sideKey, valueAliasKey: canonicalStripped };
+    };
     Object.entries(rawParams).forEach(([rawKey, rawValue]) => {
       if (rawKey === 'preset') return;
-      const canonicalKey = aliases?.params?.[rawKey] || rawKey;
-      const valueAliases = aliases?.values?.[canonicalKey] || {};
+      const { key: canonicalKey, valueAliasKey } = normalizeSidePrefixedKey(rawKey);
+      const valueAliases = aliases?.values?.[canonicalKey] || aliases?.values?.[valueAliasKey] || {};
       const aliasedValue = valueAliases[rawValue];
       normalized[canonicalKey] =
         aliasedValue !== undefined ? aliasedValue : parseCheckSuggestionPrimitiveValue(rawValue);
@@ -49382,6 +49402,8 @@ $opponent $oppAttrName：$formula=$oppRoll，判定 $oppConditionExpr？$oppJudg
       conditionExpr: left.conditionExpr,
       judgeResult: left.judgeResultText,
       formula: left.diceExpression,
+      initFormula: left.diceExpression,
+      oppFormula: right.diceExpression,
       roll: left.rollTotal,
       dc: left.dc,
       mod: left.mod,
