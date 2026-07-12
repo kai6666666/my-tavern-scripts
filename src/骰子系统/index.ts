@@ -62987,16 +62987,24 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <input class="acu-gacha-item-enabled-check" type="checkbox" ${enabled ? 'checked' : ''} />
                 <span class="acu-toggle-slider"></span>
               </label>
-              <span class="acu-gacha-settings-inline-actions">
-                <button class="acu-preset-btn acu-gacha-item-edit" type="button" title="编辑"><i class="fa-solid fa-pen"></i></button>
-                ${custom ? `<button class="acu-preset-btn acu-gacha-item-delete acu-preset-delete" type="button" title="删除"><i class="fa-solid fa-trash"></i></button>` : ''}
-              </span>
+              ${
+                custom
+                  ? `<span class="acu-gacha-settings-inline-actions">
+                      <button class="acu-preset-btn acu-gacha-item-edit" type="button" title="编辑"><i class="fa-solid fa-pen"></i></button>
+                      <button class="acu-preset-btn acu-gacha-item-delete acu-preset-delete" type="button" title="删除"><i class="fa-solid fa-trash"></i></button>
+                    </span>`
+                  : ''
+              }
               <details class="acu-gacha-settings-more">
                 <summary class="acu-preset-btn" title="更多操作" aria-label="${escapeHtml(`${item.name} 更多操作`)}"><i class="fa-solid fa-ellipsis-vertical"></i></summary>
                 <div class="acu-gacha-settings-more-menu">
                   <button class="acu-gacha-item-toggle-menu" type="button"><i class="fa-solid ${enabled ? 'fa-toggle-off' : 'fa-toggle-on'}"></i><span>${enabled ? '禁用' : '启用'}</span></button>
-                  <button class="acu-gacha-item-edit" type="button"><i class="fa-solid fa-pen"></i><span>编辑</span></button>
-                  ${custom ? `<button class="acu-gacha-item-delete danger" type="button"><i class="fa-solid fa-trash"></i><span>删除</span></button>` : ''}
+                  ${
+                    custom
+                      ? `<button class="acu-gacha-item-edit" type="button"><i class="fa-solid fa-pen"></i><span>编辑</span></button>
+                        <button class="acu-gacha-item-delete danger" type="button"><i class="fa-solid fa-trash"></i><span>删除</span></button>`
+                      : ''
+                  }
                 </div>
               </details>
             </div>
@@ -63707,7 +63715,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const rawData = cachedRawData || getTableData();
     await ensureGachaCatalogLoaded(rawData);
     const customItems = getCustomGachaItemDefinitions(rawData);
-    const existingItem = itemId ? getAllGachaItemDefinitions(rawData).find(item => item.id === itemId) || null : null;
+    const existingItem = itemId ? customItems.find(item => item.id === itemId) || null : null;
+    if (itemId && !existingItem) {
+      if (window.toastr) window.toastr.warning('内置物品不能编辑定义，只能调整启用状态和顺序');
+      return;
+    }
     const existingResolvedItem = existingItem
       ? getAllGachaItemDefinitions(rawData).find(item => item.id === existingItem.id) || existingItem
       : null;
@@ -63824,7 +63836,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             </div>
           </div>
           <div class="acu-gacha-item-editor-body">
-            <label class="acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required /></label>
+                        <label class="acu-gacha-item-field acu-gacha-item-name-field" style="display:flex; align-items:center;">
+              <!-- 替换原来的 span，改为绑定表头映射的 input -->
+              <input class="acu-gacha-target-column-input" type="text" data-column-key="name" value="${escapeHtml(targetColumns?.['name'] || '')}" placeholder="列名:名称" style="width:70px; margin-right:8px; padding:2px 5px; background:var(--acu-card-bg); border:1px solid var(--acu-border); border-radius:4px; font-size:12px; color:var(--acu-text-sub);" />
+              <input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required style="flex:1;" />
+            </label>
+            <label class="acu-gacha-item-field acu-gacha-item-type-field" style="display:flex; align-items:center;">
+              <input class="acu-gacha-target-column-input" type="text" data-column-key="type" value="${escapeHtml(targetColumns?.['type'] || '')}" placeholder="列名:类型" style="width:70px; margin-right:8px; padding:2px 5px; background:var(--acu-card-bg); border:1px solid var(--acu-border); border-radius:4px; font-size:12px; color:var(--acu-text-sub);" />
+              <input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" style="flex:1;" />
+            </label>
+            <label class="acu-gacha-item-field acu-gacha-item-quality-field" style="display:flex; align-items:center;">
+              <input class="acu-gacha-target-column-input" type="text" data-column-key="quality" value="${escapeHtml(targetColumns?.['quality'] || '')}" placeholder="列名:品质" style="width:70px; margin-right:8px; padding:2px 5px; background:var(--acu-card-bg); border:1px solid var(--acu-border); border-radius:4px; font-size:12px; color:var(--acu-text-sub);" />
+              <select class="acu-gacha-item-quality" style="flex:1;">${rarityOptionsHtml}</select>
+            </label>
             <label class="acu-gacha-item-field acu-gacha-item-type-field"><span>类型</span><input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" /></label>
             <label class="acu-gacha-item-field acu-gacha-item-quality-field"><span>品质</span><select class="acu-gacha-item-quality">${rarityOptionsHtml}</select></label>
             <label class="acu-gacha-item-field acu-gacha-item-target-field"><span>发放目标</span><select class="acu-gacha-item-target">${targetOptionsHtml}</select></label>
@@ -63856,14 +63880,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                   <strong>基础字段列映射</strong>
                   <small>只有默认关键词识别不到表头时填写；表头必须精确匹配。</small>
                 </div>
-                <div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
+                //<div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
               </div>
             </details>
-            <details class="wide acu-gacha-custom-fields" open>
-              <summary>
-                <span><i class="fa-solid fa-table-columns"></i> 自定义字段</span>
-                <small>额外列按目标表头精确写入</small>
-              </summary>
+            <!-- 取消原本的 details 折叠，直接暴露“新增无限字段”的 UI -->
+            <div class="wide acu-gacha-custom-fields" style="margin-top: 15px; border-top: 1px dashed var(--acu-border); padding-top: 10px;">
+              <div style="margin-bottom: 8px; color: var(--acu-text-main);">
+                <span><i class="fa-solid fa-table-columns"></i> <strong>额外数据库字段</strong></span>
+                <small style="color: var(--acu-text-sub); display: block;">在这里可无限制增加写入到数据库的自定义新列</small>
+              </div>
               <div class="acu-gacha-custom-field-panel">
                 <div class="acu-gacha-custom-field-toolbar">
                   <div>
@@ -63878,7 +63903,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                   <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
                 </div>
               </div>
-            </details>
+            </div>
             <div class="wide acu-gacha-item-flags">
               <label class="acu-gacha-item-checkbox acu-gacha-item-stackable-field"><input class="acu-gacha-item-stackable" type="checkbox" ${item.stackable ? 'checked' : ''} /> <span>可堆叠</span></label>
               <label class="acu-gacha-item-checkbox acu-gacha-item-unique-field"><input class="acu-gacha-item-unique" type="checkbox" ${item.unique ? 'checked' : ''} /> <span>唯一物品</span></label>
@@ -63950,6 +63975,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       overlay.find('.acu-gacha-custom-field-remove').prop('disabled', rowCount <= 1);
     };
     const appendCustomFieldRow = (key = '', value = '') => {
+      if (overlay.find('.acu-gacha-custom-field-row').length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
+        if (window.toastr) window.toastr.warning(`自定义字段最多只能添加 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个`);
+        return null;
+      }
       const row = $(renderCustomFieldRowHtml(key, value));
       overlay.find('.acu-gacha-custom-field-rows').append(row);
       updateCustomFieldRowControls();
@@ -64019,7 +64048,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           message = `自定义字段“${key}”重复，请合并为一行。`;
           return;
         }
-        // 数量限制已解除
+        if (Object.keys(rawFields).length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
+          message = `自定义字段最多只能保存 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个。`;
+          return;
+        }
         rawFields[key] = value;
       });
 
@@ -64217,9 +64249,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             const latestExistingItem = existingItem
               ? latestCustomItems.find(candidate => candidate.id === existingItem.id) || null
               : null;
-            // if (existingItem && !latestExistingItem) {
-            //   throw new Error('这个自定义物品已被删除，请重新打开编辑器后再保存。');
-            // }
+            if (existingItem && !latestExistingItem) {
+              throw new Error('这个自定义物品已被删除，请重新打开编辑器后再保存。');
+            }
             if (
               existingItem &&
               latestExistingItem &&
