@@ -2520,7 +2520,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.33'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.32'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -63859,7 +63859,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
               </div>
             </details>
-            <details class="wide acu-gacha-custom-fields" ${customFieldEntries.length ? 'open' : ''}>
+            <details class="wide acu-gacha-custom-fields" open>
               <summary>
                 <span><i class="fa-solid fa-table-columns"></i> 自定义字段</span>
                 <small>额外列按目标表头精确写入</small>
@@ -63868,7 +63868,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <div class="acu-gacha-custom-field-toolbar">
                   <div>
                     <strong>键 / 值列表</strong>
-                    <small>数量不限，键 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
+                    <small>最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，键 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
                   </div>
                   <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 添加字段</button>
                 </div>
@@ -64019,7 +64019,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           message = `自定义字段“${key}”重复，请合并为一行。`;
           return;
         }
-        // 移除数量限制
+        // 数量限制已解除
         rawFields[key] = value;
       });
 
