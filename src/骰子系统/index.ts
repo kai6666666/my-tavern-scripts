@@ -63714,15 +63714,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const { $ } = getCore();
     const rawData = cachedRawData || getTableData();
     await ensureGachaCatalogLoaded(rawData);
-    const customItems = getCustomGachaItemDefinitions(rawData);
-    const existingItem = itemId ? customItems.find(item => item.id === itemId) || null : null;
-    if (itemId && !existingItem) {
-      if (window.toastr) window.toastr.warning('内置物品不能编辑定义，只能调整启用状态和顺序');
-      return;
-    }
-    const existingResolvedItem = existingItem
-      ? getAllGachaItemDefinitions(rawData).find(item => item.id === existingItem.id) || existingItem
-      : null;
+    // 直接从所有物品（含内置）中寻找
+    const allItems = getAllGachaItemDefinitions(rawData);
+    const existingItem = itemId ? allItems.find(item => item.id === itemId) || null : null;
+    // 删除了阻止编辑的 if 拦截块，允许内置物品向下流转
+    const existingResolvedItem = existingItem;
     const storedPools = getAllGachaPoolConfigDefinitions(rawData).filter(pool => pool.id !== GACHA_ALL_POOL_TAG);
     const normalizedInitialPoolTag = normalizeGachaPoolId(initialPoolTag);
     const needsDefaultCustomPool =
@@ -63854,7 +63850,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <small class="acu-gacha-icon-editor-note">图片类图标请在“图标管理预设”中按物品/装备名称统一配置。</small>
               </div>
             </div>
-            <details class="wide acu-gacha-custom-fields acu-gacha-target-settings" ${targetTableValue || targetColumns ? 'open' : ''}>
+            <details class="wide acu-gacha-custom-fields acu-gacha-target-settings" open>
               <summary>
                 <span><i class="fa-solid fa-location-dot"></i> 写入目标</span>
                 <small>留空则跟随当前仪表盘预设</small>
@@ -63871,7 +63867,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
               </div>
             </details>
-            <details class="wide acu-gacha-custom-fields" ${customFieldEntries.length ? 'open' : ''}>
+            <details class="wide acu-gacha-custom-fields" open>
               <summary>
                 <span><i class="fa-solid fa-table-columns"></i> 自定义字段</span>
                 <small>额外列按目标表头精确写入</small>
