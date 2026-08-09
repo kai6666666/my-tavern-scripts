@@ -2521,7 +2521,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.56'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.57'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -63895,6 +63895,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const customFieldRowsHtml = initialCustomFieldRows
       .map(([key, value]) => renderCustomFieldRowHtml(key, value))
       .join('');
+    const customFieldEmptyHintHtml = customFieldRowsHtml
+      ? ''
+      : '<div class="acu-gacha-custom-field-empty"><i class="fa-solid fa-table-columns"></i> 暂无自定义字段，点击下方「新增字段」添加</div>';
     const openedItemFingerprint = existingItem ? getGachaItemDefinitionFingerprint(existingItem) : '';
 
     $('.acu-gacha-item-editor-overlay').remove();
@@ -63925,6 +63928,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                   </div>
                 </div>
                 <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
+                ${customFieldEmptyHintHtml}
                 <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 新增字段</button>
                 <div class="acu-gacha-custom-field-suggestions">
                   <span>目标表头建议</span>

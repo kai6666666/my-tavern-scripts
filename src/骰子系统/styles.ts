@@ -13701,6 +13701,19 @@ export const MAIN_STYLES = `
         flex-direction: column;
         gap: 8px;
     }
+    .acu-gacha-custom-field-empty {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1px dashed color-mix(in srgb, var(--acu-border) 78%, transparent);
+        border-radius: 10px;
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        font-weight: 650;
+        line-height: 1.4;
+    }
     .acu-gacha-custom-field-row {
         min-width: 0;
         display: grid;
