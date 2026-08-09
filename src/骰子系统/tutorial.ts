@@ -2016,7 +2016,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       selector: '.acu-gacha-item-quality-field',
       title: '品质与权重',
       content:
-        '品质决定物品所属稀有度，并影响保底和碎片价值。权重是同一卡池、同一品质内的相对抽取概率，数值越大越容易出现。',
+        '品质决定物品所属稀有度，并影响保底和碎片价值；选择“唯一”品质表示该物品不可重复获得。权重是同一卡池、同一品质内的相对抽取概率，数值越大越容易出现。',
       placement: 'bottom',
     },
     {
@@ -2046,7 +2046,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
     {
       selector: '.acu-gacha-item-flags',
       title: '数量规则',
-      content: '可堆叠适合药剂、材料这类可以合并数量的奖励。唯一物品适合钥匙、神器等不希望重复获得的奖励。',
+      content: '可堆叠适合药剂、材料这类可以合并数量的奖励；不可堆叠则每次发放独立占用一条记录。',
       placement: 'top',
     },
     {

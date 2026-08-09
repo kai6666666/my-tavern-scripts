@@ -13385,9 +13385,8 @@ export const MAIN_STYLES = `
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--acu-accent) 18%, transparent);
     }
     .acu-gacha-item-editor-body {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         overflow: hidden auto;
     }
     .acu-gacha-item-editor-body label,
@@ -13406,162 +13405,34 @@ export const MAIN_STYLES = `
         color: var(--acu-text-sub);
         line-height: 1.2;
     }
-    .acu-gacha-item-field-block {
+    .acu-gacha-item-editor-body label > span.acu-gacha-item-label-row {
         min-width: 0;
-        display: flex;
-        flex-direction: column;
+        display: inline-flex;
+        align-items: center;
         gap: 6px;
     }
-    .acu-gacha-item-field-head {
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .acu-gacha-item-field-name {
-        min-width: 0;
-        display: inline-flex;
-        align-items: center;
-        flex: 0 0 auto;
-        padding: 3px 10px;
-        border: 1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));
-        border-radius: 7px;
-        background: color-mix(in srgb, var(--acu-accent) 12%, transparent);
-        color: var(--acu-text-main);
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 1.3;
-        user-select: none;
-    }
-    .acu-gacha-item-field-edit {
-        width: 26px;
-        min-width: 26px;
-        height: 26px;
+    .acu-gacha-item-label-edit {
+        width: 20px;
+        min-width: 20px;
+        height: 20px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        border: 1px solid color-mix(in srgb, var(--acu-border) 78%, transparent);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--acu-btn-bg) 82%, transparent);
+        color: var(--acu-text-sub);
+        font-size: 9px;
         padding: 0;
-        border: 1px solid var(--acu-border);
-        border-radius: 7px;
-        background: color-mix(in srgb, var(--acu-btn-bg) 96%, var(--acu-bg-panel));
-        color: var(--acu-text-sub);
-        font-size: 11px;
         cursor: pointer;
-        transition: border-color .14s ease, color .14s ease, background-color .14s ease;
+        transition: border-color .14s ease, background-color .14s ease, color .14s ease;
     }
-    .acu-gacha-item-field-edit:hover {
-        border-color: var(--acu-accent);
-        background: color-mix(in srgb, var(--acu-accent) 14%, var(--acu-btn-bg));
-        color: var(--acu-text-main);
-    }
-    .acu-gacha-item-field-value {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    .acu-gacha-item-row-group {
-        min-width: 0;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-    }
-    .acu-gacha-item-custom-fields-block {
-        min-width: 0;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 12px;
-        border: 1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));
-        border-radius: 10px;
-        background: color-mix(in srgb, var(--acu-btn-bg) 55%, transparent);
-    }
-    .acu-gacha-item-custom-fields-block .acu-gacha-custom-field-toolbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding-top: 0;
-        border-top: 0;
-    }
-    .acu-gacha-item-custom-fields-block .acu-gacha-custom-field-toolbar > div {
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-    .acu-gacha-item-custom-fields-block .acu-gacha-custom-field-toolbar strong {
-        color: var(--acu-text-main);
-        font-size: 12px;
-    }
-    .acu-gacha-custom-fields-head {
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .acu-gacha-custom-fields-hint {
-        min-width: 0;
-        flex: 1 1 auto;
-        color: var(--acu-text-sub);
-        font-size: 10px;
-        font-weight: 650;
-        line-height: 1.35;
-    }
-    .acu-gacha-custom-field-add-bottom {
-        width: 100% !important;
-        min-height: 36px;
-        justify-content: center;
-        border: 1px dashed color-mix(in srgb, var(--acu-accent) 52%, var(--acu-border)) !important;
-        background: color-mix(in srgb, var(--acu-accent) 8%, var(--acu-btn-bg)) !important;
-        color: var(--acu-text-main) !important;
-        font-weight: 800;
-        border-radius: 9px;
-    }
-    .acu-gacha-custom-field-add-bottom:hover:not(:disabled) {
-        border-color: var(--acu-accent) !important;
-        background: color-mix(in srgb, var(--acu-accent) 14%, var(--acu-btn-bg)) !important;
-    }
-    .acu-gacha-item-editor-body label.acu-gacha-item-field > span,
-    .acu-gacha-item-pools > span {
-        min-width: 0;
-        width: fit-content;
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 10px;
-        border: 1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));
-        border-radius: 7px;
-        background: color-mix(in srgb, var(--acu-accent) 12%, transparent);
-        color: var(--acu-text-main);
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 1.3;
-        user-select: none;
-    }
-    .acu-gacha-custom-field-empty {
-        min-height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px 10px;
-        border: 1px dashed color-mix(in srgb, var(--acu-border) 78%, transparent);
-        border-radius: 9px;
-        color: var(--acu-text-sub);
-        font-size: 11px;
-        font-weight: 650;
-        text-align: center;
-    }
-    .acu-gacha-custom-field-key {
-        background: color-mix(in srgb, var(--acu-accent) 12%, transparent) !important;
-        border-color: color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border)) !important;
-        color: var(--acu-text-main) !important;
-        font-weight: 800;
-    }
-    .acu-gacha-custom-field-key:focus {
-        border-color: var(--acu-accent) !important;
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--acu-accent) 22%, transparent) !important;
-    }
-    .acu-gacha-custom-field-key::placeholder {
-        color: color-mix(in srgb, var(--acu-text-sub) 78%, transparent);
-        font-weight: 700;
+    .acu-gacha-item-label-edit:hover,
+    .acu-gacha-item-label-edit:focus-visible {
+        border-color: color-mix(in srgb, var(--acu-accent) 72%, var(--acu-border));
+        background: color-mix(in srgb, var(--acu-accent) 12%, var(--acu-btn-bg));
+        color: var(--acu-accent);
+        outline: 0;
     }
     .acu-gacha-item-editor-body label.wide,
     .acu-gacha-item-pools.wide,
@@ -13808,22 +13679,35 @@ export const MAIN_STYLES = `
     }
     .acu-gacha-custom-field-row {
         min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: end;
         padding: 8px;
         border: 1px solid color-mix(in srgb, var(--acu-border) 72%, transparent);
         border-radius: 10px;
         background: color-mix(in srgb, var(--acu-btn-bg) 72%, transparent);
     }
-    .acu-gacha-custom-field-row .acu-gacha-item-field-head {
-        gap: 6px;
-    }
-    .acu-gacha-custom-field-row .acu-gacha-item-field-head .acu-gacha-custom-field-key {
-        flex: 1 1 auto;
-    }
     .acu-gacha-custom-field-row label {
         margin: 0;
+    }
+    .acu-gacha-custom-field-key-cell,
+    .acu-gacha-custom-field-value-cell {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .acu-gacha-custom-field-key-cell span,
+    .acu-gacha-custom-field-value-cell span {
+        color: var(--acu-text-sub);
+        line-height: 1.2;
+    }
+    .acu-gacha-custom-field-value-cell {
+        grid-column: 1 / -1;
     }
     .acu-gacha-custom-field-value {
         min-height: 38px;
@@ -15898,11 +15782,11 @@ export const MAIN_STYLES = `
             justify-content: center;
         }
         .acu-gacha-custom-field-row {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr) auto;
         }
         .acu-gacha-custom-field-remove {
-            width: 100%;
-            min-width: 0;
+            width: 34px;
+            min-width: 34px;
         }
         .acu-gacha-pickup-section {
             gap: 6px;
