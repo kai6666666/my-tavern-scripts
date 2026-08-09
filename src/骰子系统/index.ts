@@ -2545,7 +2545,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.44'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.34'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -63847,9 +63847,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       </div>
     `;
     const customFieldEntries = getGachaCustomFieldEntries(item);
-    const customFieldRowsHtml = customFieldEntries
-      .map(([key, value]) => renderCustomFieldRowHtml(key, value))
-      .join('');
+    const customFieldRowsHtml = customFieldEntries.length
+      ? customFieldEntries
+          .map(([key, value]) => renderCustomFieldRowHtml(key, value))
+          .join('')
+      : '<div class="acu-gacha-custom-field-empty">暂无自定义字段，点击下方“新增自定义字段”新增</div>';
     const openedItemFingerprint = existingItem ? getGachaItemDefinitionFingerprint(existingItem) : '';
 
     $('.acu-gacha-item-editor-overlay').remove();
@@ -63884,8 +63886,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
               </div>
             </div>
             <div class="acu-gacha-item-field-block acu-gacha-item-custom-fields-block">
+              <div class="acu-gacha-custom-field-toolbar">
+                <div>
+                  <strong>自定义字段</strong>
+                  <small>最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，字段名 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
+                </div>
+              </div>
               <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
-              <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 新增自定义字段</button>
+              <button class="acu-dialog-btn acu-gacha-custom-field-add acu-gacha-custom-field-add-bottom" type="button"><i class="fa-solid fa-plus"></i> 新增自定义字段</button>
+              <div class="acu-gacha-custom-field-suggestions">
+                <span>目标表头建议</span>
+                <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
+              </div>
             </div>
             <div class="acu-gacha-item-field-block acu-gacha-item-description-block">
               <div class="acu-gacha-item-field-head">
@@ -64014,6 +64026,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       const rowCount = overlay.find('.acu-gacha-custom-field-row').length;
       overlay.find('.acu-gacha-custom-field-add').prop('disabled', rowCount >= GACHA_CUSTOM_FIELD_MAX_COUNT);
       overlay.find('.acu-gacha-custom-field-remove').prop('disabled', rowCount <= 0);
+      const $rows = overlay.find('.acu-gacha-custom-field-rows');
+      $rows.find('.acu-gacha-custom-field-empty').remove();
+      if (rowCount <= 0) {
+        $('<div class="acu-gacha-custom-field-empty"></div>')
+          .text('暂无自定义字段，点击下方“新增自定义字段”新增')
+          .appendTo($rows);
+      }
     };
     const appendCustomFieldRow = (key = '', value = '') => {
       if (overlay.find('.acu-gacha-custom-field-row').length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
@@ -64021,7 +64040,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         return null;
       }
       const row = $(renderCustomFieldRowHtml(key, value));
-      overlay.find('.acu-gacha-custom-field-rows').append(row);
+      const $rows = overlay.find('.acu-gacha-custom-field-rows');
+      $rows.find('.acu-gacha-custom-field-empty').remove();
+      $rows.append(row);
       updateCustomFieldRowControls();
       return row;
     };
