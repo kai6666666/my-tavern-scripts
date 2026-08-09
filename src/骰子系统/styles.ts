@@ -13464,7 +13464,8 @@ export const MAIN_STYLES = `
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
-.acu-gacha-item-custom-fields-block {
+    }
+    .acu-gacha-item-custom-fields-block {
         min-width: 0;
         width: 100%;
         display: flex;
