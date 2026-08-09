@@ -13401,10 +13401,20 @@ export const MAIN_STYLES = `
         font-size: 11px;
         font-weight: 700;
     }
-    .acu-gacha-item-editor-body label > span,
+    .acu-gacha-item-editor-body label:not(.acu-gacha-item-checkbox):not(.acu-gacha-item-pool-option) > span,
     .acu-gacha-item-pools > span {
-        color: var(--acu-text-sub);
-        line-height: 1.2;
+        display: inline-flex;
+        align-items: center;
+        align-self: flex-start;
+        padding: 3px 10px;
+        border: 1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));
+        border-radius: 7px;
+        background: color-mix(in srgb, var(--acu-accent) 12%, transparent);
+        color: var(--acu-text-main);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.3;
+        user-select: none;
     }
     .acu-gacha-item-field-block {
         min-width: 0;

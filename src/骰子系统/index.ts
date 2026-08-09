@@ -2545,7 +2545,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.33'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.34'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -63885,18 +63885,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <select class="acu-gacha-item-quality">${rarityOptionsHtml}</select>
               </div>
             </div>
-            <div class="acu-gacha-item-field-block acu-gacha-item-custom-fields-block">
-              <div class="acu-gacha-custom-field-toolbar">
-                <div>
+            <div class="acu-gacha-item-field-block acu-gacha-item-custom-fields-block" style="display:flex;flex-direction:column;width:100%;min-width:0;gap:10px;padding:12px;border:1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));border-radius:10px;background:color-mix(in srgb, var(--acu-btn-bg) 55%, transparent);">
+              <div class="acu-gacha-custom-field-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:0;border-top:0;">
+                <div style="min-width:0;display:flex;flex-direction:column;gap:2px;">
                   <strong>自定义字段</strong>
                   <small>最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，字段名 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
                 </div>
-                <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 添加字段</button>
               </div>
-              <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
-              <div class="acu-gacha-custom-field-suggestions">
+              <div class="acu-gacha-custom-field-rows" style="display:flex;flex-direction:column;gap:8px;">${customFieldRowsHtml}</div>
+              <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button" style="align-self:center;"><i class="fa-solid fa-plus"></i> 新增自定义字段</button>
+              <div class="acu-gacha-custom-field-suggestions" style="display:flex;flex-direction:column;gap:6px;min-width:0;">
                 <span>目标表头建议</span>
-                <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
+                <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite" style="display:flex;flex-wrap:wrap;gap:6px;min-width:0;"></div>
               </div>
             </div>
             <div class="acu-gacha-item-field-block acu-gacha-item-description-block">
