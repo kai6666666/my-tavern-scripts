@@ -1,1 +1,1 @@
-/storage/emulated/0/MT2/apks/my-tavern-scripts-main/src/骰子系统/styles.ts
+@/storage/emulated/0/MT2/apks/my-tavern-scripts-main/src/骰子系统/styles.ts
