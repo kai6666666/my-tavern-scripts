@@ -2521,7 +2521,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.55'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.56'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -62253,7 +62253,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const targetLabel = item.rewardTarget === 'equipment' ? '装备' : '物品';
     const destinationLabel = formatGachaRewardDestinationLabel(cachedRawData || getTableData(), item);
     const stackableLabel = item.stackable ? '可堆叠' : '不可堆叠';
-    const uniqueLabel = item.unique ? '唯一' : '可重复';
+    const uniqueLabel = item.quality === '唯一' ? '' : item.unique ? '唯一' : '可重复';
+    const ruleLabel = uniqueLabel ? `${stackableLabel} · ${uniqueLabel}` : stackableLabel;
     const customIconContext = getGachaItemCustomTableNameIconContext(item);
     const detail = $(`
       <div class="acu-inventory-detail-overlay acu-theme-${config.theme} acu-gacha-pickup-detail-overlay">
@@ -62288,7 +62289,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
               </div>
               <div class="acu-inventory-detail-field-row acu-gacha-static-field-row">
                 <span class="acu-inventory-detail-field-label">规则</span>
-                <span class="acu-inventory-detail-field-value">${escapeHtml(`${stackableLabel} · ${uniqueLabel}`)}</span>
+                <span class="acu-inventory-detail-field-value">${escapeHtml(ruleLabel)}</span>
               </div>
             </div>
           </div>
@@ -63911,11 +63912,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             <label class="acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required /></label>
             <label class="acu-gacha-item-field acu-gacha-item-type-field"><span class="acu-gacha-item-label-row"><span class="acu-gacha-item-label-text">${escapeHtml(editorLabels.typeLabel)}</span><button class="acu-gacha-item-label-edit" type="button" data-label-key="type" title="修改类型字段名" aria-label="修改类型字段名"><i class="fa-solid fa-pen"></i></button></span><input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" /></label>
             <label class="acu-gacha-item-field acu-gacha-item-quality-field"><span class="acu-gacha-item-label-row"><span class="acu-gacha-item-label-text">${escapeHtml(editorLabels.qualityLabel)}</span><button class="acu-gacha-item-label-edit" type="button" data-label-key="quality" title="修改品质字段名" aria-label="修改品质字段名"><i class="fa-solid fa-pen"></i></button></span><select class="acu-gacha-item-quality">${rarityOptionsHtml}</select></label>
-            <details class="wide acu-gacha-custom-fields" ${customFieldEntries.length ? 'open' : ''}>
-              <summary>
+            <div class="wide acu-gacha-custom-fields acu-gacha-custom-fields-flat">
+              <div class="acu-gacha-custom-fields-header">
                 <span><i class="fa-solid fa-table-columns"></i> 自定义字段</span>
                 <small>额外列按目标表头精确写入</small>
-              </summary>
+              </div>
               <div class="acu-gacha-custom-field-panel">
                 <div class="acu-gacha-custom-field-toolbar">
                   <div>
@@ -63930,7 +63931,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                   <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
                 </div>
               </div>
-            </details>
+            </div>
             <label class="wide acu-gacha-item-field acu-gacha-item-description-field"><span>描述</span><textarea class="acu-gacha-item-description" rows="3" maxlength="${fieldLimits.description}">${escapeHtml(item.description || '')}</textarea></label>
             <label class="acu-gacha-item-field acu-gacha-item-target-field"><span>发放目标</span><select class="acu-gacha-item-target">${targetOptionsHtml}</select></label>
             <label class="acu-gacha-item-field acu-gacha-item-weight-field"><span>权重</span><input class="acu-gacha-item-weight" type="number" min="0.01" step="0.01" value="${escapeHtml(String(item.weight || 1))}" /></label>

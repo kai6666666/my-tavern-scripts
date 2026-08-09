@@ -13601,6 +13601,30 @@ export const MAIN_STYLES = `
         font-weight: 700;
         text-align: right;
     }
+    .acu-gacha-custom-fields-flat .acu-gacha-custom-fields-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        color: var(--acu-text-main);
+        border-bottom: 1px solid color-mix(in srgb, var(--acu-border) 70%, transparent);
+    }
+    .acu-gacha-custom-fields-flat .acu-gacha-custom-fields-header > span {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 850;
+    }
+    .acu-gacha-custom-fields-flat .acu-gacha-custom-fields-header small {
+        min-width: 0;
+        color: var(--acu-text-sub);
+        font-size: 10px;
+        font-weight: 700;
+        text-align: right;
+    }
     .acu-gacha-custom-field-panel {
         display: flex;
         flex-direction: column;
