@@ -2545,7 +2545,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.52'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.53'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -54782,7 +54782,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     applyFixedWrapperLayout(width, marginLeft);
   };
 
+  const isAcuFullscreenOverlayOpen = (): boolean => {
+    const hostDocument = typeof getTavernHostDocument === 'function' ? getTavernHostDocument() : document;
+    return !!hostDocument?.querySelector?.(
+      '.acu-edit-overlay, .acu-dice-overlay, .acu-contest-overlay, .acu-inventory-overlay, .acu-inventory-detail-overlay, .acu-gacha-overlay, .acu-gacha-settings-overlay, .acu-gacha-item-editor-overlay, .acu-preview-overlay, .acu-map-overlay, .acu-relation-graph-overlay, .acu-avatar-manager-overlay, .acu-custom-icon-manager-overlay, .acu-mvu-panel, .acu-favorites-overlay',
+    );
+  };
+
   const scheduleFixedWrapperBoundsRefresh = () => {
+    if (isAcuFullscreenOverlayOpen()) return;
     const config = getConfig();
     if (config.positionMode !== 'fixed') return;
     if (fixedWrapperBoundsRaf !== null) return;
@@ -54912,6 +54920,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   const scheduleFloatingCollapseBoundsRefresh = () => {
+    if (isAcuFullscreenOverlayOpen()) return;
     if (!isFloatingCollapseActive()) return;
     if (floatingCollapseBoundsRaf !== null) return;
 
@@ -54968,6 +54977,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   const scheduleViewportBoundsRefresh = () => {
+    if (isAcuFullscreenOverlayOpen()) return;
     const config = getConfig();
     if (config.positionMode !== 'viewport') return;
     if (viewportBoundsRaf !== null) return;
@@ -63886,11 +63896,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
               </div>
             </div>
             <div class="acu-gacha-item-field-block acu-gacha-item-custom-fields-block">
-              <div class="acu-gacha-custom-field-toolbar">
-                <div>
-                  <strong>自定义字段</strong>
-                  <small>最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，字段名 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
-                </div>
+              <div class="acu-gacha-item-field-head acu-gacha-custom-fields-head">
+                <span class="acu-gacha-item-field-name acu-gacha-item-custom-fields-label">自定义字段</span>
+                <small class="acu-gacha-custom-fields-hint">最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，字段名 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
               </div>
               <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
               <button class="acu-dialog-btn acu-gacha-custom-field-add acu-gacha-custom-field-add-bottom" type="button"><i class="fa-solid fa-plus"></i> 新增自定义字段</button>
@@ -64078,6 +64086,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           .appendTo(list);
       });
     };
+    let customFieldSuggestionDebounceTimer = 0;
+    const scheduleCustomFieldHeaderSuggestions = () => {
+      if (customFieldSuggestionDebounceTimer) window.clearTimeout(customFieldSuggestionDebounceTimer);
+      customFieldSuggestionDebounceTimer = window.setTimeout(() => {
+        customFieldSuggestionDebounceTimer = 0;
+        refreshCustomFieldHeaderSuggestions();
+      }, 120);
+    };
     type EditorCustomFieldCollectResult = {
       customFields?: GachaCustomFields;
       message?: string;
@@ -64162,7 +64178,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         saveGachaItemFieldNames(nextNames);
         overlay.find(isTypeField ? '.acu-gacha-item-type-label' : '.acu-gacha-item-quality-label').text(nextLabel);
         if (window.toastr) window.toastr.success(isTypeField ? '类型字段名已更新' : '品质字段名已更新');
-        refreshCustomFieldHeaderSuggestions();
+        scheduleCustomFieldHeaderSuggestions();
       })();
     });
     overlay.on('click', '.acu-gacha-custom-field-add', () => {
@@ -64189,7 +64205,7 @@ overlay.on('click', '.acu-gacha-custom-field-remove', event => {
       targetRow.find('.acu-gacha-custom-field-value').trigger('focus');
     });
     overlay.on('input change', '.acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input', () => {
-      refreshCustomFieldHeaderSuggestions();
+      scheduleCustomFieldHeaderSuggestions();
     });
     overlay.on(
       'input change',
@@ -64900,7 +64916,7 @@ overlay.on('click', '.acu-gacha-custom-field-remove', event => {
       type: customTypeIndex >= 0 ? customTypeIndex : DashboardDataParser.findColumnIndex(headers, 'type', config),
       quantity: DashboardDataParser.findColumnIndex(headers, 'count', config),
       quality: customQualityIndex >= 0 ? customQualityIndex : findExtra(['品质', '稀有度', '品级'], -1),
-      description: findExtra(['描述', '说明', '用途', '效果'], 5),
+      description: findExtra(['描述', '说明', '用途', '备注'], 5),
     };
     return applyGachaTargetColumnOverrides(
       colMap,
@@ -64987,7 +65003,7 @@ overlay.on('click', '.acu-gacha-custom-field-remove', event => {
       status: DashboardDataParser.findColumnIndex(headers, 'isEquipped', config),
       quantity: findExtra(['数量', '件数', '持有数'], -1),
       quality: customQualityIndex >= 0 ? customQualityIndex : findExtra(['品质', '稀有度', '品级'], -1),
-      description: findExtra(['描述', '说明', '效果', '备注'], 6),
+      description: findExtra(['描述', '说明', '备注'], 6),
     };
     return applyGachaTargetColumnOverrides(
       colMap,

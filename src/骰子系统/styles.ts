@@ -13494,6 +13494,18 @@ export const MAIN_STYLES = `
         color: var(--acu-text-main);
         font-size: 12px;
     }
+    .acu-gacha-custom-fields-head {
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .acu-gacha-custom-fields-hint {
+        min-width: 0;
+        flex: 1 1 auto;
+        color: var(--acu-text-sub);
+        font-size: 10px;
+        font-weight: 650;
+        line-height: 1.35;
+    }
     .acu-gacha-custom-field-add-bottom {
         width: 100% !important;
         min-height: 36px;
