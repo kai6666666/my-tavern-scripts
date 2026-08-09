@@ -1878,6 +1878,31 @@ import {
   const STORAGE_KEY_GACHA_POOL_SETTINGS = 'acu_gacha_pool_settings_v1';
   const STORAGE_KEY_GACHA_SETTINGS_POOL_TAG = 'acu_gacha_settings_pool_tag_v1';
   const STORAGE_KEY_GACHA_ITEM_SETTINGS = 'acu_gacha_item_settings_v1';
+  const STORAGE_KEY_GACHA_ITEM_FIELD_NAMES = 'acu_gacha_item_field_names_v1';
+
+  type GachaItemFieldNames = {
+    typeLabel: string;
+    qualityLabel: string;
+  };
+
+  const GACHA_ITEM_FIELD_NAME_DEFAULTS: GachaItemFieldNames = {
+    typeLabel: '类型',
+    qualityLabel: '品质',
+  };
+
+  const normalizeGachaItemFieldNames = (rawValue: unknown): GachaItemFieldNames => {
+    const record = rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue) ? (rawValue as Record<string, unknown>) : {};
+    const typeLabel = String(record.typeLabel || '').trim().slice(0, 10) || GACHA_ITEM_FIELD_NAME_DEFAULTS.typeLabel;
+    const qualityLabel = String(record.qualityLabel || '').trim().slice(0, 10) || GACHA_ITEM_FIELD_NAME_DEFAULTS.qualityLabel;
+    return { typeLabel, qualityLabel };
+  };
+
+  const getGachaItemFieldNames = (): GachaItemFieldNames =>
+    normalizeGachaItemFieldNames(Store.get(STORAGE_KEY_GACHA_ITEM_FIELD_NAMES, GACHA_ITEM_FIELD_NAME_DEFAULTS));
+
+  const saveGachaItemFieldNames = (names: GachaItemFieldNames): void => {
+    Store.set(STORAGE_KEY_GACHA_ITEM_FIELD_NAMES, normalizeGachaItemFieldNames(names));
+  };
   const GACHA_CATALOG_GLOBAL_SCOPE_KEY = 'global';
   const GACHA_SHOP_UI_REFRESH_MS = 250;
   const GACHA_CATALOG_RAW_ROW_INDEX_PROP = '__acuRawRowIndex';
@@ -2520,7 +2545,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.32'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.33'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -36764,13 +36789,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     {
       id: 'gachaSettings',
       name: '骰子商城配置与自定义物品',
-      description: '商城卡池、条目设置、全局自定义物品目录、当前池与碎片商店稀有度。',
+      description: '商城卡池、条目设置、全局自定义物品目录、当前池、碎片商店稀有度与物品字段名。',
       storageKeys: [
         STORAGE_KEY_GACHA_POOL_SETTINGS,
         STORAGE_KEY_GACHA_SETTINGS_POOL_TAG,
         STORAGE_KEY_GACHA_ITEM_SETTINGS,
         STORAGE_KEY_GACHA_ACTIVE_POOL_TAG,
         STORAGE_KEY_GACHA_SHARD_SHOP_RARITY,
+        STORAGE_KEY_GACHA_ITEM_FIELD_NAMES,
       ],
     },
   ];
@@ -36839,6 +36865,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     [STORAGE_KEY_GACHA_ITEM_SETTINGS]: 'gachaItemSettings',
     [STORAGE_KEY_GACHA_ACTIVE_POOL_TAG]: 'raw',
     [STORAGE_KEY_GACHA_SHARD_SHOP_RARITY]: 'raw',
+    [STORAGE_KEY_GACHA_ITEM_FIELD_NAMES]: 'raw',
   };
 
   const DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY = 'gachaCatalogRecords';
@@ -61723,10 +61750,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     target: GachaRewardTarget,
     targetColumns?: GachaRewardTargetColumns,
   ): Set<string> => {
+    const fieldNames = getGachaItemFieldNames();
     const headers = new Set(
       target === 'equipment'
-        ? ['row_id', '装备名称', '类型', '数量', '品质', '状态', '描述']
-        : ['row_id', '物品名称', '类型', '数量', '品质', '描述'],
+        ? ['row_id', '装备名称', '类型', '数量', '品质', '状态', '描述', fieldNames.typeLabel, fieldNames.qualityLabel]
+        : ['row_id', '物品名称', '类型', '数量', '品质', '描述', fieldNames.typeLabel, fieldNames.qualityLabel],
     );
     const writtenKeys =
       target === 'equipment' ? GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS : GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS;
@@ -63768,6 +63796,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         : baseItem;
     const fieldLimits = getGachaRewardFieldLimits(item.rewardTarget);
     const config = getConfig();
+    const fieldNames = getGachaItemFieldNames();
+    const typeLabel = fieldNames.typeLabel;
+    const qualityLabel = fieldNames.qualityLabel;
     const poolOptionsHtml = pools
       .map(pool => {
         const checked = item.poolTags.includes(pool.id);
@@ -63806,20 +63837,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     ].join('');
     const renderCustomFieldRowHtml = (key = '', value = '') => `
       <div class="acu-gacha-custom-field-row">
-        <label class="acu-gacha-custom-field-key-cell">
-          <span>目标表头</span>
-          <input class="acu-gacha-custom-field-key" type="text" value="${escapeHtml(key)}" maxlength="${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH}" placeholder="精确匹配表头" />
-        </label>
-        <label class="acu-gacha-custom-field-value-cell">
-          <span>写入值</span>
-          <textarea class="acu-gacha-custom-field-value" rows="2" maxlength="${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH}" placeholder="留空则不保存">${escapeHtml(value)}</textarea>
-        </label>
-        <button class="acu-gacha-custom-field-remove" type="button" title="移除此字段" aria-label="移除此字段"><i class="fa-solid fa-minus"></i></button>
+        <div class="acu-gacha-item-field-head">
+          <input class="acu-gacha-custom-field-key" type="text" value="${escapeHtml(key)}" maxlength="${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH}" placeholder="自定义字段名" />
+          <button class="acu-gacha-custom-field-remove" type="button" title="移除此字段" aria-label="移除此字段"><i class="fa-solid fa-minus"></i></button>
+        </div>
+        <div class="acu-gacha-item-field-value">
+          <textarea class="acu-gacha-custom-field-value" rows="2" maxlength="${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH}" placeholder="对应值">${escapeHtml(value)}</textarea>
+        </div>
       </div>
     `;
     const customFieldEntries = getGachaCustomFieldEntries(item);
-    const initialCustomFieldRows: [string, string][] = customFieldEntries.length ? customFieldEntries : [['', '']];
-    const customFieldRowsHtml = initialCustomFieldRows
+    const customFieldRowsHtml = customFieldEntries
       .map(([key, value]) => renderCustomFieldRowHtml(key, value))
       .join('');
     const openedItemFingerprint = existingItem ? getGachaItemDefinitionFingerprint(existingItem) : '';
@@ -63837,24 +63865,70 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           </div>
           <div class="acu-gacha-item-editor-body">
             <label class="acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required /></label>
-            <label class="acu-gacha-item-field acu-gacha-item-type-field"><span>类型</span><input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" /></label>
-            <label class="acu-gacha-item-field acu-gacha-item-quality-field"><span>品质</span><select class="acu-gacha-item-quality">${rarityOptionsHtml}</select></label>
-            <label class="acu-gacha-item-field acu-gacha-item-target-field"><span>发放目标</span><select class="acu-gacha-item-target">${targetOptionsHtml}</select></label>
-            <label class="acu-gacha-item-field acu-gacha-item-weight-field"><span>权重</span><input class="acu-gacha-item-weight" type="number" min="0.01" step="0.01" value="${escapeHtml(String(item.weight || 1))}" /></label>
-            <label class="acu-gacha-item-field acu-gacha-item-quantity-field"><span>发放数量</span><input class="acu-gacha-item-quantity" type="number" min="1" step="1" value="${escapeHtml(String(item.grantQuantity || 1))}" /></label>
-            <label class="wide acu-gacha-item-field acu-gacha-item-description-field"><span>描述</span><textarea class="acu-gacha-item-description" rows="3" maxlength="${fieldLimits.description}">${escapeHtml(item.description || '')}</textarea></label>
-            <div class="wide acu-gacha-item-pools">
+            <div class="acu-gacha-item-field-block acu-gacha-item-type-block">
+              <div class="acu-gacha-item-field-head">
+                <span class="acu-gacha-item-field-name acu-gacha-item-type-label">${escapeHtml(typeLabel)}</span>
+                <button class="acu-gacha-item-field-edit" type="button" data-field-name="type" title="修改${escapeHtml(typeLabel)}字段名" aria-label="修改${escapeHtml(typeLabel)}字段名"><i class="fa-solid fa-pen"></i></button>
+              </div>
+              <div class="acu-gacha-item-field-value">
+                <input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" placeholder="道具" />
+              </div>
+            </div>
+            <div class="acu-gacha-item-field-block acu-gacha-item-quality-block">
+              <div class="acu-gacha-item-field-head">
+                <span class="acu-gacha-item-field-name acu-gacha-item-quality-label">${escapeHtml(qualityLabel)}</span>
+                <button class="acu-gacha-item-field-edit" type="button" data-field-name="quality" title="修改${escapeHtml(qualityLabel)}字段名" aria-label="修改${escapeHtml(qualityLabel)}字段名"><i class="fa-solid fa-pen"></i></button>
+              </div>
+              <div class="acu-gacha-item-field-value">
+                <select class="acu-gacha-item-quality">${rarityOptionsHtml}</select>
+              </div>
+            </div>
+            <div class="acu-gacha-item-field-block acu-gacha-custom-fields acu-gacha-item-custom-fields-block">
+              <div class="acu-gacha-custom-field-toolbar">
+                <div>
+                  <strong>自定义字段</strong>
+                  <small>最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，字段名 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
+                </div>
+                <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 添加字段</button>
+              </div>
+              <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
+              <div class="acu-gacha-custom-field-suggestions">
+                <span>目标表头建议</span>
+                <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
+              </div>
+            </div>
+            <div class="acu-gacha-item-field-block acu-gacha-item-description-block">
+              <div class="acu-gacha-item-field-head">
+                <span class="acu-gacha-item-field-name acu-gacha-item-description-label">描述</span>
+              </div>
+              <div class="acu-gacha-item-field-value">
+                <textarea class="acu-gacha-item-description" rows="3" maxlength="${fieldLimits.description}">${escapeHtml(item.description || '')}</textarea>
+              </div>
+            </div>
+            <div class="acu-gacha-item-field-block acu-gacha-item-target-block">
+              <div class="acu-gacha-item-field-head">
+                <span class="acu-gacha-item-field-name acu-gacha-item-target-label">发放目标</span>
+              </div>
+              <div class="acu-gacha-item-field-value">
+                <select class="acu-gacha-item-target">${targetOptionsHtml}</select>
+              </div>
+            </div>
+            <div class="acu-gacha-item-row-group">
+              <label class="acu-gacha-item-field acu-gacha-item-weight-field"><span>权重</span><input class="acu-gacha-item-weight" type="number" min="0.01" step="0.01" value="${escapeHtml(String(item.weight || 1))}" /></label>
+              <label class="acu-gacha-item-field acu-gacha-item-quantity-field"><span>发放数量</span><input class="acu-gacha-item-quantity" type="number" min="1" step="1" value="${escapeHtml(String(item.grantQuantity || 1))}" /></label>
+            </div>
+            <div class="acu-gacha-item-pools">
               <span>所属卡池</span>
               <div>${poolOptionsHtml}</div>
             </div>
-            <div class="wide acu-gacha-icon-editor-card">
+            <div class="acu-gacha-icon-editor-card">
               <div class="acu-gacha-icon-editor-preview">${renderGachaItemIconContent(item, getGachaItemCustomTableNameIconContext(item))}</div>
               <div class="acu-gacha-icon-editor-fields">
                 <label class="acu-gacha-item-field acu-gacha-item-icon-field"><span>符号图标</span><input class="acu-gacha-item-icon" type="text" value="${escapeHtml(item.icon || '')}" placeholder="fa:coins / ti:wand / ✨" /></label>
                 <small class="acu-gacha-icon-editor-note">图片类图标请在“图标管理预设”中按物品/装备名称统一配置。</small>
               </div>
             </div>
-            <details class="wide acu-gacha-custom-fields acu-gacha-target-settings" ${targetTableValue || targetColumns ? 'open' : ''}>
+            <details class="acu-gacha-custom-fields acu-gacha-target-settings" ${targetTableValue || targetColumns ? 'open' : ''}>
               <summary>
                 <span><i class="fa-solid fa-location-dot"></i> 写入目标</span>
                 <small>留空则跟随当前仪表盘预设</small>
@@ -63871,29 +63945,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
               </div>
             </details>
-            <details class="wide acu-gacha-custom-fields" ${customFieldEntries.length ? 'open' : ''}>
-              <summary>
-                <span><i class="fa-solid fa-table-columns"></i> 自定义字段</span>
-                <small>额外列按目标表头精确写入</small>
-              </summary>
-              <div class="acu-gacha-custom-field-panel">
-                <div class="acu-gacha-custom-field-toolbar">
-                  <div>
-                    <strong>键 / 值列表</strong>
-                    <small>最多 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个，键 ${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH} 字，值 ${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH} 字</small>
-                  </div>
-                  <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 添加字段</button>
-                </div>
-                <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
-                <div class="acu-gacha-custom-field-suggestions">
-                  <span>目标表头建议</span>
-                  <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
-                </div>
-              </div>
-            </details>
-            <div class="wide acu-gacha-item-flags">
+            <div class="acu-gacha-item-flags">
               <label class="acu-gacha-item-checkbox acu-gacha-item-stackable-field"><input class="acu-gacha-item-stackable" type="checkbox" ${item.stackable ? 'checked' : ''} /> <span>可堆叠</span></label>
-              <label class="acu-gacha-item-checkbox acu-gacha-item-unique-field"><input class="acu-gacha-item-unique" type="checkbox" ${item.unique ? 'checked' : ''} /> <span>唯一物品</span></label>
             </div>
           </div>
           <div class="acu-gacha-settings-footer acu-gacha-item-editor-footer">
@@ -63959,7 +64012,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const updateCustomFieldRowControls = () => {
       const rowCount = overlay.find('.acu-gacha-custom-field-row').length;
       overlay.find('.acu-gacha-custom-field-add').prop('disabled', rowCount >= GACHA_CUSTOM_FIELD_MAX_COUNT);
-      overlay.find('.acu-gacha-custom-field-remove').prop('disabled', rowCount <= 1);
+      overlay.find('.acu-gacha-custom-field-remove').prop('disabled', rowCount <= 0);
     };
     const appendCustomFieldRow = (key = '', value = '') => {
       if (overlay.find('.acu-gacha-custom-field-row').length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
@@ -64067,18 +64120,36 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     applyEditorFieldLimits();
     refreshCustomFieldHeaderSuggestions();
     updateCustomFieldRowControls();
+    overlay.on('click', '.acu-gacha-item-field-edit', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      const fieldKey = String($(this).attr('data-field-name') || '').trim();
+      const isTypeField = fieldKey === 'type';
+      const currentNames = getGachaItemFieldNames();
+      const currentLabel = isTypeField ? currentNames.typeLabel : currentNames.qualityLabel;
+      void (async () => {
+        const nextLabel = await showGachaPoolNameDialog({
+          title: isTypeField ? '修改类型字段名' : '修改品质字段名',
+          label: '字段显示名',
+          initialValue: currentLabel,
+        });
+        if (!nextLabel || nextLabel === currentLabel) return;
+        const nextNames = isTypeField
+          ? { ...currentNames, typeLabel: nextLabel }
+          : { ...currentNames, qualityLabel: nextLabel };
+        saveGachaItemFieldNames(nextNames);
+        overlay.find(isTypeField ? '.acu-gacha-item-type-label' : '.acu-gacha-item-quality-label').text(nextLabel);
+        if (window.toastr) window.toastr.success(isTypeField ? '类型字段名已更新' : '品质字段名已更新');
+        refreshCustomFieldHeaderSuggestions();
+      })();
+    });
     overlay.on('click', '.acu-gacha-custom-field-add', () => {
       const row = appendCustomFieldRow();
       row?.find('.acu-gacha-custom-field-key').trigger('focus');
     });
     overlay.on('click', '.acu-gacha-custom-field-remove', event => {
-      const rows = overlay.find('.acu-gacha-custom-field-row');
       const row = $(event.currentTarget).closest('.acu-gacha-custom-field-row');
-      if (rows.length <= 1) {
-        row.find('.acu-gacha-custom-field-key, .acu-gacha-custom-field-value').val('');
-      } else {
-        row.remove();
-      }
+      row.remove();
       updateCustomFieldRowControls();
     });
     overlay.on('click', '.acu-gacha-custom-field-suggestion', event => {
@@ -64128,7 +64199,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           const weight = Number(overlay.find('.acu-gacha-item-weight').val());
           const grantQuantity = Math.floor(Number(overlay.find('.acu-gacha-item-quantity').val()));
           const stackable = overlay.find('.acu-gacha-item-stackable').prop('checked') === true;
-          const unique = overlay.find('.acu-gacha-item-unique').prop('checked') === true;
+          const unique = existingItem?.unique === true;
           const poolTags = overlay
             .find('.acu-gacha-item-pool-check:checked')
             .toArray()
@@ -64799,11 +64870,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       }
       return fallbackIndex;
     };
+    const fieldNames = getGachaItemFieldNames();
+    const customTypeIndex = findExtra([fieldNames.typeLabel], -1);
+    const customQualityIndex = findExtra([fieldNames.qualityLabel], -1);
     const colMap: GachaRewardColumnMap = {
       name: DashboardDataParser.findColumnIndex(headers, 'name', config),
-      type: DashboardDataParser.findColumnIndex(headers, 'type', config),
+      type: customTypeIndex >= 0 ? customTypeIndex : DashboardDataParser.findColumnIndex(headers, 'type', config),
       quantity: DashboardDataParser.findColumnIndex(headers, 'count', config),
-      quality: findExtra(['品质', '稀有度', '品级'], -1),
+      quality: customQualityIndex >= 0 ? customQualityIndex : findExtra(['品质', '稀有度', '品级'], -1),
       description: findExtra(['描述', '说明', '用途', '效果'], 5),
     };
     return applyGachaTargetColumnOverrides(
@@ -64881,13 +64955,16 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       }
       return fallbackIndex;
     };
+    const fieldNames = getGachaItemFieldNames();
+    const customTypeIndex = findExtra([fieldNames.typeLabel], -1);
+    const customQualityIndex = findExtra([fieldNames.qualityLabel], -1);
     const colMap: GachaRewardColumnMap = {
       name: DashboardDataParser.findColumnIndex(headers, 'name', config),
-      type: DashboardDataParser.findColumnIndex(headers, 'type', config),
+      type: customTypeIndex >= 0 ? customTypeIndex : DashboardDataParser.findColumnIndex(headers, 'type', config),
       part: DashboardDataParser.findColumnIndex(headers, 'part', config),
       status: DashboardDataParser.findColumnIndex(headers, 'isEquipped', config),
       quantity: findExtra(['数量', '件数', '持有数'], -1),
-      quality: findExtra(['品质', '稀有度', '品级'], -1),
+      quality: customQualityIndex >= 0 ? customQualityIndex : findExtra(['品质', '稀有度', '品级'], -1),
       description: findExtra(['描述', '说明', '效果', '备注'], 6),
     };
     return applyGachaTargetColumnOverrides(
