@@ -383,7 +383,7 @@
       "deleteNode": "禁止。",
       "updateNode": "已存在的物品，数量或描述变化时更新。可堆叠物品只改 quantity，不新建行。耗尽后 quantity 可以是 0。\nSQL示例(使用消耗): UPDATE inventory SET quantity = quantity - 1 WHERE item_name = '小型治疗药水';\nSQL示例(获取堆叠): UPDATE inventory SET quantity = quantity + 2 WHERE item_name = '小型治疗药水';",
       "insertNode": "物品名称不在表里时，新增一条。可堆叠物品绝对不要新建重复行。\nSQL示例: INSERT INTO inventory (row_id, item_name, item_type, quantity, quality, description) VALUES ((SELECT COALESCE(MAX(row_id), 0) + 1 FROM inventory), '古老的铁钥匙', '任务物品', 1, '优秀', '锈迹斑斑的铁钥匙，据说能打开某扇门');",
-      "ddl": "CREATE TABLE inventory ( -- 物品表\n  row_id INTEGER PRIMARY KEY, -- 行号\n  item_name TEXT NOT NULL UNIQUE CHECK(LENGTH(item_name) <= 10), -- 物品名称\n  item_type TEXT NOT NULL, -- 类型\n  quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity >= 0), -- 数量\n  quality TEXT NOT NULL CHECK(quality IN ('普通', '优秀', '稀有', '史诗', '传说', '神话')), -- 品质\n  description TEXT NOT NULL CHECK(LENGTH(description) <= 60) -- 描述\n);"
+      "ddl": "CREATE TABLE inventory ( -- 物品表\n  row_id INTEGER PRIMARY KEY, -- 行号\n  item_name TEXT NOT NULL UNIQUE CHECK(LENGTH(item_name) <= 10), -- 物品名称\n  item_type TEXT NOT NULL, -- 类型\n  quantity INTEGER NOT NULL DEFAULT 1 CHECK(quantity >= 0), -- 数量\n  quality TEXT NOT NULL CHECK(quality IN ('普通', '优秀', '稀有', '史诗', '传说', '神话', '唯一')), -- 品质\n  description TEXT NOT NULL CHECK(LENGTH(description) <= 60) -- 描述\n);"
     },
     "content": [["row_id", "物品名称", "类型", "数量", "品质", "描述"]],
     "updateConfig": {
@@ -439,7 +439,7 @@
       "deleteNode": "允许删除：装备丢弃、损毁、转移所有权、或需要清理无效装备时。\nSQL示例: DELETE FROM equipment WHERE equipment_name = '破损短剑';",
       "updateNode": "已存在的装备，状态或描述变化时更新。\nSQL示例(卸下): UPDATE equipment SET status_text = '闲置' WHERE equipment_name = '校服';\nSQL示例(装备): UPDATE equipment SET status_text = '已装备' WHERE equipment_name = '魔法长袍';",
       "insertNode": "装备名称不在表里时，新增一条。\nSQL示例: INSERT INTO equipment (row_id, equipment_name, equipment_type, quality, status_text, description) VALUES ((SELECT COALESCE(MAX(row_id), 0) + 1 FROM equipment), '魔法长袍', '衣物', '稀有', '闲置', '附魔银丝刺绣，提升魔力亲和');",
-      "ddl": "CREATE TABLE equipment ( -- 装备表\n  row_id INTEGER PRIMARY KEY, -- 行号\n  equipment_name TEXT NOT NULL UNIQUE, -- 装备名称\n  equipment_type TEXT NOT NULL, -- 类型\n  quality TEXT NOT NULL CHECK(quality IN ('普通', '优秀', '稀有', '史诗', '传说', '神话')), -- 品质\n  status_text TEXT NOT NULL CHECK(status_text IN ('已装备', '闲置')), -- 状态\n  description TEXT NOT NULL CHECK(LENGTH(description) <= 40) -- 描述\n);"
+      "ddl": "CREATE TABLE equipment ( -- 装备表\n  row_id INTEGER PRIMARY KEY, -- 行号\n  equipment_name TEXT NOT NULL UNIQUE, -- 装备名称\n  equipment_type TEXT NOT NULL, -- 类型\n  quality TEXT NOT NULL CHECK(quality IN ('普通', '优秀', '稀有', '史诗', '传说', '神话', '唯一')), -- 品质\n  status_text TEXT NOT NULL CHECK(status_text IN ('已装备', '闲置')), -- 状态\n  description TEXT NOT NULL CHECK(LENGTH(description) <= 40) -- 描述\n);"
     },
     "content": [["row_id", "装备名称", "类型", "品质", "状态", "描述"]],
     "updateConfig": {
