@@ -13401,20 +13401,11 @@ export const MAIN_STYLES = `
         font-size: 11px;
         font-weight: 700;
     }
-    .acu-gacha-item-editor-body label:not(.acu-gacha-item-checkbox):not(.acu-gacha-item-pool-option) > span,
+    .acu-gacha-item-editor-body label > span,
     .acu-gacha-item-pools > span {
-        display: inline-flex;
-        align-items: center;
-        align-self: flex-start;
-        padding: 3px 10px;
-        border: 1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));
-        border-radius: 7px;
-        background: color-mix(in srgb, var(--acu-accent) 12%, transparent);
         color: var(--acu-text-main);
-        font-size: 11px;
         font-weight: 800;
-        line-height: 1.3;
-        user-select: none;
+        line-height: 1.2;
     }
     .acu-gacha-item-field-block {
         min-width: 0;
@@ -13529,6 +13520,31 @@ export const MAIN_STYLES = `
     .acu-gacha-custom-field-key::placeholder {
         color: color-mix(in srgb, var(--acu-text-sub) 78%, transparent);
         font-weight: 700;
+    }
+    .acu-gacha-custom-field-add-row {
+        min-height: 38px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px dashed color-mix(in srgb, var(--acu-accent) 52%, var(--acu-border));
+        border-radius: 9px;
+        background: color-mix(in srgb, var(--acu-accent) 8%, var(--acu-btn-bg));
+        color: var(--acu-accent);
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: border-color .14s ease, background-color .14s ease, color .14s ease;
+    }
+    .acu-gacha-custom-field-add-row:hover {
+        border-color: var(--acu-accent);
+        background: color-mix(in srgb, var(--acu-accent) 16%, var(--acu-btn-bg));
+        color: var(--acu-text-main);
+    }
+    .acu-gacha-custom-field-add-row:disabled {
+        opacity: .52;
+        cursor: not-allowed;
     }
     .acu-gacha-item-editor-body label.wide,
     .acu-gacha-item-pools.wide,
