@@ -63847,9 +63847,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       </div>
     `;
     const customFieldEntries = getGachaCustomFieldEntries(item);
-    const customFieldRowsHtml = customFieldEntries
-      .map(([key, value]) => renderCustomFieldRowHtml(key, value))
-      .join('');
+    const customFieldRowsHtml = customFieldEntries.length
+      ? customFieldEntries
+          .map(([key, value]) => renderCustomFieldRowHtml(key, value))
+          .join('')
+      : '<div class="acu-gacha-custom-field-empty">暂无自定义字段，点击上方“添加字段”新增</div>';
     const openedItemFingerprint = existingItem ? getGachaItemDefinitionFingerprint(existingItem) : '';
 
     $('.acu-gacha-item-editor-overlay').remove();
@@ -63883,7 +63885,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <select class="acu-gacha-item-quality">${rarityOptionsHtml}</select>
               </div>
             </div>
-            <div class="acu-gacha-item-field-block acu-gacha-custom-fields acu-gacha-item-custom-fields-block">
+            <div class="acu-gacha-item-field-block acu-gacha-item-custom-fields-block">
               <div class="acu-gacha-custom-field-toolbar">
                 <div>
                   <strong>自定义字段</strong>
@@ -63966,6 +63968,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       overlay.find('.acu-gacha-item-editor .acu-btn-confirm').prop('disabled', submitting);
     };
 
+    let lastIconPreviewSignature = '';
     const refreshEditorIconPreview = () => {
       const icon = String(overlay.find('.acu-gacha-item-icon').val() || '').trim();
       const previewItem: Pick<GachaItemDefinition, 'name' | 'type' | 'icon'> = {
@@ -63980,6 +63983,16 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         targetTable: getEditorTargetTable(),
         targetColumns: collectEditorTargetColumns(),
       };
+      const nextSignature = [
+        previewItem.name,
+        previewItem.type,
+        previewItem.icon || '',
+        previewContextItem.rewardTarget,
+        previewContextItem.targetTable || '',
+        JSON.stringify(previewContextItem.targetColumns || {}),
+      ].join('|');
+      if (nextSignature === lastIconPreviewSignature) return;
+      lastIconPreviewSignature = nextSignature;
       const $preview = overlay.find('.acu-gacha-icon-editor-preview');
       $preview.html(renderGachaItemIconContent(previewItem, getGachaItemCustomTableNameIconContext(previewContextItem)));
       hydrateCustomTableNameIconsIn($preview);
@@ -64013,6 +64026,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       const rowCount = overlay.find('.acu-gacha-custom-field-row').length;
       overlay.find('.acu-gacha-custom-field-add').prop('disabled', rowCount >= GACHA_CUSTOM_FIELD_MAX_COUNT);
       overlay.find('.acu-gacha-custom-field-remove').prop('disabled', rowCount <= 0);
+      const $rows = overlay.find('.acu-gacha-custom-field-rows');
+      $rows.find('.acu-gacha-custom-field-empty').remove();
+      if (rowCount <= 0) {
+        $('<div class="acu-gacha-custom-field-empty"></div>')
+          .text('暂无自定义字段，点击上方“添加字段”新增')
+          .appendTo($rows);
+      }
     };
     const appendCustomFieldRow = (key = '', value = '') => {
       if (overlay.find('.acu-gacha-custom-field-row').length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
@@ -64020,7 +64040,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         return null;
       }
       const row = $(renderCustomFieldRowHtml(key, value));
-      overlay.find('.acu-gacha-custom-field-rows').append(row);
+      const $rows = overlay.find('.acu-gacha-custom-field-rows');
+      $rows.find('.acu-gacha-custom-field-empty').remove();
+      $rows.append(row);
       updateCustomFieldRowControls();
       return row;
     };
@@ -64147,7 +64169,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       const row = appendCustomFieldRow();
       row?.find('.acu-gacha-custom-field-key').trigger('focus');
     });
-    overlay.on('click', '.acu-gacha-custom-field-remove', event => {
+overlay.on('click', '.acu-gacha-custom-field-remove', event => {
       const row = $(event.currentTarget).closest('.acu-gacha-custom-field-row');
       row.remove();
       updateCustomFieldRowControls();

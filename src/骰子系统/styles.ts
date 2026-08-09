@@ -13464,10 +13464,14 @@ export const MAIN_STYLES = `
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
-    }
-    .acu-gacha-item-custom-fields-block {
-        padding: 10px;
-        border: 1px dashed color-mix(in srgb, var(--acu-accent) 42%, var(--acu-border));
+.acu-gacha-item-custom-fields-block {
+        min-width: 0;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border));
         border-radius: 10px;
         background: color-mix(in srgb, var(--acu-btn-bg) 55%, transparent);
     }
@@ -13476,6 +13480,8 @@ export const MAIN_STYLES = `
         align-items: center;
         justify-content: space-between;
         gap: 10px;
+        padding-top: 0;
+        border-top: 0;
     }
     .acu-gacha-item-custom-fields-block .acu-gacha-custom-field-toolbar > div {
         min-width: 0;
@@ -13486,6 +13492,33 @@ export const MAIN_STYLES = `
     .acu-gacha-item-custom-fields-block .acu-gacha-custom-field-toolbar strong {
         color: var(--acu-text-main);
         font-size: 12px;
+    }
+    .acu-gacha-custom-field-empty {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 10px;
+        border: 1px dashed color-mix(in srgb, var(--acu-border) 78%, transparent);
+        border-radius: 9px;
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        font-weight: 650;
+        text-align: center;
+    }
+    .acu-gacha-custom-field-key {
+        background: color-mix(in srgb, var(--acu-accent) 12%, transparent) !important;
+        border-color: color-mix(in srgb, var(--acu-accent) 45%, var(--acu-border)) !important;
+        color: var(--acu-text-main) !important;
+        font-weight: 800;
+    }
+    .acu-gacha-custom-field-key:focus {
+        border-color: var(--acu-accent) !important;
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--acu-accent) 22%, transparent) !important;
+    }
+    .acu-gacha-custom-field-key::placeholder {
+        color: color-mix(in srgb, var(--acu-text-sub) 78%, transparent);
+        font-weight: 700;
     }
     .acu-gacha-item-editor-body label.wide,
     .acu-gacha-item-pools.wide,
