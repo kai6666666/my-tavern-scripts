@@ -1,4 +1,4 @@
-export type GachaRarity = '普通' | '优秀' | '稀有' | '史诗' | '传说' | '神话' | '唯一';
+export type GachaRarity = '普通' | '优秀' | '稀有' | '史诗' | '传说' | '神话';
 
 export type GachaPoolTag = string;
 
@@ -46,6 +46,10 @@ export interface GachaItemDefinition {
   rewardTarget: GachaRewardTarget;
   targetTable?: string;
   targetColumns?: GachaRewardTargetColumns;
+  /** 自定义“类型”字段显示名，默认“类型” */
+  typeLabel?: string;
+  /** 自定义“品质”字段显示名，默认“品质” */
+  qualityLabel?: string;
 }
 
 export const GACHA_CATALOG_EXPORT_KIND = 'acu-gacha-items';
@@ -65,7 +69,7 @@ export const BUILTIN_GACHA_POOL_DEFINITIONS: readonly GachaPoolDefinition[] = [
 
 export const GACHA_POOL_TAGS: readonly GachaPoolTag[] = BUILTIN_GACHA_POOL_DEFINITIONS.map(pool => pool.id);
 
-export const GACHA_RARITY_ORDER: readonly GachaRarity[] = ['普通', '优秀', '稀有', '史诗', '传说', '神话', '唯一'];
+export const GACHA_RARITY_ORDER: readonly GachaRarity[] = ['普通', '优秀', '稀有', '史诗', '传说', '神话'];
 
 export const GACHA_REWARD_TARGETS: readonly GachaRewardTarget[] = ['inventory', 'equipment'];
 
@@ -98,7 +102,6 @@ export const GACHA_SHARD_VALUES: Record<GachaRarity, number> = {
   史诗: 20,
   传说: 50,
   神话: 120,
-  唯一: 180,
 };
 
 export const GACHA_RARITY_WEIGHTS: Record<GachaRarity, number> = {
@@ -108,7 +111,6 @@ export const GACHA_RARITY_WEIGHTS: Record<GachaRarity, number> = {
   史诗: 5,
   传说: 2.5,
   神话: 0.5,
-  唯一: 0.3,
 };
 
 /**
