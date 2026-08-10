@@ -697,7 +697,7 @@ interface GachaStateSnapshot {
   fortune: number;
   wallet: {
     fortune: number;
-    shards: Record<'普通' | '优秀' | '稀有' | '史诗' | '传说' | '神话' | '唯一', number>;
+    shards: Record<'普通' | '优秀' | '稀有' | '史诗' | '传说' | '神话', number>;
   };
   activePoolTag: string;
   pity: { rare: number; legend: number };
