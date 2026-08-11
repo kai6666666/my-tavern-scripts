@@ -13397,12 +13397,16 @@ export const MAIN_STYLES = `
         flex-direction: column;
         gap: 6px;
         color: var(--acu-text-sub);
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
     }
+    /* 字段标题统一 12px：与字段名输入框、值输入框同字号，避免同一列出现三种大小 */
     .acu-gacha-item-editor-body label > span,
-    .acu-gacha-item-pools > span {
+    .acu-gacha-item-pools > span,
+    .acu-gacha-item-editor-body .acu-gacha-custom-field-suggestions > span,
+    .acu-gacha-item-editor-body .acu-gacha-target-column-toolbar strong {
         color: var(--acu-text-sub);
+        font-size: 12px;
         line-height: 1.2;
     }
     .acu-gacha-item-editor-body label.wide,
@@ -13434,8 +13438,27 @@ export const MAIN_STYLES = `
     .acu-gacha-item-labeled-field > label {
         margin: 0;
     }
-    .acu-gacha-item-field-label-input {
+    /* 字段名输入去外框：默认呈现为纯标签文字，避免与下方值输入框形成双层边框 */
+    .acu-gacha-item-editor-body .acu-gacha-item-field-label-input,
+    .acu-gacha-item-editor-body .acu-gacha-custom-field-key {
+        border: 1px solid transparent !important;
+        border-radius: 6px;
+        background: transparent !important;
+        padding: 2px 0;
+        font-size: 12px;
         font-weight: 700;
+        color: var(--acu-text-sub) !important;
+        -webkit-text-fill-color: var(--acu-text-sub);
+        box-shadow: none !important;
+    }
+    /* 进入可编辑态时才显形边框，给出“此处可改”的反馈 */
+    .acu-gacha-item-editor-body .acu-gacha-item-field-label-input:not([readonly]):focus,
+    .acu-gacha-item-editor-body .acu-gacha-custom-field-key:focus {
+        border-color: color-mix(in srgb, var(--acu-accent) 70%, var(--acu-border)) !important;
+        background: color-mix(in srgb, var(--acu-btn-bg) 96%, var(--acu-bg-panel)) !important;
+        padding: 2px 6px;
+        color: var(--acu-text-main) !important;
+        -webkit-text-fill-color: var(--acu-text-main);
     }
     .acu-gacha-item-field-label-input[readonly] {
         cursor: default;
