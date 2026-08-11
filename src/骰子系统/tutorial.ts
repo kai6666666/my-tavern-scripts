@@ -2008,34 +2008,42 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
     },
     {
       selector: '.acu-gacha-item-name-field',
-      title: '名称与类型',
-      content: '名称是必填项，会作为物品写入表格时的显示名。类型用于物品表分类，也会参与设置界面的搜索。',
-      placement: 'bottom',
-    },
-    {
-      selector: '.acu-gacha-item-quality-block',
-      title: '品质与权重',
-      content:
-        '品质决定物品所属稀有度，并影响保底和碎片价值；品质下拉还可以选择“唯一”，唯一物品不可重复获得。权重是同一卡池、同一品质内的相对抽取概率，数值越大越容易出现。',
+      title: '名称',
+      content: '名称是必填项，会作为物品写入表格时的显示名，也会参与设置界面的搜索。',
       placement: 'bottom',
     },
     {
       selector: '.acu-gacha-item-type-block',
-      title: '类型与字段名',
-      content: '类型用于物品表分类。类型、品质右侧的笔图标可以修改字段显示名，适合对齐不同世界观模板的称呼。',
+      title: '类型',
+      content:
+        '上一行是字段名，点右侧的笔图标可以把「类型」改成表格里实际使用的列名；下一行填该字段的值，用于物品表分类。',
       placement: 'bottom',
     },
     {
-      selector: '.acu-gacha-item-target-field',
-      title: '发放方式',
-      content: '发放目标决定奖励写入物品表还是装备表。发放数量会作为获得数量写入，适合一次给多个消耗品或材料。',
+      selector: '.acu-gacha-item-quality-block',
+      title: '品质',
+      content:
+        '同样支持用笔图标修改字段名。品质决定稀有度，并影响保底和碎片价值；选择「唯一」表示该物品不重复获得。',
       placement: 'bottom',
+    },
+    {
+      selector: '.acu-gacha-item-custom-field-block',
+      title: '自定义字段',
+      content:
+        '初始没有任何自定义字段，点「新增字段」加一条，每条都是字段名一行、对应值一行。点字段名右侧的减号删除该条。这些字段会随奖励一起写入表格。',
+      placement: 'top',
     },
     {
       selector: '.acu-gacha-item-description-field',
       title: '描述',
       content: '描述会显示在商店卡片、详情和设置列表里。可以写物品效果、使用限制或叙事说明。',
       placement: 'top',
+    },
+    {
+      selector: '.acu-gacha-item-target-field',
+      title: '发放方式',
+      content: '发放目标决定奖励写入物品表还是装备表。发放数量会作为获得数量写入，适合一次给多个消耗品或材料。',
+      placement: 'bottom',
     },
     {
       selector: '.acu-gacha-item-pools',
@@ -2052,7 +2060,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
     {
       selector: '.acu-gacha-item-flags',
       title: '数量规则',
-      content: '可堆叠适合药剂、材料这类可以合并数量的奖励。唯一物品适合钥匙、神器等不希望重复获得的奖励。',
+      content: '可堆叠适合药剂、材料这类可以合并数量的奖励。若希望奖励不重复获得，把上方的品质设为「唯一」即可。',
       placement: 'top',
     },
     {
