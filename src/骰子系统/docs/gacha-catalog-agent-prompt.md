@@ -90,8 +90,10 @@
 | `id` | 字符串，内部唯一标识；建议英文小写、数字、下划线或短横线，例如 `steam_heart_key`。不要用展示名充当 id |
 | `name` | 字符串，给人看的物品名。写入物品表时建议不超过 10 个汉字；装备建议不超过 12 个汉字 |
 | `type` | 字符串，写入目标表的类型值。没有表格模板限制时可自由写；一旦用户提供表格模板，必须使用目标表允许的类型枚举，不要把泛用分类写进受约束的目标表 |
-| `quality` | 必须是系统稀有度之一，只能写：`普通`、`优秀`、`稀有`、`史诗`、`传说`、`神话` |
+| `quality` | 必须是系统稀有度之一，只能写：`普通`、`优秀`、`稀有`、`史诗`、`传说`、`神话`、`唯一` |
 | `description` | 字符串，物品描述。物品建议不超过 60 个汉字；装备建议不超过 40 个汉字 |
+| `tags` | 可选字符串，写入目标表「标签」列。按模板习惯用方括号包裹，例如 `[货币][金属][都市]`；同时会显示在详情副标题「类型 · 品质 · 标签 · 数量X」中 |
+| `effect` | 可选字符串，写入目标表「效果」列。描述物品的机制与使用后果，显示在详情正文第一行 |
 | `poolTags` | 字符串数组，至少 1 项，值必须匹配 `pools[].id` 或已有卡池名 |
 | `weight` | 大于 0 的数字，只表示同一卡池、同一 `quality` 内的相对抽取权重 |
 | `grantQuantity` | 大于 0 的正整数，表示抽到时发放数量 |
@@ -106,8 +108,10 @@
 | `enabled` | 布尔值，通常写 `true` |
 | `order` | 数字，排序值，建议从 100 开始递增 |
 | `stackable` | 布尔值。消耗品、材料、药剂可写 `true` |
-| `unique` | 布尔值。钥匙、神器、契约、唯一纪念物可写 `true` |
+| `unique` | 布尔值。钥匙、神器、契约、唯一纪念物可写 `true`；品质写 `唯一` 时自动视为唯一物品 |
 | `icon` | 可选字符串，只接受 `fa:<Font Awesome 6 Free 图标名>`、`ti:<Tabler Icons 图标名>` ，例如 `fa:heart`、`fa:key`、`ti:wand` |
+| `tags` | 可选字符串，物品标签，写入目标表「标签」列（详见 items 必填字段表） |
+| `effect` | 可选字符串，物品效果，写入目标表「效果」列（详见 items 必填字段表） |
 | `customFields` | 可选对象，用来写入目标表的额外列和额外必填列 |
 | `targetTable` | 可选字符串，固定写入当前数据库里某张用户可见表，例如 `"装扮表"`；留空时跟随当前仪表盘预设 |
 | `targetColumns` | 可选对象，只负责“系统基础字段 -> 目标表表头”的列映射；不是字段值，也不是 `customFields` 的替代品 |
@@ -121,7 +125,7 @@
 `quality` 会被骰子商店用于抽卡稀有度、保底、碎片、兑换页和排序。因此它只能使用：
 
 ```text
-普通 / 优秀 / 稀有 / 史诗 / 传说 / 神话
+普通 / 优秀 / 稀有 / 史诗 / 传说 / 神话 / 唯一
 ```
 
 如果用户提供了默认 scope 之外的信息，例如自定义品质、阶段、分层、亲密度、品级、色阶、门派等级、绑定对象、出处或使用代价，不要强行塞进 `quality`、`type`、`rewardTarget` 等默认字段。只有能确认目标表存在对应真实表头时，才用 `customFields` 保留原本含义；如果看不到表格模板或真实表头，不要编造 `customFields` 列名。
@@ -165,13 +169,13 @@
 
 不适合放入：
 
-- 奖励名称、类型、数量、稀有度、描述、状态等系统基础字段。基础字段的值来自物品自己的 `name/type/grantQuantity/quality/description` 等字段；如果目标表表头不同，应使用 `targetColumns` 映射列名。
+- 奖励名称、类型、数量、稀有度、标签、效果、描述、状态等系统基础字段。基础字段的值来自物品自己的 `name/type/grantQuantity/quality/tags/effect/description` 等字段；如果目标表表头不同，应使用 `targetColumns` 映射列名。
 - 需要随物品变化的动态值，例如“把当前物品名写到装扮名称列”。这类需求必须用 `targetColumns.name`，不能用 `customFields` 写死。
 
 禁止放入这些基础字段名：
 
 ```text
-row_id / 物品名称 / 装备名称 / 类型 / 数量 / 品质 / 状态 / 描述
+row_id / 物品名称 / 装备名称 / 类型 / 数量 / 品质 / 标签 / 效果 / 状态 / 描述
 ```
 
 也就是说，不要写：
@@ -229,7 +233,7 @@ row_id / 物品名称 / 装备名称 / 类型 / 数量 / 品质 / 状态 / 描�
 `targetColumns` 只用于基础字段表头不一致的表。它的键是系统基础字段名，值必须是目标表中真实存在的用户可见表头；它不填写“要写入的值”。如果模板同时提供了用户可见表头和 SQL DDL 里的物理列名，必须使用用户可见表头，不要使用 `item_name`、`item_type`、`description` 这类 SQL 物理列名，除非这些字符串本身就是表格界面里的真实表头。允许键：
 
 ```text
-name / type / quantity / quality / description / part / status
+name / type / quantity / quality / tags / effect / description / part / status
 ```
 
 例如用户提供的表格模板里确实有“装扮表”，且表头包含“装扮名称”“类型”“当前状态”“外观描述”。装备型奖励要固定写入这张表时，可以这样写：
@@ -341,7 +345,7 @@ name / type / quantity / quality / description / part / status
 - 对目标表 DDL 里的每个 `NOT NULL` 列，是否已经逐列确认值来源；除自动生成主键或系统列以外，是否没有遗漏任何基础字段无法覆盖的必填列。
 - 如填写 `targetTable`，是否使用用户可见表名，而不是 `sheet_xxx` 或 SQL 表名。
 - 如填写 `targetTable` / `targetColumns`，是否确实来自用户提供的表格模板或目标表表头，而不是猜测。
-- 如填写 `targetColumns`，键是否只使用 `name/type/quantity/quality/description/part/status`，值是否是目标表真实表头，且没有把固定字段值误写进来。
+- 如填写 `targetColumns`，键是否只使用 `name/type/quantity/quality/tags/effect/description/part/status`，值是否是目标表真实表头，且没有把固定字段值误写进来。
 - 如填写 `targetColumns`，值是否使用用户可见表头，而不是 DDL 里的 SQL 物理列名，例如把 `物品名称` 误写成 `item_name`。
 - 是否把额外必填列放进 `customFields`，而不是误放进 `targetColumns`。
 - `items` 是否是数组，且每项都是对象。
