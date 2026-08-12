@@ -2521,7 +2521,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.63'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.64'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -38232,6 +38232,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           name: item.name,
           type: item.type,
           quality: item.quality,
+          ...(item.tags ? { tags: item.tags } : {}),
+          ...(item.effect ? { effect: item.effect } : {}),
           description: item.description,
           poolTags: [...item.poolTags],
           icon: item.icon,
@@ -58882,9 +58884,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     quantityText: string;
     quantity: number;
     quality: string;
-    description: string;
     tags: string;
     effect: string;
+    description: string;
     rowIndex: number;
     tableName: string;
     tableKey: string;
@@ -58897,13 +58899,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     type: number;
     quantity: number;
     quality: number;
-    description: number;
     tags?: number;
     effect?: number;
+    description: number;
     part?: number;
     status?: number;
-    /** description 是否因缺少「描述」列而回退到「效果」列 */
-    descriptionFellBackToEffect?: boolean;
   };
   type GachaRewardParseResult = {
     tableName: string;
@@ -59507,6 +59507,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     'type',
     'quantity',
     'quality',
+    'tags',
+    'effect',
     'description',
     'part',
     'status',
@@ -59516,6 +59518,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     type: '类型列',
     quantity: '数量列',
     quality: '品质列',
+    tags: '标签列',
+    effect: '效果列',
     description: '描述列',
     part: '部位列',
     status: '状态列',
@@ -59525,6 +59529,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     'type',
     'quantity',
     'quality',
+    'tags',
+    'effect',
     'description',
   ]);
   const GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS = new Set<GachaRewardTargetColumnKey>([
@@ -59538,6 +59544,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     '类型',
     '数量',
     '品质',
+    '标签',
+    '效果',
     '描述',
     '状态',
   ]);
@@ -59562,6 +59570,43 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const getGachaCustomFieldEntries = (item: Pick<GachaItemDefinition, 'customFields'>): [string, string][] =>
     item.customFields ? Object.entries(item.customFields) : [];
+
+  const GACHA_TAG_FIELD_ALIASES = ['标签', '标记', '词条'] as const;
+  const GACHA_EFFECT_FIELD_ALIASES = ['效果', '作用', '能力', '特效'] as const;
+  const normalizeGachaFieldAlias = (value: unknown): string => String(value || '').trim().toLowerCase();
+  const isGachaFieldAlias = (value: unknown, aliases: readonly string[]): boolean => {
+    const normalized = normalizeGachaFieldAlias(value);
+    return Boolean(normalized) && aliases.some(alias => normalizeGachaFieldAlias(alias) === normalized);
+  };
+
+  const getGachaNamedCustomField = (
+    item: Pick<GachaItemDefinition, 'customFields'>,
+    fieldNames: readonly string[],
+  ): string => {
+    const wanted = new Set(fieldNames.map(normalizeGachaFieldAlias).filter(Boolean));
+    for (const [key, value] of getGachaCustomFieldEntries(item)) {
+      if (wanted.has(String(key).trim().toLowerCase())) return String(value || '').trim();
+    }
+    return '';
+  };
+
+  const getGachaItemTagsText = (
+    item: Pick<GachaItemDefinition, 'type' | 'quality' | 'tags' | 'customFields'>,
+  ): string =>
+    String(item.tags || getGachaNamedCustomField(item, ['标签', '标记', '词条']) || `[${item.type}][${item.quality}]`).trim();
+
+  const getGachaItemEffectText = (
+    item: Pick<GachaItemDefinition, 'effect' | 'description' | 'customFields'>,
+  ): string =>
+    String(item.effect || getGachaNamedCustomField(item, ['效果', '作用', '能力', '特效']) || item.description || '').trim();
+
+  const getGachaItemDescriptionText = (item: Pick<GachaItemDefinition, 'description'>): string =>
+    String(item.description || '').trim();
+
+  const formatGachaItemCardMeta = (
+    item: Pick<GachaItemDefinition, 'type' | 'quality' | 'tags' | 'customFields' | 'grantQuantity'>,
+    quantity = Math.max(1, Math.floor(Number(item.grantQuantity) || 1)),
+  ): string => `${item.type} · ${item.quality} · ${getGachaItemTagsText(item)} · 数量×${String(quantity)}`;
 
   const getGachaCustomFieldsSearchText = (item: Pick<GachaItemDefinition, 'customFields'>): string =>
     getGachaCustomFieldEntries(item)
@@ -60289,6 +60334,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       name: item.name,
       type: item.type,
       quality: item.quality,
+      tags: item.tags || '',
+      effect: item.effect || '',
       description: item.description,
       poolTags: [...(item.poolTags || [])].sort(),
       icon: item.icon || '',
@@ -60551,8 +60598,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       errors.push(`「${name}」的 quality 无效，已跳过`);
       return null;
     }
+    const legacyPoolTags = Array.isArray(record.tags) ? record.tags : undefined;
     const poolTags = normalizeImportedGachaPoolTags(
-      record.poolTags ?? record.poolTag ?? record.pools ?? record.tags ?? record.pool,
+      record.poolTags ?? record.poolTag ?? record.pools ?? legacyPoolTags ?? record.pool,
       tagAliases,
     );
     if (poolTags.length === 0) {
@@ -60573,6 +60621,24 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       ? (record.rewardTarget as GachaRewardTarget)
       : 'inventory';
     const description = String(record.description || '').trim();
+    const rawCustomFields =
+      record.customFields && typeof record.customFields === 'object' && !Array.isArray(record.customFields)
+        ? (record.customFields as Record<string, unknown>)
+        : {};
+    const readLegacyStandardField = (aliases: readonly string[]): string => {
+      for (const [key, value] of Object.entries(rawCustomFields)) {
+        if (isGachaFieldAlias(key, aliases) && (typeof value === 'string' || typeof value === 'number')) {
+          const text = String(value).trim();
+          if (text) return text;
+        }
+      }
+      return '';
+    };
+    const tags =
+      (typeof record.tags === 'string' ? String(record.tags).trim() : '') ||
+      readLegacyStandardField(GACHA_TAG_FIELD_ALIASES);
+    const effect =
+      String(record.effect ?? record.effects ?? '').trim() || readLegacyStandardField(GACHA_EFFECT_FIELD_ALIASES);
     const rawType = String(record.type || '').trim();
     const type =
       rewardTarget === 'equipment'
@@ -60580,7 +60646,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         : rawType || '道具';
     const generatedId = !String(record.id || '').trim();
     const order = Number(record.order);
-    const customFields = normalizeGachaCustomFields(record.customFields);
+    const customFields = normalizeGachaCustomFields(
+      Object.fromEntries(
+        Object.entries(rawCustomFields).filter(
+          ([key]) =>
+            !isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES) &&
+            !isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES),
+        ),
+      ),
+    );
     const targetTable = normalizeGachaTargetTable(record.targetTable);
     const targetColumns = normalizeGachaTargetColumns(record.targetColumns);
     const item: NormalizedGachaCatalogItem = {
@@ -60588,6 +60662,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       name,
       type,
       quality,
+      ...(tags ? { tags } : {}),
+      ...(effect ? { effect } : {}),
       description,
       poolTags,
       icon: String(record.icon || '').trim() || undefined,
@@ -60822,6 +60898,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         name: item.name,
         type: item.type,
         quality: item.quality,
+        ...(item.tags ? { tags: item.tags } : {}),
+        ...(item.effect ? { effect: item.effect } : {}),
         description: item.description,
         poolTags: [...item.poolTags],
         icon: item.icon,
@@ -61013,11 +61091,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       // type：写入对应表格的类型。默认模板已放松为 TEXT NOT NULL，可按世界观填写；若你的 DDL 仍有 CHECK 枚举，请填写允许值或先修改 DDL。
       "type": "道具",
 
-      // quality：必填。默认 DDL 只允许 普通、优秀、稀有、史诗、传说、神话；想新增品质请同步修改物品表/装备表 DDL。
+      // quality：必填。仙SQL 支持 普通、优秀、稀有、史诗、传说、神话、唯一。
       "quality": "稀有",
 
-      // description：物品描述，会写入对应表格，也会在商店详情中展示。默认模板中物品描述 ≤60 字、装备描述 ≤40 字。
-      "description": "一枚总能落在正面的硬币。使用后可让下一次普通检定获得轻微好运。",
+      // tags：可选，对应仙SQL的“标签”列；省略时自动生成 [类型][品质]。
+      "tags": "[幸运][检定]",
+
+      // effect：可选，对应仙SQL的“效果”列；省略时回退使用 description。
+      "effect": "下一次普通检定获得轻微好运。",
+
+      // description：外观、来历或补充说明，对应仙SQL的“描述”列，也会在商店第二行展示。
+      "description": "一枚总能落在正面的硬币。",
 
       // poolTags：出现在哪些卡池。可填写内置卡池或自定义卡池 id；写 全部 会自动展开为当前加入“全部”的卡池。
       "poolTags": ["赛博朋克"],
@@ -61047,7 +61131,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       "targetTable": "",
 
       // targetColumns：可选。目标表的基础字段表头和默认/仪表盘关键词不一致时再填；值必须与表头完全一致。
-      "targetColumns": { "name": "物品名称", "type": "类型", "quantity": "数量", "description": "描述" },
+      "targetColumns": { "name": "物品名称", "type": "类型", "quantity": "数量", "tags": "标签", "effect": "效果", "description": "描述" },
 
       // customFields：可选，自定义字段。键名必须与目标表的列标题完全一致，值会按文本保存；不会自动读取未知顶层字段。
       "customFields": { "情感分量": "怀旧" },
@@ -61066,6 +61150,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       name: item.name,
       type: item.type,
       quality: item.quality,
+      ...(item.tags ? { tags: item.tags } : {}),
+      ...(item.effect ? { effect: item.effect } : {}),
       description: item.description,
       poolTags: [...item.poolTags],
       enabled: isGachaItemEnabled(item),
@@ -61684,41 +61770,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  /**
-   * 写入标签/效果列。
-   * - 仅当目标表确实存在对应列时写入，缺列不报错（兼容 v4.3 内置模板）。
-   * - 若模板没有独立「描述」列（description 回退到了 effect 列），
-   *   则不再单独写 effect，避免同一列被覆盖丢失描述。
-   */
-  const setGachaRowTagsAndEffect = (
-    row: unknown[],
-    colMap,
-    item: GachaItemDefinition,
-    descriptionFellBackToEffect: boolean,
-  ) => {
-    const tags = String(item.tags || '').trim();
-    const effect = String(item.effect || '').trim();
-    if (typeof colMap.tags === 'number' && colMap.tags >= 0 && tags) {
-      row[colMap.tags] = tags;
-    }
-    if (
-      typeof colMap.effect === 'number' &&
-      colMap.effect >= 0 &&
-      effect &&
-      !descriptionFellBackToEffect &&
-      colMap.effect !== colMap.description
-    ) {
-      row[colMap.effect] = effect;
-    }
-  };
-
   const setInventoryRowBasicFields = (row: unknown[], colMap, item: GachaItemDefinition, quantity: number) => {
     if (colMap.name >= 0) row[colMap.name] = item.name;
     if (colMap.type >= 0) row[colMap.type] = item.type;
     if (colMap.quantity >= 0) row[colMap.quantity] = String(quantity);
     if (colMap.quality >= 0) row[colMap.quality] = item.quality;
-    if (colMap.description >= 0) row[colMap.description] = item.description;
-    setGachaRowTagsAndEffect(row, colMap, item, Boolean(colMap.descriptionFellBackToEffect));
+    if (typeof colMap.tags === 'number' && colMap.tags >= 0) row[colMap.tags] = getGachaItemTagsText(item);
+    if (typeof colMap.effect === 'number' && colMap.effect >= 0) row[colMap.effect] = getGachaItemEffectText(item);
+    if (colMap.description >= 0) row[colMap.description] = getGachaItemDescriptionText(item);
   };
 
   const setEquipmentRowBasicFields = (row: unknown[], colMap, item: GachaItemDefinition, quantity: number) => {
@@ -61726,8 +61785,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     if (colMap.type >= 0) row[colMap.type] = inferEquipmentTableTypeForGachaItem(item);
     if (colMap.quantity >= 0) row[colMap.quantity] = String(quantity);
     if (colMap.quality >= 0) row[colMap.quality] = item.quality;
-    if (colMap.description >= 0) row[colMap.description] = item.description;
-    setGachaRowTagsAndEffect(row, colMap, item, Boolean(colMap.descriptionFellBackToEffect));
+    if (typeof colMap.tags === 'number' && colMap.tags >= 0) row[colMap.tags] = getGachaItemTagsText(item);
+    if (typeof colMap.effect === 'number' && colMap.effect >= 0) row[colMap.effect] = getGachaItemEffectText(item);
+    if (colMap.description >= 0) row[colMap.description] = getGachaItemDescriptionText(item);
     if (typeof colMap.status === 'number' && colMap.status >= 0 && !String(row[colMap.status] || '').trim()) {
       row[colMap.status] = '闲置';
     }
@@ -61764,8 +61824,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   ): Set<string> => {
     const headers = new Set(
       target === 'equipment'
-        ? ['row_id', '装备名称', '类型', '数量', '品质', '状态', '描述']
-        : ['row_id', '物品名称', '类型', '数量', '品质', '描述'],
+        ? ['row_id', '装备名称', '类型', '数量', '品质', '标签', '效果', '状态', '描述']
+        : ['row_id', '物品名称', '类型', '数量', '品质', '标签', '效果', '描述'],
     );
     const writtenKeys =
       target === 'equipment' ? GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS : GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS;
@@ -62163,12 +62223,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             .map(item => {
               const customIconContext = getGachaItemCustomTableNameIconContext(item);
               return `
-                 <button class="acu-gacha-pickup-card acu-gacha-pickup-detail-btn" type="button" data-item-id="${escapeHtml(item.id)}">
-                   <span class="acu-gacha-pickup-rarity">${escapeHtml(item.quality)}</span>
-                   <strong><span class="acu-gacha-pickup-card-icon">${renderGachaItemIconContent(item, customIconContext)}</span><span>${escapeHtml(item.name)}</span></strong>
-                   <span class="acu-gacha-pickup-desc">${escapeHtml(item.description)}</span>
-                   ${renderGachaCustomFieldsPreviewHtml(item, { limit: 2, showOverflowCount: true })}
-                 </button>
+<button class="acu-gacha-pickup-card acu-gacha-pickup-detail-btn" type="button" data-item-id="${escapeHtml(item.id)}">
+                    <strong><span class="acu-gacha-pickup-card-icon">${renderGachaItemIconContent(item, customIconContext)}</span><span>${escapeHtml(item.name)}</span></strong>
+                    <span class="acu-gacha-item-card-meta">${escapeHtml(formatGachaItemCardMeta(item))}</span>
+                    <span class="acu-gacha-item-card-effect"><b>效果</b>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span>
+                    <span class="acu-gacha-item-card-description"><b>描述</b>${escapeHtml(getGachaItemDescriptionText(item) || '暂无描述')}</span>
+                    ${renderGachaCustomFieldsPreviewHtml(item, { limit: 2, showOverflowCount: true })}
+                  </button>
                `;
             })
             .join('')}
@@ -62293,22 +62354,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const stackableLabel = item.stackable ? '可堆叠' : '不可堆叠';
     const uniqueLabel = item.unique ? '唯一' : '可重复';
     const customIconContext = getGachaItemCustomTableNameIconContext(item);
-    // 副标题：类型 · 品质 · 标签 · 数量X（标签缺失时自动省略该段，不留空的分隔点）
-    const pickupSubParts = [item.type, item.quality, String(item.tags || '').trim()]
-      .map(part => String(part || '').trim())
-      .filter(Boolean)
-      .map(part => escapeHtml(part));
-    pickupSubParts.push(`数量${escapeHtml(String(item.grantQuantity || 1))}`);
-    const pickupSubText = pickupSubParts.join(' · ');
-    // 正文两行：效果、描述。效果为空时只渲染描述行。
-    const pickupEffectText = String(item.effect || '').trim();
-    const pickupBodyHtml = `
-            ${
-              pickupEffectText
-                ? `<div class="acu-inventory-detail-desc acu-inventory-detail-effect"><span class="acu-inventory-detail-desc-label">效果</span><span class="acu-inventory-detail-desc-text">${escapeHtml(pickupEffectText)}</span></div>`
-                : ''
-            }
-            <div class="acu-inventory-detail-desc"><span class="acu-inventory-detail-desc-label">描述</span><span class="acu-inventory-detail-desc-text">${escapeHtml(item.description || '暂无描述')}</span></div>`;
     const detail = $(`
       <div class="acu-inventory-detail-overlay acu-theme-${config.theme} acu-gacha-pickup-detail-overlay">
         <div class="acu-inventory-detail acu-gacha-pickup-detail">
@@ -62319,7 +62364,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 <div class="acu-inventory-detail-title-row">
                   <div class="acu-inventory-detail-title">${escapeHtml(item.name)}</div>
                 </div>
-                <div class="acu-inventory-detail-sub">${pickupSubText}</div>
+                <div class="acu-inventory-detail-sub">${escapeHtml(formatGachaItemCardMeta(item))}</div>
               </div>
             </div>
             <div class="acu-inventory-detail-header-actions">
@@ -62346,7 +62391,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
               </div>
             </div>
           </div>
-          ${pickupBodyHtml}
+          <div class="acu-gacha-detail-text-block">
+            <div class="acu-gacha-detail-text-row"><strong>效果</strong><span>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span></div>
+            <div class="acu-gacha-detail-text-row"><strong>描述</strong><span>${escapeHtml(getGachaItemDescriptionText(item) || '暂无描述')}</span></div>
+          </div>
           ${renderGachaCustomFieldsDetailsHtml(item, { openThreshold: 4 })}
         </div>
       </div>
@@ -62999,6 +63047,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           item.name,
           item.type,
           item.quality,
+          getGachaItemTagsText(item),
+          getGachaItemEffectText(item),
           item.description,
           formatGachaPoolTags(item.poolTags, rawData),
           destinationLabel,
@@ -63855,6 +63905,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       renderTargetColumnInputHtml('type', '类型'),
       renderTargetColumnInputHtml('quantity', '数量'),
       renderTargetColumnInputHtml('quality', '品质'),
+      renderTargetColumnInputHtml('tags', '标签'),
+      renderTargetColumnInputHtml('effect', '效果'),
       renderTargetColumnInputHtml('description', '描述 / 外观描述'),
       renderTargetColumnInputHtml('part', '部位 / 适用场景'),
       renderTargetColumnInputHtml('status', '状态 / 当前状态'),
@@ -63872,7 +63924,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         </label>
       </div>
     `;
-    const customFieldEntries = getGachaCustomFieldEntries(item);
+    const storedTags = String(item.tags || getGachaNamedCustomField(item, GACHA_TAG_FIELD_ALIASES) || '').trim();
+    const storedEffect = String(item.effect || getGachaNamedCustomField(item, GACHA_EFFECT_FIELD_ALIASES) || '').trim();
+    const customFieldEntries: [string, string][] = [
+      ...(storedTags ? ([['标签', storedTags]] as [string, string][]) : []),
+      ...(storedEffect ? ([['效果', storedEffect]] as [string, string][]) : []),
+      ...getGachaCustomFieldEntries(item).filter(
+        ([key]) =>
+          !isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES) &&
+          !isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES),
+      ),
+    ];
     // 初始无任何自定义字段，只显示“新增字段➕”按钮
     const customFieldRowsHtml = customFieldEntries
       .map(([key, value]) => renderCustomFieldRowHtml(key, value))
@@ -63894,14 +63956,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             <label class="wide acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required /></label>
             <div class="wide acu-gacha-item-labeled-field acu-gacha-item-type-block">
               <div class="acu-gacha-item-label-line">
-                <input class="acu-gacha-item-field-label-input acu-gacha-item-type-label" type="text" value="${escapeHtml(targetColumns?.type || '类型')}" maxlength="${GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH}" placeholder="类型" readonly />
+                <span class="acu-gacha-item-field-label-text acu-gacha-item-type-label" data-label-value="${escapeHtml(targetColumns?.type || '类型')}">${escapeHtml(targetColumns?.type || '类型')}</span>
                 <button class="acu-preset-btn acu-gacha-item-label-edit" type="button" data-label-key="type" title="修改类型字段名" aria-label="修改类型字段名"><i class="fa-solid fa-pen"></i></button>
               </div>
               <label class="acu-gacha-item-field acu-gacha-item-type-field"><input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" placeholder="道具" /></label>
             </div>
             <div class="wide acu-gacha-item-labeled-field acu-gacha-item-quality-block">
               <div class="acu-gacha-item-label-line">
-                <input class="acu-gacha-item-field-label-input acu-gacha-item-quality-label" type="text" value="${escapeHtml(targetColumns?.quality || '品质')}" maxlength="${GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH}" placeholder="品质" readonly />
+                <span class="acu-gacha-item-field-label-text acu-gacha-item-quality-label" data-label-value="${escapeHtml(targetColumns?.quality || '品质')}">${escapeHtml(targetColumns?.quality || '品质')}</span>
                 <button class="acu-preset-btn acu-gacha-item-label-edit" type="button" data-label-key="quality" title="修改品质字段名" aria-label="修改品质字段名"><i class="fa-solid fa-pen"></i></button>
               </div>
               <label class="acu-gacha-item-field"><select class="acu-gacha-item-quality">${rarityOptionsHtml}</select></label>
@@ -63909,16 +63971,20 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             <div class="wide acu-gacha-item-custom-field-block">
               <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
               <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 新增字段</button>
+              <div class="acu-gacha-custom-field-suggestions">
+                <span>目标表头建议</span>
+                <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
+              </div>
             </div>
             <div class="wide acu-gacha-item-labeled-field acu-gacha-item-description-block">
               <div class="acu-gacha-item-label-line">
-                <input class="acu-gacha-item-field-label-input acu-gacha-item-description-label" type="text" value="描述" readonly />
+                <span class="acu-gacha-item-field-label-text acu-gacha-item-description-label">描述</span>
               </div>
               <label class="acu-gacha-item-field acu-gacha-item-description-field"><textarea class="acu-gacha-item-description" rows="3" maxlength="${fieldLimits.description}" placeholder="描述内容">${escapeHtml(item.description || '')}</textarea></label>
             </div>
             <div class="wide acu-gacha-item-labeled-field acu-gacha-item-target-block">
               <div class="acu-gacha-item-label-line">
-                <input class="acu-gacha-item-field-label-input acu-gacha-item-target-label" type="text" value="发放目标" readonly />
+                <span class="acu-gacha-item-field-label-text acu-gacha-item-target-label">发放目标</span>
               </div>
               <label class="acu-gacha-item-field acu-gacha-item-target-field"><select class="acu-gacha-item-target">${targetOptionsHtml}</select></label>
             </div>
@@ -63950,11 +64016,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                   <small>只有默认关键词识别不到表头时填写；表头必须精确匹配。</small>
                 </div>
                 <div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
-                <!-- 表头建议紧跟列映射：建议本身只服务于列映射填写，放在面板内避免跨区跳读 -->
-                <div class="acu-gacha-custom-field-suggestions wide">
-                  <span>目标表头建议</span>
-                  <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
-                </div>
               </div>
             </details>
             <div class="wide acu-gacha-item-flags">
@@ -64009,8 +64070,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         if (value) rawColumns[key] = value;
       });
       // 类型 / 品质的字段名支持通过笔图标改名，改名后按列映射写入目标表
-      const typeLabel = String(overlay.find('.acu-gacha-item-type-label').val() || '').trim();
-      const qualityLabel = String(overlay.find('.acu-gacha-item-quality-label').val() || '').trim();
+      const typeLabelElement = overlay.find('.acu-gacha-item-type-label');
+      const qualityLabelElement = overlay.find('.acu-gacha-item-quality-label');
+      const typeLabel = String(typeLabelElement.attr('data-label-value') || typeLabelElement.text() || '').trim();
+      const qualityLabel = String(qualityLabelElement.attr('data-label-value') || qualityLabelElement.text() || '').trim();
       if (typeLabel && typeLabel !== '类型') rawColumns.type = typeLabel;
       if (qualityLabel && qualityLabel !== '品质') rawColumns.quality = qualityLabel;
       return normalizeGachaTargetColumns(rawColumns);
@@ -64055,9 +64118,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         return;
       }
       const reservedHeaders = getGachaReservedCustomFieldHeaders(target, targetOptions.targetColumns);
-      const headers = Array.from(buildGachaCustomFieldHeaderMap(parsed.headers).keys()).filter(
-        headerName => !reservedHeaders.has(headerName) && !GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(headerName),
-      );
+      const headers = Array.from(buildGachaCustomFieldHeaderMap(parsed.headers).keys()).filter(headerName => {
+        const isEditableStandardField =
+          isGachaFieldAlias(headerName, GACHA_TAG_FIELD_ALIASES) ||
+          isGachaFieldAlias(headerName, GACHA_EFFECT_FIELD_ALIASES);
+        return (
+          isEditableStandardField ||
+          (!reservedHeaders.has(headerName) && !GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(headerName))
+        );
+      });
       const list = overlay.find('.acu-gacha-custom-field-suggestion-list').empty();
       if (!headers.length) {
         $('<em class="acu-gacha-custom-field-suggestion-empty"></em>')
@@ -64073,6 +64142,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       });
     };
     type EditorCustomFieldCollectResult = {
+      tags?: string;
+      effect?: string;
       customFields?: GachaCustomFields;
       message?: string;
     };
@@ -64082,6 +64153,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     ): EditorCustomFieldCollectResult => {
       const reservedHeaders = getGachaReservedCustomFieldHeaders(target, targetColumns);
       const rawFields: Record<string, string> = {};
+      let tags = '';
+      let effect = '';
       let message = '';
 
       overlay.find('.acu-gacha-custom-field-row').each((_, element) => {
@@ -64096,8 +64169,28 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         }
         const key = truncateGachaText(rawKey, GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH);
         const value = truncateGachaText(rawValue, GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH);
-        if (reservedHeaders.has(key) || GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(key)) {
+        if (
+          (reservedHeaders.has(key) || GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(key)) &&
+          !isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES) &&
+          !isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES)
+        ) {
           message = `“${key}” 是基础字段，不能作为自定义字段；请修改字段名，或使用编辑器上方对应的基础输入项。`;
+          return;
+        }
+        if (isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES)) {
+          if (tags) {
+            message = '标签字段重复，请合并为一行。';
+            return;
+          }
+          tags = value;
+          return;
+        }
+        if (isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES)) {
+          if (effect) {
+            message = '效果字段重复，请合并为一行。';
+            return;
+          }
+          effect = value;
           return;
         }
         if (Object.prototype.hasOwnProperty.call(rawFields, key)) {
@@ -64112,7 +64205,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       });
 
       if (message) return { message };
-      return { customFields: normalizeGachaCustomFields(rawFields) };
+      return {
+        ...(tags ? { tags } : {}),
+        ...(effect ? { effect } : {}),
+        customFields: normalizeGachaCustomFields(rawFields),
+      };
     };
     const applyEditorFieldLimits = () => {
       const limits = getGachaRewardFieldLimits(getEditorRewardTarget());
@@ -64155,12 +64252,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         const nextLabel = await showGachaPoolNameDialog({
           title: `修改${fallbackLabel}字段名`,
           label: '字段名',
-          initialValue: String($labelInput.val() || fallbackLabel),
+          initialValue: String($labelInput.attr('data-label-value') || $labelInput.text() || fallbackLabel),
           confirmText: '保存',
         });
         if (nextLabel === null) return;
-        const trimmed = nextLabel.trim();
-        $labelInput.val(trimmed || fallbackLabel);
+        const trimmed = nextLabel.trim() || fallbackLabel;
+        $labelInput.attr('data-label-value', trimmed).text(trimmed);
         refreshCustomFieldHeaderSuggestions();
         refreshEditorIconPreview();
       })();
@@ -64179,66 +64276,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       targetRow.find('.acu-gacha-custom-field-key').val(headerName);
       targetRow.find('.acu-gacha-custom-field-value').trigger('focus');
     });
-    // 输入法闪烁修复：组字期间不做表格重解析、不重建预览、不改写 val()，
-    // 否则中文 IME 的候选框会被中途打断并出现闪烁/掉字。
-    let isEditorComposing = false;
-    let editorRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const EDITOR_INPUT_REFRESH_DELAY_MS = 180;
-    const runEditorSuggestionRefresh = () => {
+    overlay.on('input change', '.acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input', () => {
       refreshCustomFieldHeaderSuggestions();
-    };
-    const runEditorPreviewRefresh = () => {
-      applyEditorFieldLimits();
-      refreshEditorIconPreview();
-    };
-    const cancelPendingEditorRefresh = () => {
-      if (editorRefreshTimer === null) return;
-      clearTimeout(editorRefreshTimer);
-      editorRefreshTimer = null;
-    };
-    // 去抖：连续输入只在停顿后跑一次重活，避免逐键全量解析表格
-    const scheduleEditorRefresh = (refreshSuggestions: boolean) => {
-      cancelPendingEditorRefresh();
-      editorRefreshTimer = setTimeout(() => {
-        editorRefreshTimer = null;
-        if (isEditorComposing) return;
-        if (refreshSuggestions) runEditorSuggestionRefresh();
-        runEditorPreviewRefresh();
-      }, EDITOR_INPUT_REFRESH_DELAY_MS);
-    };
-    // 关闭编辑器时撤销待执行的刷新，避免 overlay 已移除后回调仍访问已卸载节点
-    overlay.on('remove', cancelPendingEditorRefresh);
-    overlay.on('compositionstart', '.acu-gacha-item-editor-body input, .acu-gacha-item-editor-body textarea', () => {
-      isEditorComposing = true;
-      cancelPendingEditorRefresh();
-    });
-    overlay.on('compositionend', '.acu-gacha-item-editor-body input, .acu-gacha-item-editor-body textarea', () => {
-      isEditorComposing = false;
-      // 组字确认后统一补一次刷新，保证字数限制与预览仍然生效
-      scheduleEditorRefresh(true);
-    });
-    overlay.on('input', '.acu-gacha-item-target-table, .acu-gacha-target-column-input', () => {
-      if (isEditorComposing) return;
-      scheduleEditorRefresh(true);
-    });
-    overlay.on('change', '.acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input', () => {
-      cancelPendingEditorRefresh();
-      runEditorSuggestionRefresh();
     });
     overlay.on(
-      'input',
-      '.acu-gacha-item-name, .acu-gacha-item-type, .acu-gacha-item-description, .acu-gacha-item-icon',
-      () => {
-        if (isEditorComposing) return;
-        scheduleEditorRefresh(false);
-      },
-    );
-    overlay.on(
-      'change',
+      'input change',
       '.acu-gacha-item-name, .acu-gacha-item-type, .acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input, .acu-gacha-item-description, .acu-gacha-item-icon',
       () => {
-        cancelPendingEditorRefresh();
-        runEditorPreviewRefresh();
+        applyEditorFieldLimits();
+        refreshEditorIconPreview();
       },
     );
 
@@ -64309,6 +64355,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           if (window.toastr) window.toastr.warning(customFieldResult.message);
           return;
         }
+        const tags = customFieldResult.tags;
+        const effect = customFieldResult.effect;
         const customFields = customFieldResult.customFields;
         let targetContext: ReturnType<typeof getEditorTargetTableContext>;
         try {
@@ -64326,7 +64374,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           tableName: targetContext.parsed.tableName,
           headers: targetContext.parsed.headers,
           sheet: targetContext.sheet,
-          item: { name, customFields, targetColumns },
+          item: { name, tags, effect, description, customFields, targetColumns },
           throwOnMissing: false,
         });
         if (customFieldValidation.message) {
@@ -64340,6 +64388,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           name,
           type,
           quality,
+          ...(tags ? { tags } : {}),
+          ...(effect ? { effect } : {}),
           description,
           poolTags,
           icon: icon || undefined,
@@ -64925,73 +64975,33 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return DashboardDataParser.findTable(tables, 'bag');
   };
 
-  /**
-   * 按关键词优先级解析表头列。
-   * 关键词按数组顺序逐个尝试：先在所有表头里找“精确相等”，再退回“包含匹配”。
-   * 这样可避免表头顺序影响命中结果（例如“效果”列排在“描述”列前面时，
-   * 描述列不会被“效果”关键词抢先命中）。
-   */
-  const findGachaColumnByKeywordPriority = (
-    headers: unknown[],
-    keywords: string[],
-    fallbackIndex: number,
-    excludeIndexes: ReadonlySet<number> = new Set<number>(),
-  ): number => {
-    const normalized = headers.map(header => String(header || '').trim().toLowerCase());
-    const isUsable = (index: number) => index >= 0 && !excludeIndexes.has(index);
-    for (const keyword of keywords) {
-      const needle = keyword.trim().toLowerCase();
-      if (!needle) continue;
-      const exactIndex = normalized.findIndex((header, index) => isUsable(index) && header === needle);
+  const findGachaColumnByKeywords = (headers: unknown[], keywords: readonly string[], fallbackIndex = -1): number => {
+    const normalizedHeaders = headers.map(header => String(header || '').trim().toLowerCase());
+    const normalizedKeywords = keywords.map(keyword => String(keyword || '').trim().toLowerCase()).filter(Boolean);
+
+    // 先按关键词优先级精确匹配，避免“效果”列抢先命中“描述”的宽泛别名。
+    for (const keyword of normalizedKeywords) {
+      const exactIndex = normalizedHeaders.findIndex(header => header === keyword);
       if (exactIndex >= 0) return exactIndex;
     }
-    for (const keyword of keywords) {
-      const needle = keyword.trim().toLowerCase();
-      if (!needle) continue;
-      const partialIndex = normalized.findIndex((header, index) => isUsable(index) && header.includes(needle));
+    for (const keyword of normalizedKeywords) {
+      const partialIndex = normalizedHeaders.findIndex(header => header.includes(keyword));
       if (partialIndex >= 0) return partialIndex;
     }
-    return isUsable(fallbackIndex) ? fallbackIndex : -1;
+    return fallbackIndex;
   };
 
   const getInventoryColumnMap = (inventoryResult, options: GachaRewardParseOptions = {}) => {
     const headers = inventoryResult?.data?.headers || [];
     const config = inventoryResult?.config || getDashboardModuleConfig('bag') || DASHBOARD_TABLE_CONFIG.bag;
-    const name = DashboardDataParser.findColumnIndex(headers, 'name', config);
-    const type = DashboardDataParser.findColumnIndex(headers, 'type', config);
-    const quantity = DashboardDataParser.findColumnIndex(headers, 'count', config);
-    const quality = findGachaColumnByKeywordPriority(headers, ['品质', '稀有度', '品级'], -1);
-    // 描述与效果是两列独立语义：先精确锁定“描述”，再把“效果”单独解析出来，
-    // 避免描述内容被写进效果列（仙SQL 物品表表头顺序为 …标签、效果、描述、数量）
-    const description = findGachaColumnByKeywordPriority(
-      headers,
-      ['描述', '说明', '用途'],
-      -1,
-      new Set([name, type, quantity, quality].filter(index => index >= 0)),
-    );
-    const tags = findGachaColumnByKeywordPriority(
-      headers,
-      ['标签', '标记', 'tag'],
-      -1,
-      new Set([name, type, quantity, quality, description].filter(index => index >= 0)),
-    );
-    const effect = findGachaColumnByKeywordPriority(
-      headers,
-      ['效果', '功效', '作用'],
-      -1,
-      new Set([name, type, quantity, quality, description, tags].filter(index => index >= 0)),
-    );
     const colMap: GachaRewardColumnMap = {
-      name,
-      type,
-      quantity,
-      quality,
-      // 没有“描述”类表头时才退回“效果”列，保持旧模板兼容
-      description: description >= 0 ? description : effect,
-      tags,
-      effect,
-      // 标记描述是否借用了效果列：借用时写入侧不再单独写 effect，避免同列互相覆盖
-      descriptionFellBackToEffect: description < 0 && effect >= 0,
+      name: DashboardDataParser.findColumnIndex(headers, 'name', config),
+      type: DashboardDataParser.findColumnIndex(headers, 'type', config),
+      quantity: DashboardDataParser.findColumnIndex(headers, 'count', config),
+      quality: findGachaColumnByKeywords(headers, ['品质', '稀有度', '品级']),
+      tags: findGachaColumnByKeywords(headers, ['标签', '标记', '词条']),
+      effect: findGachaColumnByKeywords(headers, ['效果', '作用', '能力', '特效']),
+      description: findGachaColumnByKeywords(headers, ['描述', '说明', '用途', '备注']),
     };
     return applyGachaTargetColumnOverrides(
       colMap,
@@ -65037,9 +65047,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           quantityText: rawQuantity || '1',
           quantity: Number.isFinite(quantity) ? quantity : 1,
           quality: String(row[colMap.quality] ?? '普通').trim() || '普通',
+          tags: typeof colMap.tags === 'number' && colMap.tags >= 0 ? String(row[colMap.tags] ?? '').trim() : '',
+          effect: typeof colMap.effect === 'number' && colMap.effect >= 0 ? String(row[colMap.effect] ?? '').trim() : '',
           description: String(row[colMap.description] ?? '').trim(),
-          tags: colMap.tags !== undefined && colMap.tags >= 0 ? String(row[colMap.tags] ?? '').trim() : '',
-          effect: colMap.effect !== undefined && colMap.effect >= 0 ? String(row[colMap.effect] ?? '').trim() : '',
           rowIndex: Number.isFinite(rawRowIndex) ? rawRowIndex : rowIndex,
           tableName,
           tableKey: inventoryResult.key || '',
@@ -65063,38 +65073,16 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const getEquipmentColumnMap = (equipmentResult, options: GachaRewardParseOptions = {}) => {
     const headers = equipmentResult?.data?.headers || [];
     const config = equipmentResult?.config || getDashboardModuleConfig('equip') || DASHBOARD_TABLE_CONFIG.equip;
-    const name = DashboardDataParser.findColumnIndex(headers, 'name', config);
-    const type = DashboardDataParser.findColumnIndex(headers, 'type', config);
-    const part = DashboardDataParser.findColumnIndex(headers, 'part', config);
-    const status = DashboardDataParser.findColumnIndex(headers, 'isEquipped', config);
-    const quantity = findGachaColumnByKeywordPriority(headers, ['数量', '件数', '持有数'], -1);
-    const quality = findGachaColumnByKeywordPriority(headers, ['品质', '稀有度', '品级'], -1);
-    const reserved = [name, type, part, status, quantity, quality].filter(index => index >= 0);
-    // 与物品表同理：描述、标签、效果各自独占一列，避免相互抢占
-    const description = findGachaColumnByKeywordPriority(headers, ['描述', '说明', '备注'], -1, new Set(reserved));
-    const tags = findGachaColumnByKeywordPriority(
-      headers,
-      ['标签', '标记', 'tag'],
-      -1,
-      new Set([...reserved, description].filter(index => index >= 0)),
-    );
-    const effect = findGachaColumnByKeywordPriority(
-      headers,
-      ['效果', '功效', '作用'],
-      -1,
-      new Set([...reserved, description, tags].filter(index => index >= 0)),
-    );
     const colMap: GachaRewardColumnMap = {
-      name,
-      type,
-      part,
-      status,
-      quantity,
-      quality,
-      description: description >= 0 ? description : effect,
-      tags,
-      effect,
-      descriptionFellBackToEffect: description < 0 && effect >= 0,
+      name: DashboardDataParser.findColumnIndex(headers, 'name', config),
+      type: DashboardDataParser.findColumnIndex(headers, 'type', config),
+      part: DashboardDataParser.findColumnIndex(headers, 'part', config),
+      status: DashboardDataParser.findColumnIndex(headers, 'isEquipped', config),
+      quantity: findGachaColumnByKeywords(headers, ['数量', '件数', '持有数']),
+      quality: findGachaColumnByKeywords(headers, ['品质', '稀有度', '品级']),
+      tags: findGachaColumnByKeywords(headers, ['标签', '标记', '词条']),
+      effect: findGachaColumnByKeywords(headers, ['效果', '作用', '能力', '特效']),
+      description: findGachaColumnByKeywords(headers, ['描述', '说明', '备注']),
     };
     return applyGachaTargetColumnOverrides(
       colMap,
@@ -65143,9 +65131,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           quantityText: rawQuantity || '1',
           quantity: Number.isFinite(quantity) ? quantity : 1,
           quality: String(row[colMap.quality] ?? '普通').trim() || '普通',
+          tags: typeof colMap.tags === 'number' && colMap.tags >= 0 ? String(row[colMap.tags] ?? '').trim() : '',
+          effect: typeof colMap.effect === 'number' && colMap.effect >= 0 ? String(row[colMap.effect] ?? '').trim() : '',
           description: String(row[colMap.description] ?? '').trim(),
-          tags: colMap.tags !== undefined && colMap.tags >= 0 ? String(row[colMap.tags] ?? '').trim() : '',
-          effect: colMap.effect !== undefined && colMap.effect >= 0 ? String(row[colMap.effect] ?? '').trim() : '',
           rowIndex: Number.isFinite(rawRowIndex) ? rawRowIndex : rowIndex,
           tableName,
           tableKey: equipmentResult.key || '',
@@ -65230,7 +65218,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
               const canAfford = balance >= GACHA_SHARD_EXCHANGE_COST;
               const ownedBlocked = owned && (item.unique || !item.stackable);
               const disabled = !canAfford || ownedBlocked;
-              const rewardTargetLabel = formatGachaRewardDestinationLabel(rawData, item);
               const statusHtml = ownedBlocked ? '<span class="acu-gacha-shard-owned">已拥有</span>' : '';
               return `
                 <article
@@ -65254,9 +65241,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                     <span class="acu-gacha-shard-item-main">
                     <span class="acu-gacha-shard-item-head">
                       <strong>${escapeHtml(item.name)}</strong>
-                      <span>${escapeHtml(item.type)} · ${escapeHtml(rewardTargetLabel)}</span>
+                      <span>${escapeHtml(formatGachaItemCardMeta(item))}</span>
                     </span>
-                    <span class="acu-gacha-shard-item-desc">${escapeHtml(item.description || '暂无描述')}</span>
+                    <span class="acu-gacha-shard-item-effect"><b>效果</b>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span>
+                    <span class="acu-gacha-shard-item-desc"><b>描述</b>${escapeHtml(getGachaItemDescriptionText(item) || '暂无描述')}</span>
                     ${renderGachaCustomFieldsPreviewHtml(item, { limit: 2, showOverflowCount: true })}
                     </span>
                   </button>

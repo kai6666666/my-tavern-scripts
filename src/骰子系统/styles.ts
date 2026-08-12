@@ -12841,8 +12841,9 @@ export const MAIN_STYLES = `
     .acu-gacha-item-editor-overlay {
         position: fixed;
         inset: 0;
-        width: 100vw;
-        height: 100dvh;
+        width: 100%;
+        height: auto;
+        min-height: 100%;
         z-index: 31340 !important;
         display: flex;
         align-items: center;
@@ -12855,7 +12856,8 @@ export const MAIN_STYLES = `
     }
     .acu-gacha-name-dialog-overlay {
         z-index: 31360 !important;
-        height: 100dvh;
+        height: auto;
+        min-height: 100%;
     }
     .acu-gacha-catalog-dialog-overlay,
     .acu-gacha-confirm-overlay {
@@ -12865,7 +12867,7 @@ export const MAIN_STYLES = `
     .acu-gacha-item-editor,
     .acu-gacha-name-dialog {
         width: min(920px, 94vw);
-        max-height: min(88dvh, 920px);
+        max-height: min(88vh, 920px);
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -12879,6 +12881,9 @@ export const MAIN_STYLES = `
     }
     .acu-gacha-item-editor {
         width: min(720px, 94vw);
+        max-height: min(88vh, 920px);
+        transform: translateZ(0);
+        contain: layout paint;
     }
     .acu-gacha-name-dialog {
         width: min(420px, 92vw);
@@ -13397,16 +13402,12 @@ export const MAIN_STYLES = `
         flex-direction: column;
         gap: 6px;
         color: var(--acu-text-sub);
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
     }
-    /* 字段标题统一 12px：与字段名输入框、值输入框同字号，避免同一列出现三种大小 */
     .acu-gacha-item-editor-body label > span,
-    .acu-gacha-item-pools > span,
-    .acu-gacha-item-editor-body .acu-gacha-custom-field-suggestions > span,
-    .acu-gacha-item-editor-body .acu-gacha-target-column-toolbar strong {
+    .acu-gacha-item-pools > span {
         color: var(--acu-text-sub);
-        font-size: 12px;
         line-height: 1.2;
     }
     .acu-gacha-item-editor-body label.wide,
@@ -13438,30 +13439,13 @@ export const MAIN_STYLES = `
     .acu-gacha-item-labeled-field > label {
         margin: 0;
     }
-    /* 字段名输入去外框：默认呈现为纯标签文字，避免与下方值输入框形成双层边框 */
-    .acu-gacha-item-editor-body .acu-gacha-item-field-label-input,
-    .acu-gacha-item-editor-body .acu-gacha-custom-field-key {
-        border: 1px solid transparent !important;
-        border-radius: 6px;
-        background: transparent !important;
-        padding: 2px 0;
-        font-size: 12px;
+    .acu-gacha-item-field-label-text {
+        min-width: 0;
+        color: var(--acu-text-sub);
+        font-size: 11px;
         font-weight: 700;
-        color: var(--acu-text-sub) !important;
-        -webkit-text-fill-color: var(--acu-text-sub);
-        box-shadow: none !important;
-    }
-    /* 进入可编辑态时才显形边框，给出“此处可改”的反馈 */
-    .acu-gacha-item-editor-body .acu-gacha-item-field-label-input:not([readonly]):focus,
-    .acu-gacha-item-editor-body .acu-gacha-custom-field-key:focus {
-        border-color: color-mix(in srgb, var(--acu-accent) 70%, var(--acu-border)) !important;
-        background: color-mix(in srgb, var(--acu-btn-bg) 96%, var(--acu-bg-panel)) !important;
-        padding: 2px 6px;
-        color: var(--acu-text-main) !important;
-        -webkit-text-fill-color: var(--acu-text-main);
-    }
-    .acu-gacha-item-field-label-input[readonly] {
-        cursor: default;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
     }
     .acu-gacha-item-label-edit {
         width: 34px;
@@ -13979,6 +13963,33 @@ export const MAIN_STYLES = `
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+    .acu-gacha-item-card-meta,
+    .acu-gacha-item-card-effect,
+    .acu-gacha-item-card-description {
+        min-width: 0;
+        color: var(--acu-text-sub);
+        font-size: 11px;
+        line-height: 1.4;
+        overflow: hidden;
+    }
+    .acu-gacha-item-card-meta {
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .acu-gacha-item-card-effect,
+    .acu-gacha-item-card-description {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    .acu-gacha-item-card-effect b,
+    .acu-gacha-item-card-description b,
+    .acu-gacha-shard-item-effect b,
+    .acu-gacha-shard-item-desc b {
+        margin-right: 6px;
+        color: var(--acu-text-main);
+        font-size: inherit;
     }
     .acu-gacha-pickup-card-icon {
         flex-shrink: 0;
@@ -14546,14 +14557,21 @@ export const MAIN_STYLES = `
         font-weight: 900;
     }
     .acu-gacha-shard-item-head span,
+    .acu-gacha-shard-item-effect,
     .acu-gacha-shard-item-desc {
         color: var(--acu-text-sub);
         font-size: 11px;
     }
+    .acu-gacha-shard-item-effect,
     .acu-gacha-shard-item-desc {
-        display: none;
+        min-width: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
         margin: 0;
         line-height: 1.45;
+        overflow: hidden;
+        padding-right: 58px;
     }
     .acu-gacha-shard-confirm-overlay {
         z-index: 31370 !important;
@@ -15258,6 +15276,36 @@ export const MAIN_STYLES = `
         text-align: left;
         cursor: pointer;
     }
+    .acu-gacha-detail-text-block {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--acu-border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--acu-card-bg);
+    }
+    .acu-gacha-detail-text-row {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 48px minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px 14px;
+        color: var(--acu-text-sub);
+        font-size: 14px;
+        line-height: 1.55;
+    }
+    .acu-gacha-detail-text-row + .acu-gacha-detail-text-row {
+        border-top: 1px solid var(--acu-border);
+    }
+    .acu-gacha-detail-text-row strong {
+        color: var(--acu-text-main);
+        font-size: inherit;
+    }
+    .acu-gacha-detail-text-row span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
     .acu-inventory-detail .acu-inventory-detail-desc:hover {
         border-color: color-mix(in srgb, var(--acu-accent) 34%, var(--acu-border));
         background: color-mix(in srgb, var(--acu-card-bg) 92%, var(--acu-accent));
@@ -15623,8 +15671,8 @@ export const MAIN_STYLES = `
         .acu-gacha-settings-dialog,
         .acu-gacha-item-editor,
         .acu-gacha-name-dialog {
-            width: 100vw;
-            max-height: 94dvh;
+            width: 100%;
+            max-height: 94vh;
             border-radius: 18px 18px 0 0;
             border-left: 0;
             border-right: 0;
@@ -15820,7 +15868,7 @@ export const MAIN_STYLES = `
         }
         .acu-gacha-pickup-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: minmax(0, 1fr);
             gap: 7px;
             overflow: visible;
             padding-bottom: 1px;
@@ -15839,9 +15887,14 @@ export const MAIN_STYLES = `
             height: 16px;
             font-size: 12px;
         }
-        .acu-gacha-pickup-desc {
-            -webkit-line-clamp: 1;
+        .acu-gacha-item-card-meta,
+        .acu-gacha-item-card-effect,
+        .acu-gacha-item-card-description {
             font-size: 10px;
+        }
+        .acu-gacha-item-card-effect,
+        .acu-gacha-item-card-description {
+            -webkit-line-clamp: 2;
         }
         .acu-gacha-custom-field-preview {
             gap: 3px;

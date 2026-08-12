@@ -2016,7 +2016,7 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       selector: '.acu-gacha-item-type-block',
       title: '类型',
       content:
-        '上一行是字段名，点右侧的笔图标可以把「类型」改成表格里实际使用的列名；下一行填该字段的值，用于物品表分类。',
+        '上一行是无框字段名，点右侧的笔图标可以把「类型」改成表格里实际使用的列名；下一行填该字段的值，用于物品表分类。',
       placement: 'bottom',
     },
     {
@@ -2030,13 +2030,13 @@ const STEPS: Record<TutorialScope, TutorialStep[]> = {
       selector: '.acu-gacha-item-custom-field-block',
       title: '自定义字段',
       content:
-        '初始没有任何自定义字段，点「新增字段」加一条，每条都是字段名一行、对应值一行。点字段名右侧的减号删除该条。这些字段会随奖励一起写入表格。',
+        '初始没有任何自定义字段，点「新增字段」加一条，每条都是字段名一行、对应值一行。加号下方会列出当前目标表可写表头；其中「标签」和「效果」会按仙SQL标准字段保存，其余字段按精确表头写入。点减号删除该条。',
       placement: 'top',
     },
     {
       selector: '.acu-gacha-item-description-field',
       title: '描述',
-      content: '描述会显示在商店卡片、详情和设置列表里。可以写物品效果、使用限制或叙事说明。',
+      content: '描述用于外观、来历或补充说明，会显示在商店卡片第二行。物品能力建议通过上方新增「效果」字段填写。',
       placement: 'top',
     },
     {
