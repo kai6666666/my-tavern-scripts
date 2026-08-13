@@ -2521,7 +2521,7 @@ import {
     offSceneNpcWeight: 5,
   };
   const PRESET_FORMAT_VERSION = '1.8.4'; // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
-  const SCRIPT_VERSION = 'v6.64'; // 脚本版本号
+  const SCRIPT_VERSION = 'v6.65'; // 脚本版本号
 
   // 比较版本号（简单比较，假设版本号格式为 "x.y.z"）
   const compareVersion = (v1, v2) => {
@@ -20025,6 +20025,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   let saveQueue: Promise<void> = Promise.resolve(); // 保存队列，确保并发保存按顺序执行
   let isEditingOrder = false;
   let isSettingsOpen = false;
+  let isGachaItemEditorOpen = false;
 
   // === 弹窗栈管理 ===
   // 用于追踪弹窗打开顺序，关闭时自动返回上一个弹窗
@@ -40946,6 +40947,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     skipChatSave?: boolean;
   };
 
+  type RuntimeCrudUpdateRowPayload = {
+    tableName: string;
+    rowIndex: number;
+    data: RuntimeCrudRowData;
+    skipNotify?: boolean;
+    skipChatSave?: boolean;
+  };
+
   type RuntimeCrudInsertRowPayload = {
     tableName: string;
     data: RuntimeCrudRowData;
@@ -40962,6 +40971,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   type RuntimeCrudWriteApi = {
     updateCell: (payload: RuntimeCrudCellUpdatePayload) => Promise<unknown> | unknown;
+    updateRow?: (payload: RuntimeCrudUpdateRowPayload) => Promise<unknown> | unknown;
     insertRow: (payload: RuntimeCrudInsertRowPayload) => Promise<unknown> | unknown;
     deleteRow: (payload: RuntimeCrudDeleteRowPayload) => Promise<unknown> | unknown;
     getCurrentData?: () => unknown;
@@ -41898,6 +41908,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       );
     }
   };
+  type CrudWriteBatchContext = {
+    remainingOperations: number;
+  };
+
+  const consumeCrudWriteOptions = (batchContext?: CrudWriteBatchContext) => {
+    if (!batchContext) return { skipNotify: true };
+    batchContext.remainingOperations = Math.max(0, batchContext.remainingOperations - 1);
+    return batchContext.remainingOperations > 0
+      ? { skipNotify: true, skipChatSave: true }
+      : { skipNotify: true };
+  };
 
   type CrudExistingRowPatchInput = {
     api: RuntimeCrudWriteApi;
@@ -41911,7 +41932,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     rowIndex: number;
     changedColumns?: Set<number>;
     columnAliasMap?: Record<string, string>;
+    batchContext?: CrudWriteBatchContext;
   };
+
 
   const applyExistingRowCellPatchesViaCrud = async (input: CrudExistingRowPatchInput): Promise<Set<number>> => {
     const changedColumns =
@@ -41942,6 +41965,29 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       columnAliasMap,
     );
 
+    if (typeof input.api.updateRow === 'function') {
+      const result = await input.api.updateRow({
+        tableName: input.crudTableName,
+        rowIndex: input.rowIndex + 1,
+        data: buildRowDataForCrud(
+          input.headers,
+          input.nextRow,
+          writableColumns,
+          input.sheet,
+          columnAliasMap,
+        ),
+        ...consumeCrudWriteOptions(input.batchContext),
+      });
+      if (result !== false && result !== -1) return writableColumns;
+
+      if (input.batchContext) input.batchContext.remainingOperations += writableColumns.size;
+      console.warn('[DICE]ACU updateRow failed, falling back to updateCell:', {
+        tableName: input.tableName,
+        rowIndex: input.rowIndex + 1,
+        changedColumnCount: writableColumns.size,
+      });
+    }
+
     for (const colIndex of Array.from(writableColumns).sort((left, right) => left - right)) {
       const headerName = String(input.headers[colIndex] || '').trim();
       const rowIdPreparation = prepareCrudRowIdForUpdateCell(input, colIndex);
@@ -41958,7 +42004,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
             input.sheet,
             columnAliasMap,
           ),
-          skipNotify: true,
+          ...consumeCrudWriteOptions(input.batchContext),
         });
       } catch (error) {
         restoreCrudRowIdPreparation(rowIdPreparation);
@@ -60423,13 +60469,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `custom_${hashGachaCatalogSeed(seed).toString(36)}`;
   };
 
-  const EQUIPMENT_TABLE_TYPE_VALUES = ['武器', '护具', '衣物', '饰品'] as const;
+  const EQUIPMENT_TABLE_TYPE_VALUES = ['武器', '防具', '饰品'] as const;
   type EquipmentTableType = (typeof EQUIPMENT_TABLE_TYPE_VALUES)[number];
-
   const inferEquipmentTableTypeForGachaItem = (
     item: Pick<GachaItemDefinition, 'id' | 'name' | 'type' | 'description'>,
   ): EquipmentTableType => {
     const rawType = String(item.type || '').trim();
+    // 历史自定义目录可能仍保存“护具/衣物”，统一归一化到仙SQL装备表三枚举。
+    if (rawType === '护具' || rawType === '衣物') return '防具';
     if ((EQUIPMENT_TABLE_TYPE_VALUES as readonly string[]).includes(rawType)) return rawType as EquipmentTableType;
 
     const haystack = `${item.id || ''} ${item.name || ''} ${rawType} ${item.description || ''}`.toLowerCase();
@@ -60473,10 +60520,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       return '武器';
     }
 
-    if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠', '盾', '盔', '护甲', '胸甲'])) {
-      return '护具';
+if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠', '盾', '盔', '护甲', '胸甲'])) {
+      return '防具';
     }
-
     if (
       includesAny([
         'cloak',
@@ -60502,7 +60548,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         '带',
       ])
     ) {
-      return '衣物';
+      return '防具';
     }
 
     if (
@@ -60803,7 +60849,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       if (candidateRow.length > 0) candidateRow[0] = '1';
       const quantity = Math.max(1, Math.floor(Number(item.grantQuantity) || 1));
       if (item.rewardTarget === 'equipment') {
-        setEquipmentRowBasicFields(candidateRow, parsed.colMap, item, quantity);
+        setEquipmentRowBasicFields(candidateRow, parsed.colMap, item, quantity, headerRow, sheet);
       } else {
         setInventoryRowBasicFields(candidateRow, parsed.colMap, item, quantity);
       }
@@ -61622,14 +61668,28 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return [poolTag];
   };
 
+  let gachaPoolDefinitionsCache: {
+    poolTag: GachaPoolTag;
+    rawData: unknown;
+    activeTagsKey: string;
+    items: GachaItemDefinition[];
+  } | null = null;
+
   const getGachaPoolDefinitions = (
     poolTag: GachaPoolTag,
     rawData = getRuntimeGachaRawData(),
   ): GachaItemDefinition[] => {
     const activeTags = getActiveGachaPoolTags(poolTag);
-    return getAllGachaItemDefinitions(rawData)
+    const activeTagsKey = activeTags.join('|');
+    const cached = gachaPoolDefinitionsCache;
+    if (cached && cached.poolTag === poolTag && cached.rawData === rawData && cached.activeTagsKey === activeTagsKey) {
+      return cached.items;
+    }
+    const items = getAllGachaItemDefinitions(rawData)
       .filter(item => isGachaItemEnabled(item) && item.poolTags.some(tag => activeTags.includes(tag)))
       .sort(compareGachaItemDefinitionsForDisplay);
+    gachaPoolDefinitionsCache = { poolTag, rawData, activeTagsKey, items };
+    return items;
   };
 
   const getStoredGachaActivePoolTag = (fallback: GachaPoolTag): GachaPoolTag => {
@@ -61675,13 +61735,27 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return hash >>> 0;
   };
 
+  let gachaPickupRotationKeyCache: { chatLength: number; dateKey: string; key: string } | null = null;
+
   const getGachaPickupRotationKey = (): string => {
-    const chatDepth = getDbChatMessages()?.length || 0;
-    const depthBucket = Math.floor(chatDepth / GACHA_PICKUP_CHAT_DEPTH_BUCKET);
-    return `${getGachaChatIdSeed()}|${getGachaLocalDateKey()}|${depthBucket}`;
+    const chatLength = getDbChatMessages()?.length || 0;
+    const dateKey = getGachaLocalDateKey();
+    const cachedRotation = gachaPickupRotationKeyCache;
+    if (cachedRotation && cachedRotation.chatLength === chatLength && cachedRotation.dateKey === dateKey) {
+      return cachedRotation.key;
+    }
+    const depthBucket = Math.floor(chatLength / GACHA_PICKUP_CHAT_DEPTH_BUCKET);
+    const key = `${getGachaChatIdSeed()}|${dateKey}|${depthBucket}`;
+    gachaPickupRotationKeyCache = { chatLength, dateKey, key };
+    return key;
   };
 
+  let gachaPickupItemsCache: { key: string; items: GachaItemDefinition[] } | null = null;
+
   const getGachaPickupItems = (poolTag: GachaPoolTag): GachaItemDefinition[] => {
+    const cacheKey = `${getGachaPickupRotationKey()}|${poolTag}`;
+    if (gachaPickupItemsCache && gachaPickupItemsCache.key === cacheKey) return gachaPickupItemsCache.items;
+
     const definitions = getGachaPoolDefinitions(poolTag);
     const pickupItems = GACHA_PICKUP_RARITIES.map(rarity => {
       const candidates = definitions.filter(item => item.quality === rarity).sort((a, b) => a.id.localeCompare(b.id));
@@ -61689,10 +61763,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       const seed = `${getGachaPickupRotationKey()}|${poolTag}|${rarity}`;
       return candidates[hashGachaSeed(seed) % candidates.length];
     }).filter((item): item is GachaItemDefinition => Boolean(item));
-    if (pickupItems.length > 0) return pickupItems;
-    return [...definitions]
-      .sort((a, b) => getGachaRarityRank(b.quality) - getGachaRarityRank(a.quality) || a.id.localeCompare(b.id))
-      .slice(0, GACHA_PICKUP_FALLBACK_LIMIT);
+    const items =
+      pickupItems.length > 0
+        ? pickupItems
+        : [...definitions]
+            .sort((a, b) => getGachaRarityRank(b.quality) - getGachaRarityRank(a.quality) || a.id.localeCompare(b.id))
+            .slice(0, GACHA_PICKUP_FALLBACK_LIMIT);
+    gachaPickupItemsCache = { key: cacheKey, items };
+    return items;
   };
 
   const isGachaPickupItem = (poolTag: GachaPoolTag, item: GachaItemDefinition): boolean =>
@@ -61780,9 +61858,39 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     if (colMap.description >= 0) row[colMap.description] = getGachaItemDescriptionText(item);
   };
 
-  const setEquipmentRowBasicFields = (row: unknown[], colMap, item: GachaItemDefinition, quantity: number) => {
+  const resolveEquipmentTableTypeForGachaItem = (
+    item: GachaItemDefinition,
+    headers: unknown[] = [],
+    colMap?: GachaRewardColumnMap,
+    sheet?: unknown,
+  ): string => {
+    const inferredType = inferEquipmentTableTypeForGachaItem(item);
+    const typeColumnIndex = Number(colMap?.type);
+    if (!Number.isInteger(typeColumnIndex) || typeColumnIndex < 0 || !sheet) return inferredType;
+
+    const headerName = String(headers[typeColumnIndex] || '').trim();
+    const columnAliasMap = buildCrudColumnAliasMap(sheet);
+    const columnName = getCrudColumnNameForHeader(columnAliasMap, headerName);
+    const allowedValues = buildCrudEnumConstraintMap(sheet)[columnName]?.values || [];
+    if (allowedValues.length === 0) return inferredType;
+
+    const rawType = String(item.type || '').trim();
+    const candidates = [rawType, inferredType, '防具', '护具', '衣物'];
+    if (inferredType === '武器') candidates.push('武器');
+    if (inferredType === '饰品') candidates.push('饰品', '首饰', '配饰');
+    return candidates.find(candidate => candidate && allowedValues.includes(candidate)) || inferredType;
+  };
+
+  const setEquipmentRowBasicFields = (
+    row: unknown[],
+    colMap: GachaRewardColumnMap,
+    item: GachaItemDefinition,
+    quantity: number,
+    headers: unknown[] = [],
+    sheet?: unknown,
+  ) => {
     if (colMap.name >= 0) row[colMap.name] = item.name;
-    if (colMap.type >= 0) row[colMap.type] = inferEquipmentTableTypeForGachaItem(item);
+    if (colMap.type >= 0) row[colMap.type] = resolveEquipmentTableTypeForGachaItem(item, headers, colMap, sheet);
     if (colMap.quantity >= 0) row[colMap.quantity] = String(quantity);
     if (colMap.quality >= 0) row[colMap.quality] = item.quality;
     if (typeof colMap.tags === 'number' && colMap.tags >= 0) row[colMap.tags] = getGachaItemTagsText(item);
@@ -61968,10 +62076,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     state: GachaState,
     item: GachaItemDefinition,
     quantity: number,
+    snapshots?: Map<string, unknown>,
   ): { outcome: GachaDrawOutcome; modifiedSheetKey?: string } | null => {
     const parsed = getGachaRewardParseResultForItem(rawData, item);
     if (!parsed.tableKey || !rawData?.[parsed.tableKey] || !Array.isArray(rawData[parsed.tableKey]?.content)) {
       return null;
+    }
+    if (snapshots && !snapshots.has(parsed.tableKey)) {
+      snapshots.set(parsed.tableKey, cloneRuntimeDataValue(rawData[parsed.tableKey]));
     }
 
     const existing = parsed.items.find(candidate => candidate.name === item.name) || null;
@@ -62067,10 +62179,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     state: GachaState,
     item: GachaItemDefinition,
     quantity: number,
+    snapshots?: Map<string, unknown>,
   ): { outcome: GachaDrawOutcome; modifiedSheetKey?: string } | null => {
     const parsed = getGachaRewardParseResultForItem(rawData, item);
     if (!parsed.tableKey || !rawData?.[parsed.tableKey] || !Array.isArray(rawData[parsed.tableKey]?.content)) {
       return null;
+    }
+    if (snapshots && !snapshots.has(parsed.tableKey)) {
+      snapshots.set(parsed.tableKey, cloneRuntimeDataValue(rawData[parsed.tableKey]));
     }
 
     const existing = parsed.items.find(candidate => candidate.name === item.name) || null;
@@ -62105,7 +62221,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         Number.parseInt(String(row[parsed.colMap.quantity] ?? existing.quantity ?? 0), 10) || 0,
       );
       const nextQuantity = currentQuantity + Math.max(1, quantity);
-      setEquipmentRowBasicFields(row, parsed.colMap, item, nextQuantity);
+      setEquipmentRowBasicFields(row, parsed.colMap, item, nextQuantity, parsed.headers, rawData[parsed.tableKey]);
       applyGachaCustomFieldsToRow(row, parsed.headers, item, {
         target: 'equipment',
         targetColumns: item.targetColumns,
@@ -62134,7 +62250,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     });
     const newRow = new Array(Math.max(headerRow.length, 1)).fill('');
     if (newRow.length > 0) newRow[0] = String(table.content.length);
-    setEquipmentRowBasicFields(newRow, parsed.colMap, item, Math.max(1, quantity));
+    setEquipmentRowBasicFields(newRow, parsed.colMap, item, Math.max(1, quantity), headerRow, sheet);
     applyGachaCustomFieldsToRow(newRow, headerRow, item, { target: 'equipment', targetColumns: item.targetColumns });
     assertCrudRequiredColumnsRepresented(parsed.tableName, headerRow, sheet);
     assertCrudInsertRequiredCells(parsed.tableName, headerRow, newRow, sheet, table.content.length);
@@ -62158,10 +62274,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     state: GachaState,
     item: GachaItemDefinition,
     quantity: number,
+    snapshots?: Map<string, unknown>,
   ): { outcome: GachaDrawOutcome; modifiedSheetKey?: string } | null =>
     item.rewardTarget === 'equipment'
-      ? grantEquipmentGachaReward(rawData, state, item, quantity)
-      : grantInventoryGachaReward(rawData, state, item, quantity);
+      ? grantEquipmentGachaReward(rawData, state, item, quantity, snapshots)
+      : grantInventoryGachaReward(rawData, state, item, quantity, snapshots);
 
   const applyGachaPityAfterDraw = (state: GachaState, rarity: GachaRarity) => {
     state.totalDraws += 1;
@@ -62189,6 +62306,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     rawData,
     state: GachaState,
     availableTargets: ReadonlySet<GachaRewardTarget> = getAvailableGachaRewardTargets(rawData),
+    snapshots?: Map<string, unknown>,
   ): { outcome: GachaDrawOutcome; modifiedSheetKey?: string } | null => {
     const poolTag = state.activePoolTag;
     const minimumRarity = getGachaMinimumRarity(state);
@@ -62196,10 +62314,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     if (!rarity) return null;
     const item = pickGachaItemDefinition(poolTag, rarity, undefined, rawData, availableTargets);
     if (!item) return null;
-
-    const result = grantGachaReward(rawData, state, item, getGachaItemGrantQuantity(item));
+    const result = grantGachaReward(rawData, state, item, getGachaItemGrantQuantity(item), snapshots);
     if (!result) return null;
-
     applyGachaPityAfterDraw(state, item.quality);
     pushRecentGachaReward(state, result.outcome, poolTag);
     return result;
@@ -62224,6 +62340,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
               const customIconContext = getGachaItemCustomTableNameIconContext(item);
               return `
 <button class="acu-gacha-pickup-card acu-gacha-pickup-detail-btn" type="button" data-item-id="${escapeHtml(item.id)}">
+                    <span class="acu-gacha-pickup-rarity">${escapeHtml(item.quality)}</span>
                     <strong><span class="acu-gacha-pickup-card-icon">${renderGachaItemIconContent(item, customIconContext)}</span><span>${escapeHtml(item.name)}</span></strong>
                     <span class="acu-gacha-item-card-meta">${escapeHtml(formatGachaItemCardMeta(item))}</span>
                     <span class="acu-gacha-item-card-effect"><b>效果</b>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span>
@@ -62693,20 +62810,23 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
           return;
         }
 
-        const rawDataSnapshot = cloneRuntimeDataValue(rawData);
         const stateSnapshot = cloneRuntimeDataValue(state);
         state.wallet.fortune -= drawCost;
         const modifiedSheetKeys = new Set<string>();
         const outcomes: GachaDrawOutcome[] = [];
+        // 按需表级快照：只深拷贝本卡池实际写入的表，避免每次抽卡克隆全部工作表。
+        const sheetSnapshots = new Map<string, unknown>();
         try {
           for (let index = 0; index < safeDrawCount; index++) {
-            const result = drawSingleGachaOutcome(rawData, state, availableTargets);
+            const result = drawSingleGachaOutcome(rawData, state, availableTargets, sheetSnapshots);
             if (!result) continue;
             if (result.modifiedSheetKey) modifiedSheetKeys.add(result.modifiedSheetKey);
             outcomes.push(result.outcome);
           }
         } catch (error) {
-          restoreMutableRuntimeValue(rawData, rawDataSnapshot);
+          sheetSnapshots.forEach((snapshot, sheetKey) => {
+            restoreMutableRuntimeValue(rawData[sheetKey], snapshot);
+          });
           restoreMutableRuntimeValue(state, stateSnapshot);
           throw error;
         }
@@ -63942,6 +64062,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     const openedItemFingerprint = existingItem ? getGachaItemDefinitionFingerprint(existingItem) : '';
 
     $('.acu-gacha-item-editor-overlay').remove();
+    if (gachaShopUiRefreshTimer) {
+      clearInterval(gachaShopUiRefreshTimer);
+      gachaShopUiRefreshTimer = null;
+    }
     const overlay = $(`
       <div class="acu-edit-overlay acu-gacha-item-editor-overlay acu-theme-${config.theme}">
         <form class="acu-edit-dialog acu-gacha-item-editor">
@@ -64227,6 +64351,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
     const closeEditor = () => {
       overlay.remove();
+      if (getGachaShopProgressContainers().length > 0) startGachaShopUiRefresh();
     };
     overlay.on('click', '.acu-gacha-item-editor-close', closeEditor);
     setupOverlayClose(overlay, 'acu-gacha-item-editor-overlay', closeEditor);
@@ -64279,12 +64404,21 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     overlay.on('input change', '.acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input', () => {
       refreshCustomFieldHeaderSuggestions();
     });
+    let editorPreviewRaf = 0;
+    const scheduleEditorPreviewRefresh = () => {
+      if (editorPreviewRaf) return;
+      editorPreviewRaf = window.requestAnimationFrame(() => {
+        editorPreviewRaf = 0;
+        if (!overlay.parent().length) return;
+        applyEditorFieldLimits();
+        refreshEditorIconPreview();
+      });
+    };
     overlay.on(
       'input change',
       '.acu-gacha-item-name, .acu-gacha-item-type, .acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input, .acu-gacha-item-description, .acu-gacha-item-icon',
       () => {
-        applyEditorFieldLimits();
-        refreshEditorIconPreview();
+        scheduleEditorPreviewRefresh();
       },
     );
 

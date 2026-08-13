@@ -12841,9 +12841,8 @@ export const MAIN_STYLES = `
     .acu-gacha-item-editor-overlay {
         position: fixed;
         inset: 0;
-        width: 100%;
-        height: auto;
-        min-height: 100%;
+        width: 100vw;
+        height: 100dvh;
         z-index: 31340 !important;
         display: flex;
         align-items: center;
@@ -12853,11 +12852,13 @@ export const MAIN_STYLES = `
     }
     .acu-gacha-item-editor-overlay {
         z-index: 31355 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: rgba(0, 0, 0, .72);
     }
     .acu-gacha-name-dialog-overlay {
         z-index: 31360 !important;
-        height: auto;
-        min-height: 100%;
+        height: 100dvh;
     }
     .acu-gacha-catalog-dialog-overlay,
     .acu-gacha-confirm-overlay {
@@ -12867,7 +12868,7 @@ export const MAIN_STYLES = `
     .acu-gacha-item-editor,
     .acu-gacha-name-dialog {
         width: min(920px, 94vw);
-        max-height: min(88vh, 920px);
+        max-height: min(88dvh, 920px);
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -12883,7 +12884,6 @@ export const MAIN_STYLES = `
         width: min(720px, 94vw);
         max-height: min(88vh, 920px);
         transform: translateZ(0);
-        contain: layout paint;
     }
     .acu-gacha-name-dialog {
         width: min(420px, 92vw);
@@ -15868,7 +15868,7 @@ export const MAIN_STYLES = `
         }
         .acu-gacha-pickup-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 7px;
             overflow: visible;
             padding-bottom: 1px;
@@ -15894,7 +15894,7 @@ export const MAIN_STYLES = `
         }
         .acu-gacha-item-card-effect,
         .acu-gacha-item-card-description {
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 1;
         }
         .acu-gacha-custom-field-preview {
             gap: 3px;
