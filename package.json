@@ -1,4 +1,6 @@
 {
+  "name": "my-tavern-scripts",
+  "version": "6.66.0",
   "scripts": {
     "build:dev": "webpack --mode development",
     "build": "webpack --mode production",
