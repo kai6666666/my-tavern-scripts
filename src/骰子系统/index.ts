@@ -84,6 +84,7 @@ import {
 import { GachaCatalogDB } from './features/gacha/gacha-catalog-db';
 import { GachaShardWallet, GachaCatalog, GachaCatalogRecord, GachaCatalogCache, GachaCatalogLoadTask, GachaCatalogImportMode, NormalizedGachaCatalogItem, GachaCatalogImportAnalysis, GachaCatalogImportStats, GachaSettingsItemSourceFilter, GachaSettingsItemStatusFilter, GachaSettingsItemSortMode, GachaSettingsItemFilterState, GachaSettingsFilterField, GachaSettingsFilterOption, NormalizedImportedGachaPools, GachaPoolSettingsRecord, GachaItemSettingsEntry, GachaItemSettingsRecord, GachaPityState, GachaRecentRewardRecord, GachaInputStats, GachaState, GachaFortuneProgressView, GachaDrawOutcome } from './features/gacha/gacha-types';
 import { createEmptyShardWallet, GACHA_DUPLICATE_REROLL_LIMIT, GACHA_PICKUP_WEIGHT_MULTIPLIER, GACHA_PICKUP_CHAT_DEPTH_BUCKET, GACHA_PICKUP_RARITIES, GACHA_PICKUP_FALLBACK_LIMIT, GACHA_ALL_POOL_TAG, GACHA_CUSTOM_ONLY_POOL_TAG, GACHA_REWARD_FIELD_LIMITS, normalizeGachaPoolId, normalizeGachaPoolName, cloneGachaState, getGachaStateBalanceScore, mergeLegacyGachaStateForLocalStorage } from './features/gacha/gacha-helpers';
+import { GachaStore } from './features/gacha/gacha-store';
 
 (function () {
   'use strict';
@@ -59693,44 +59694,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
 
-  const getGachaStateStorageKey = (): string => {
-    const contextId = String(getCurrentContextFingerprint() || 'unknown_context').trim() || 'unknown_context';
-    return `${STORAGE_KEY_GACHA_STATE}_${contextId}`;
-  };
-
-  const getGachaStateMigrationKey = (): string => `${getGachaStateStorageKey()}_legacy_migrated`;
-
-  const hasMigratedLegacyGachaState = (): boolean => Store.get(getGachaStateMigrationKey(), false) === true;
-
-  const markLegacyGachaStateMigrated = () => {
-    Store.set(getGachaStateMigrationKey(), true);
-  };
-
-  const getStoredGachaStateSnapshot = (): Record<string, unknown> | null => {
-    const scoped = Store.get(getGachaStateStorageKey(), null);
-    if (scoped && typeof scoped === 'object') return scoped as Record<string, unknown>;
-
-    const legacy = Store.get(STORAGE_KEY_GACHA_STATE, null);
-    return legacy && typeof legacy === 'object' ? (legacy as Record<string, unknown>) : null;
-  };
-
-  const saveStoredGachaStateSnapshot = (state: GachaState): boolean => {
-    const saved = Store.set(getGachaStateStorageKey(), cloneGachaState(state));
-    if (!saved) {
-      console.error('[DICE][GACHA]骰子商店状态保存失败');
-      return false;
-    }
-    try {
-      localStorage.removeItem(STORAGE_KEY_GACHA_STATE);
-    } catch (error) {
-      console.warn('[DICE][GACHA]清理旧版骰运缓存失败:', error);
-    }
-    return true;
-  };
-
-  const assertSaveStoredGachaStateSnapshot = (state: GachaState): void => {
-    if (!saveStoredGachaStateSnapshot(state)) throw new Error('骰子商店状态保存失败');
-  };
+  const gachaStore = new GachaStore({
+    store: Store,
+    getCurrentContextFingerprint,
+    storageKeyBase: STORAGE_KEY_GACHA_STATE,
+  });
+  const getGachaStateStorageKey = (): string => gachaStore.getStorageKey();
+  const getGachaStateMigrationKey = (): string => gachaStore.getMigrationKey();
+  const hasMigratedLegacyGachaState = (): boolean => gachaStore.hasMigrated();
+  const markLegacyGachaStateMigrated = () => gachaStore.markMigrated();
+  const getStoredGachaStateSnapshot = (): Record<string, unknown> | null => gachaStore.load();
+  const saveStoredGachaStateSnapshot = (state: GachaState): boolean => gachaStore.save(state);
+  const assertSaveStoredGachaStateSnapshot = (state: GachaState): void => gachaStore.assertSave(state);
 
   const normalizeGachaStateRecord = (rawValue: unknown): GachaState | null => {
     if (!rawValue || typeof rawValue !== 'object') return null;
