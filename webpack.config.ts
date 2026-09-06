@@ -204,10 +204,10 @@ function parse_configuration(entry: Entry): (_env: any, argv: any) => webpack.Co
         return `${is_direct === true ? 'src' : 'webpack'}://${info.namespace}/${resource_path}${is_direct || is_vue_script ? '' : '?' + info.hash}`;
       },
       filename: (() => {
-        if (script_filepath.dir.includes('features/dice')) {
+        if (script_filepath.dir.includes('骰子系统')) {
           const buildType = process.env.BUILD_TYPE || 'stable';
           const filename = buildType === 'nightly' ? 'nightly.js' : 'stable.js';
-          console.info(`[webpack] features/dice 构建类型: ${buildType}, 输出文件名: ${filename}`);
+          console.info(`[webpack] 骰子系统构建类型: ${buildType}, 输出文件名: ${filename}`);
           return filename;
         }
         return `${script_filepath.name}.js`;
