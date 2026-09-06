@@ -83,6 +83,7 @@ import {
 } from './features/profiles/profile-packages';
 import { GachaCatalogDB } from './features/gacha/gacha-catalog-db';
 import { GachaShardWallet, GachaCatalog, GachaCatalogRecord, GachaCatalogCache, GachaCatalogLoadTask, GachaCatalogImportMode, NormalizedGachaCatalogItem, GachaCatalogImportAnalysis, GachaCatalogImportStats, GachaSettingsItemSourceFilter, GachaSettingsItemStatusFilter, GachaSettingsItemSortMode, GachaSettingsItemFilterState, GachaSettingsFilterField, GachaSettingsFilterOption, NormalizedImportedGachaPools, GachaPoolSettingsRecord, GachaItemSettingsEntry, GachaItemSettingsRecord, GachaPityState, GachaRecentRewardRecord, GachaInputStats, GachaState, GachaFortuneProgressView, GachaDrawOutcome } from './features/gacha/gacha-types';
+import { createEmptyShardWallet, GACHA_DUPLICATE_REROLL_LIMIT, GACHA_PICKUP_WEIGHT_MULTIPLIER, GACHA_PICKUP_CHAT_DEPTH_BUCKET, GACHA_PICKUP_RARITIES, GACHA_PICKUP_FALLBACK_LIMIT, GACHA_ALL_POOL_TAG, GACHA_CUSTOM_ONLY_POOL_TAG, GACHA_REWARD_FIELD_LIMITS, normalizeGachaPoolId, normalizeGachaPoolName, cloneGachaState, getGachaStateBalanceScore, mergeLegacyGachaStateForLocalStorage } from './features/gacha/gacha-helpers';
 
 (function () {
   'use strict';
@@ -58961,23 +58962,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   type InventoryMetadataScope = Record<string, InventoryMetadataRecord>;
   type InventoryMetadataRoot = Record<string, InventoryMetadataScope>;
   type InventoryMetadataStore = Record<string, InventoryMetadataRoot>;
-  const createEmptyShardWallet = (): GachaShardWallet =>
-    GACHA_RARITY_ORDER.reduce((acc, rarity) => {
-      acc[rarity] = 0;
-      return acc;
-    }, {} as GachaShardWallet);
-
-  const GACHA_DUPLICATE_REROLL_LIMIT = 8;
-  const GACHA_PICKUP_WEIGHT_MULTIPLIER = 10;
-  const GACHA_PICKUP_CHAT_DEPTH_BUCKET = 30;
-  const GACHA_PICKUP_RARITIES: GachaRarity[] = ['史诗', '传说', '神话'];
-  const GACHA_PICKUP_FALLBACK_LIMIT = 3;
-  const GACHA_ALL_POOL_TAG: GachaPoolTag = '全部';
-  const GACHA_CUSTOM_ONLY_POOL_TAG: GachaPoolTag = '自定义';
-  const GACHA_REWARD_FIELD_LIMITS: Record<GachaRewardTarget, { name: number; description: number }> = {
-    inventory: { name: 10, description: 60 },
-    equipment: { name: 12, description: 40 },
-  };
   const DEFAULT_GACHA_SETTINGS_ITEM_FILTERS: GachaSettingsItemFilterState = {
     search: '',
     source: 'all',
@@ -59123,17 +59107,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     });
   };
 
-  const normalizeGachaPoolId = (value: unknown): GachaPoolTag =>
-    String(value ?? '')
-      .trim()
-      .replace(/\s+/g, ' ')
-      .slice(0, 40);
-
-  const normalizeGachaPoolName = (value: unknown, fallback: GachaPoolTag): string =>
-    String(value ?? fallback)
-      .trim()
-      .replace(/\s+/g, ' ')
-      .slice(0, 40) || fallback;
 
   const isBuiltinGachaPoolId = (poolId: GachaPoolTag): boolean =>
     BUILTIN_GACHA_POOL_DEFINITIONS.some(pool => pool.id === poolId);
@@ -59719,7 +59692,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       .slice(0, GACHA_RECENT_REWARD_LIMIT);
   };
 
-  const cloneGachaState = (state: GachaState): GachaState => JSON.parse(JSON.stringify(state)) as GachaState;
 
   const getGachaStateStorageKey = (): string => {
     const contextId = String(getCurrentContextFingerprint() || 'unknown_context').trim() || 'unknown_context';
@@ -59875,17 +59847,6 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const getGachaStateBalanceScore = (state: GachaState): number =>
-    state.wallet.fortune +
-    GACHA_RARITY_ORDER.reduce((sum, rarity) => sum + Math.max(0, Number(state.wallet.shards[rarity] || 0)), 0) +
-    state.totalDraws +
-    state.pity.rare +
-    state.pity.legend;
-
-  const mergeLegacyGachaStateForLocalStorage = (localState: GachaState, legacyState: GachaState): GachaState =>
-    getGachaStateBalanceScore(legacyState) > getGachaStateBalanceScore(localState)
-      ? cloneGachaState(legacyState)
-      : cloneGachaState(localState);
 
   let gachaCatalogCache: GachaCatalogCache | null = null;
   let gachaCatalogLoadTask: GachaCatalogLoadTask | null = null;

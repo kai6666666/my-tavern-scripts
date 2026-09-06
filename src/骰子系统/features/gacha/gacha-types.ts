@@ -4,7 +4,7 @@
  * Feature-Sliced: features/gacha 域的纯类型模型（运行时全部被擦除，零运行时影响）。
  * 由 index.ts(app 层) 与 gacha 相关模块引用。
  */
-import type { GachaPoolDefinition, GachaItemDefinition, GachaPoolTag, GachaRarity, GachaRewardTarget } from '../entities/gacha-items';
+import type { GachaPoolDefinition, GachaItemDefinition, GachaPoolTag, GachaRarity, GachaRewardTarget } from '../../entities/gacha-items';
 
 export type GachaShardWallet = Record<GachaRarity, number>;
 
