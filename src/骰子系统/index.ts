@@ -10,6 +10,7 @@ import { rollDiceExpression, rollComplexDiceExpression } from './features/dice/d
 import { AcuDiceEvents } from './features/api/events';
 import { AcuDiceHistory } from './features/api/history';
 import { AcuDiceReadyState } from './features/api/ready';
+import { AcuDicePresets } from './features/api/presets';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48061,6 +48062,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const rootWindow = resolveRootWindow();
   const acuDiceReady = new AcuDiceReadyState();
+  const acuDicePresets = new AcuDicePresets({
+    getAllPresets: () => ActionPresetManager.getAllPresets(),
+    getActivePresetId: () => ActionPresetManager.getActivePresetId(),
+    getPresetById: (id: string) => ActionPresetManager.getPresetById(id),
+  });
   const notifyReady = (): void => {
     acuDiceReady.markReady();
   };
@@ -49924,13 +49930,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @returns 预设摘要数组
      */
     listPresets(): Array<{ id: string; name: string; description?: string; builtin: boolean }> {
-      const allPresets = ActionPresetManager.getAllPresets();
-      return allPresets.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        builtin: !!p.builtin,
-      }));
+      return acuDicePresets.listPresets();
     },
 
     /**
@@ -49938,8 +49938,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @returns 预设 ID 字符串，无激活预设时返回 null
      */
     getActivePresetId(): string | null {
-      const id = ActionPresetManager.getActivePresetId();
-      return id === '__none__' ? null : id;
+      return acuDicePresets.getActivePresetId();
     },
 
     /**
@@ -49948,14 +49947,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @returns 预设摘要，未找到时返回 null
      */
     getPresetSummary(presetId: string): { id: string; name: string; description?: string; builtin: boolean } | null {
-      const preset = ActionPresetManager.getPresetById(presetId);
-      if (!preset) return null;
-      return {
-        id: preset.id,
-        name: preset.name,
-        description: preset.description || '',
-        builtin: !!preset.builtin,
-      };
+      return acuDicePresets.getPresetSummary(presetId);
     },
 
     profiles: {
