@@ -7,6 +7,7 @@ import { TUTORIAL_SCOPE_LIST, createTutorialModule, type TutorialModule, type Tu
 import { createDialogueIndentRenderer, normalizeDialogueIndentStrategy } from './features/dialogue-indent-renderer';
 import { RollResult, CustomFieldConfig, DerivedVarSpec, DiceExprPatch } from './shared/types';
 import { rollDiceExpression, rollComplexDiceExpression } from './features/dice/dice-engine';
+import { AcuDiceEvents } from './features/api/events';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48095,7 +48096,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   // 事件系统
-  const eventHandlers: Map<string, Set<Function>> = new Map();
+  const acuDiceEvents = new AcuDiceEvents({
+    onDiceEvent: (event: string, data: unknown): void => {
+      if (event === 'check' || event === 'contest') {
+        void DiceHistoryStatsDB.recordEvent(event, data);
+        void settleGachaFortuneForDiceEvent(event, data);
+      }
+    },
+  });
   type CheckHistoryEntry = AcuDice.CheckResult & CheckHistoryExtension & { timestamp: number };
   type ContestHistoryEntry = AcuDice.ContestResult & { timestamp: number; detailId?: string; detailLines?: string[] };
   type AcuDiceSharedHistoryStore = {
@@ -48471,22 +48479,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setupOverlayClose(dialog, 'acu-dice-history-overlay', closeDialog);
   };
 
-  function emitEvent(event: string, data: unknown) {
-    if (event === 'check' || event === 'contest') {
-      void DiceHistoryStatsDB.recordEvent(event, data);
-      void settleGachaFortuneForDiceEvent(event, data);
-    }
-    const handlers = eventHandlers.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          handler(data);
-        } catch (e) {
-          console.error('[AcuDice] Event handler error:', e);
-        }
-      });
-    }
-  }
+  const emitEvent = (event: string, data: unknown): void => {
+    acuDiceEvents.emit(event, data);
+  };
 
   type CheckSuggestionTieRule = 'initiator_win' | 'initiator_lose' | 'tie';
   type CheckSuggestionCriteria = 'lte' | 'gte';
@@ -49907,10 +49902,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @param handler 事件处理函数
      */
     on(event: string, handler: Function): void {
-      if (!eventHandlers.has(event)) {
-        eventHandlers.set(event, new Set());
-      }
-      eventHandlers.get(event)!.add(handler);
+      acuDiceEvents.on(event, handler);
     },
 
     /**
@@ -49919,10 +49911,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @param handler 事件处理函数
      */
     off(event: string, handler: Function): void {
-      const handlers = eventHandlers.get(event);
-      if (handlers) {
-        handlers.delete(handler);
-      }
+      acuDiceEvents.off(event, handler);
     },
 
     /**
