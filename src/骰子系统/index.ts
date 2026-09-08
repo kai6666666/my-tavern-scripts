@@ -11,6 +11,7 @@ import { AcuDiceEvents } from './features/api/events';
 import { AcuDiceHistory } from './features/api/history';
 import { AcuDiceReadyState } from './features/api/ready';
 import { AcuDicePresets } from './features/api/presets';
+import { AcuDiceCharacters } from './features/api/characters';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48067,6 +48068,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getActivePresetId: () => ActionPresetManager.getActivePresetId(),
     getPresetById: (id: string) => ActionPresetManager.getPresetById(id),
   });
+  const acuDiceCharacters = new AcuDiceCharacters({
+    getRawData: () => cachedRawData || getTableData(),
+    processJsonData: (raw: any) => processJsonData(raw),
+    findTable: (tables: any, key: string) => DashboardDataParser.findTable(tables, key),
+    parseRows: (tableResult: any, key: string) => DashboardDataParser.parseRows(tableResult, key),
+    getFullAttributesForCharacter: (name: string) => getFullAttributesForCharacter(name),
+    getAttributeValueInternal: (name: string, attribute: string) => getAttributeValue(name, attribute),
+  });
   const notifyReady = (): void => {
     acuDiceReady.markReady();
   };
@@ -50001,30 +50010,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * AcuDice.listCharacters() // => ['<user>', 'NPC1', 'NPC2']
      */
     listCharacters(): string[] {
-      const rawData = cachedRawData || getTableData();
-      if (!rawData) return [];
-
-      const allTables = processJsonData(rawData || {});
-      const characters: string[] = [];
-
-      // 检查是否有主角信息
-      const playerResult = DashboardDataParser.findTable(allTables, 'player');
-      if (playerResult?.data?.rows?.length > 0) {
-        characters.push('<user>');
-      }
-
-      // 获取所有 NPC
-      const npcResult = DashboardDataParser.findTable(allTables, 'npc');
-      if (npcResult) {
-        const npcParsed = DashboardDataParser.parseRows(npcResult, 'npc');
-        npcParsed.forEach(npc => {
-          if (npc.name && typeof npc.name === 'string') {
-            characters.push(npc.name);
-          }
-        });
-      }
-
-      return characters;
+      return acuDiceCharacters.listCharacters();
     },
 
     /**
@@ -50036,10 +50022,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * AcuDice.getCharacterAttributes('张三') // => [{ name: '力量', value: 70 }]
      */
     getCharacterAttributes(name: string): Array<{ name: string; value: number }> {
-      if (!name || typeof name !== 'string') {
-        throw new Error('[AcuDice] getCharacterAttributes() 需要一个有效的角色名');
-      }
-      return getFullAttributesForCharacter(name);
+      return acuDiceCharacters.getCharacterAttributes(name);
     },
 
     /**
@@ -50052,13 +50035,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * AcuDice.getAttributeValue('张三', '敏捷') // => 60
      */
     getAttributeValue(name: string, attribute: string): number | null {
-      if (!name || typeof name !== 'string') {
-        throw new Error('[AcuDice] getAttributeValue() 需要一个有效的角色名');
-      }
-      if (!attribute || typeof attribute !== 'string') {
-        throw new Error('[AcuDice] getAttributeValue() 需要一个有效的属性名');
-      }
-      return getAttributeValue(name, attribute);
+      return acuDiceCharacters.getAttributeValue(name, attribute);
     },
 
     /**
