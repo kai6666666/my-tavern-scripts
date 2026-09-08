@@ -8,6 +8,7 @@ import { createDialogueIndentRenderer, normalizeDialogueIndentStrategy } from '.
 import { RollResult, CustomFieldConfig, DerivedVarSpec, DiceExprPatch } from './shared/types';
 import { rollDiceExpression, rollComplexDiceExpression } from './features/dice/dice-engine';
 import { AcuDiceEvents } from './features/api/events';
+import { AcuDiceHistory } from './features/api/history';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48125,6 +48126,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const sharedHistoryStore = rootWindowWithHistory.__AcuDiceHistoryStore__;
   const checkHistory: CheckHistoryEntry[] = sharedHistoryStore.checkHistory;
   const contestHistory: ContestHistoryEntry[] = sharedHistoryStore.contestHistory;
+  const acuDiceHistory = new AcuDiceHistory({
+    getCheckHistory: () => checkHistory,
+    getContestHistory: () => contestHistory,
+  });
   const MAX_HISTORY = sharedHistoryStore.maxHistory;
 
   const globalExpandedHistoryIds = new Set<string>();
@@ -49918,14 +49923,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * 获取最近一次普通检定结果
      */
     getLatestCheck(): (AcuDice.CheckResult & { timestamp: number }) | null {
-      return checkHistory.length > 0 ? checkHistory[checkHistory.length - 1] : null;
+      return acuDiceHistory.getLatestCheck() as (AcuDice.CheckResult & { timestamp: number }) | null;
     },
 
     /**
      * 获取最近一次对抗检定结果
      */
     getLatestContest(): (AcuDice.ContestResult & { timestamp: number }) | null {
-      return contestHistory.length > 0 ? contestHistory[contestHistory.length - 1] : null;
+      return acuDiceHistory.getLatestContest() as (AcuDice.ContestResult & { timestamp: number }) | null;
     },
 
     /**
@@ -49935,27 +49940,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @param options.type 筛选类型 ('check' | 'contest')
      */
     getHistory(options?: { limit?: number; type?: 'check' | 'contest' }): Array<any> {
-      const limit = options?.limit;
-      const type = options?.type;
-
-      let results: Array<any> = [];
-
-      if (!type || type === 'check') {
-        results = results.concat(checkHistory.map(item => ({ ...item, _type: 'check' })));
-      }
-      if (!type || type === 'contest') {
-        results = results.concat(contestHistory.map(item => ({ ...item, _type: 'contest' })));
-      }
-
-      // 按时间戳倒序排序
-      results.sort((a, b) => b.timestamp - a.timestamp);
-
-      // 应用 limit
-      if (limit && limit > 0) {
-        results = results.slice(0, limit);
-      }
-
-      return results;
+      return acuDiceHistory.getHistory(options);
     },
 
     /**
