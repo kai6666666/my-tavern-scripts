@@ -85,6 +85,7 @@ import { GachaCatalogDB } from './features/gacha/gacha-catalog-db';
 import { GachaShardWallet, GachaCatalog, GachaCatalogRecord, GachaCatalogCache, GachaCatalogLoadTask, GachaCatalogImportMode, NormalizedGachaCatalogItem, GachaCatalogImportAnalysis, GachaCatalogImportStats, GachaSettingsItemSourceFilter, GachaSettingsItemStatusFilter, GachaSettingsItemSortMode, GachaSettingsItemFilterState, GachaSettingsFilterField, GachaSettingsFilterOption, NormalizedImportedGachaPools, GachaPoolSettingsRecord, GachaItemSettingsEntry, GachaItemSettingsRecord, GachaPityState, GachaRecentRewardRecord, GachaInputStats, GachaState, GachaFortuneProgressView, GachaDrawOutcome } from './features/gacha/gacha-types';
 import { createEmptyShardWallet, GACHA_DUPLICATE_REROLL_LIMIT, GACHA_PICKUP_WEIGHT_MULTIPLIER, GACHA_PICKUP_CHAT_DEPTH_BUCKET, GACHA_PICKUP_RARITIES, GACHA_PICKUP_FALLBACK_LIMIT, GACHA_ALL_POOL_TAG, GACHA_CUSTOM_ONLY_POOL_TAG, GACHA_REWARD_FIELD_LIMITS, normalizeGachaPoolId, normalizeGachaPoolName, cloneGachaState, getGachaStateBalanceScore, mergeLegacyGachaStateForLocalStorage } from './features/gacha/gacha-helpers';
 import { GachaStore } from './features/gacha/gacha-store';
+import { GachaStateCore } from './features/gacha/gacha-state';
 
 (function () {
   'use strict';
@@ -59620,79 +59621,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return true;
   };
 
-  const createDefaultGachaState = (): GachaState => ({
-    wallet: {
-      fortune: GACHA_TEST_DEFAULT_FORTUNE,
-      shards: createEmptyShardWallet(),
-    },
-    activePoolTag: '全部',
-    pity: {
-      rare: 0,
-      legend: 0,
-    },
-    recentRewards: [],
-    totalDraws: 0,
-    inputStats: {
-      totalTypedChars: 0,
-      totalTypedMessages: 0,
-      totalActiveMinutes: 0,
-      pendingCharCarry: 0,
-      pendingActiveMs: 0,
-      lastActiveAt: 0,
-      lastHeartbeatAt: 0,
-      lastFortuneGain: 0,
-      lastFortuneReason: '',
-      lastFortuneDetail: '',
-      lastFortuneAt: 0,
-      lastSettledMessageId: '',
-      totalRewardedChecks: 0,
-      lastSettledCheckId: '',
-    },
+  const gachaStateCore = new GachaStateCore({
+    getConfiguredGachaPoolDefinitions,
+    testDefaultFortune: GACHA_TEST_DEFAULT_FORTUNE,
+    recentRewardLimit: GACHA_RECENT_REWARD_LIMIT,
   });
-
-  const normalizeShardWallet = (rawValue: unknown): GachaShardWallet => {
-    const base = createEmptyShardWallet();
-    if (!rawValue || typeof rawValue !== 'object') return base;
-    GACHA_RARITY_ORDER.forEach(rarity => {
-      const value = Number((rawValue as Record<string, unknown>)[rarity] || 0);
-      base[rarity] = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-    });
-    return base;
-  };
-
-  const normalizeRecentGachaRewards = (rawValue: unknown): GachaRecentRewardRecord[] => {
-    if (!Array.isArray(rawValue)) return [];
-    return rawValue
-      .map(record => {
-        if (!record || typeof record !== 'object') return null;
-        const quality = GACHA_RARITY_ORDER.includes((record as Record<string, unknown>).quality as GachaRarity)
-          ? ((record as Record<string, unknown>).quality as GachaRarity)
-          : '普通';
-        const rewardTarget =
-          (record as Record<string, unknown>).rewardTarget === 'equipment' ? 'equipment' : 'inventory';
-        const normalizedPoolTag = normalizeGachaPoolId((record as Record<string, unknown>).poolTag);
-        const poolTag = getConfiguredGachaPoolDefinitions().some(pool => pool.id === normalizedPoolTag)
-          ? normalizedPoolTag
-          : GACHA_ALL_POOL_TAG;
-        return {
-          itemId: String((record as Record<string, unknown>).itemId || ''),
-          name: String((record as Record<string, unknown>).name || ''),
-          quality,
-          quantity: Math.max(1, Number.parseInt(String((record as Record<string, unknown>).quantity || '1'), 10) || 1),
-          duplicateConverted: (record as Record<string, unknown>).duplicateConverted === true,
-          shardGain: Math.max(
-            0,
-            Number.parseInt(String((record as Record<string, unknown>).shardGain || '0'), 10) || 0,
-          ),
-          poolTag,
-          rewardTarget,
-          createdAt: String((record as Record<string, unknown>).createdAt || '').trim(),
-        } as GachaRecentRewardRecord;
-      })
-      .filter((record): record is GachaRecentRewardRecord => Boolean(record))
-      .slice(0, GACHA_RECENT_REWARD_LIMIT);
-  };
-
+  const createDefaultGachaState = (): GachaState => gachaStateCore.createDefault();
+  const normalizeShardWallet = (rawValue: unknown): GachaShardWallet => gachaStateCore.normalizeShardWallet(rawValue);
+  const normalizeRecentGachaRewards = (rawValue: unknown): GachaRecentRewardRecord[] => gachaStateCore.normalizeRecentRewards(rawValue);
 
   const gachaStore = new GachaStore({
     store: Store,
