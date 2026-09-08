@@ -13,6 +13,7 @@ import { AcuDiceReadyState } from './features/api/ready';
 import { AcuDicePresets } from './features/api/presets';
 import { AcuDiceCharacters } from './features/api/characters';
 import { AcuDiceRoll } from './features/api/roll';
+import { AcuDiceProfiles } from './features/api/profiles';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48080,6 +48081,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const acuDiceRoll = new AcuDiceRoll({
     evaluateFormula: (expr: string, ctx: any) => evaluateFormula(expr, ctx),
   });
+  const acuDiceProfiles = new AcuDiceProfiles({
+    refreshDiceProfileIndex: () => refreshDiceProfileIndex(),
+    saveCurrentDiceProfile: (o: any) => saveCurrentDiceProfile(o),
+    toDiceProfileSummary: (p: any) => toDiceProfileSummary(p),
+    importDiceProfile: (i: unknown, o: any) => importDiceProfile(i, o),
+    applyDiceProfile: (id: string, o: any) => applyDiceProfile(id, o),
+    exportDiceProfile: (id: string) => exportDiceProfile(id),
+    detectCharacterDiceProfile: (o: any) => detectCharacterDiceProfile(o),
+    getDiceProfileCharacterContext: () => getDiceProfileCharacterContext(),
+    getDiceProfilePromptState: (c: string, f: string) => getDiceProfilePromptState(c, f),
+    getAcuDiceProfilePromptKey: (c: string, f: string) => getAcuDiceProfilePromptKey(c, f),
+  });
   const notifyReady = (): void => {
     acuDiceReady.markReady();
   };
@@ -49949,49 +49962,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       return acuDicePresets.getPresetSummary(presetId);
     },
 
-    profiles: {
-      async list(): Promise<DiceProfileSummary[]> {
-        return await refreshDiceProfileIndex();
-      },
-
-      async saveCurrent(options: DiceProfileSaveCurrentOptions = {}): Promise<DiceProfileSummary> {
-        const profile = await saveCurrentDiceProfile(options);
-        return toDiceProfileSummary(profile);
-      },
-
-      async import(input: unknown, options: DiceProfileImportOptions = {}): Promise<DiceProfileSummary> {
-        const profile = await importDiceProfile(input, options);
-        return toDiceProfileSummary(profile);
-      },
-
-      async apply(profileId: string, options: DiceProfileApplyOptions = {}): Promise<DiceConfigBackupApplyStats> {
-        return await applyDiceProfile(profileId, { createSnapshot: true, ...options });
-      },
-
-      async export(profileId: string): Promise<string> {
-        return JSON.stringify(await exportDiceProfile(profileId), null, 2);
-      },
-
-      async detectCharacterProfile(
-        options: { includeSkipped?: boolean } = {},
-      ): Promise<{
-        profile: DiceProfileSummary;
-        promptKey: string;
-        skipped: boolean;
-        sourceTextKind: DiceCharacterProfileDetection['sourceTextKind'];
-      } | null> {
-        const detection = await detectCharacterDiceProfile(options);
-        if (!detection) return null;
-        const context = getDiceProfileCharacterContext();
-        const promptState = getDiceProfilePromptState(context.chatId, detection.profile.fingerprint);
-        return {
-          profile: toDiceProfileSummary(detection.profile),
-          promptKey: getAcuDiceProfilePromptKey(context.chatId, detection.profile.fingerprint),
-          skipped: promptState === 'skipped',
-          sourceTextKind: detection.sourceTextKind,
-        };
-      },
-    },
+    profiles: acuDiceProfiles,
 
     /**
      * 获取所有可用角色名列表
