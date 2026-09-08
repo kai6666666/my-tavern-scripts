@@ -92,4 +92,118 @@ export class GachaStateCore {
       .filter((record): record is GachaRecentRewardRecord => Boolean(record))
       .slice(0, this.deps.recentRewardLimit);
   }
+
+  normalizeRecord(rawValue: unknown): GachaState | null {
+    if (!rawValue || typeof rawValue !== 'object') return null;
+    const defaultState = this.createDefault();
+    const rawRecord = rawValue as Record<string, unknown>;
+    const storedActivePoolTag = normalizeGachaPoolId(rawRecord.activePoolTag);
+    const activePoolTag = this.deps.getConfiguredGachaPoolDefinitions().some(pool => pool.id === storedActivePoolTag)
+      ? storedActivePoolTag
+      : defaultState.activePoolTag;
+
+    return {
+      wallet: {
+        fortune: Math.max(
+          0,
+          Number.parseInt(String((rawRecord.wallet as Record<string, unknown> | undefined)?.fortune || '0'), 10) || 0,
+        ),
+        shards: this.normalizeShardWallet((rawRecord.wallet as Record<string, unknown> | undefined)?.shards),
+      },
+      activePoolTag,
+      pity: {
+        rare: Math.max(
+          0,
+          Number.parseInt(String((rawRecord.pity as Record<string, unknown> | undefined)?.rare || '0'), 10) || 0,
+        ),
+        legend: Math.max(
+          0,
+          Number.parseInt(String((rawRecord.pity as Record<string, unknown> | undefined)?.legend || '0'), 10) || 0,
+        ),
+      },
+      recentRewards: this.normalizeRecentRewards(rawRecord.recentRewards),
+      totalDraws: Math.max(0, Number.parseInt(String(rawRecord.totalDraws || '0'), 10) || 0),
+      inputStats: {
+        totalTypedChars: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.totalTypedChars || '0'),
+            10,
+          ) || 0,
+        ),
+        totalTypedMessages: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.totalTypedMessages || '0'),
+            10,
+          ) || 0,
+        ),
+        totalActiveMinutes: Math.max(
+          0,
+          Number(String((rawRecord.inputStats as Record<string, unknown> | undefined)?.totalActiveMinutes || '0')) || 0,
+        ),
+        pendingCharCarry: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.pendingCharCarry || '0'),
+            10,
+          ) || 0,
+        ),
+        pendingActiveMs: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.pendingActiveMs || '0'),
+            10,
+          ) || 0,
+        ),
+        lastActiveAt: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.lastActiveAt || '0'),
+            10,
+          ) || 0,
+        ),
+        lastHeartbeatAt: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.lastHeartbeatAt || '0'),
+            10,
+          ) || 0,
+        ),
+        lastFortuneGain: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.lastFortuneGain || '0'),
+            10,
+          ) || 0,
+        ),
+        lastFortuneReason: String(
+          (rawRecord.inputStats as Record<string, unknown> | undefined)?.lastFortuneReason || '',
+        ).trim(),
+        lastFortuneDetail: String(
+          (rawRecord.inputStats as Record<string, unknown> | undefined)?.lastFortuneDetail || '',
+        ).trim(),
+        lastFortuneAt: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.lastFortuneAt || '0'),
+            10,
+          ) || 0,
+        ),
+        lastSettledMessageId: String(
+          (rawRecord.inputStats as Record<string, unknown> | undefined)?.lastSettledMessageId || '',
+        ).trim(),
+        totalRewardedChecks: Math.max(
+          0,
+          Number.parseInt(
+            String((rawRecord.inputStats as Record<string, unknown> | undefined)?.totalRewardedChecks || '0'),
+            10,
+          ) || 0,
+        ),
+        lastSettledCheckId: String(
+          (rawRecord.inputStats as Record<string, unknown> | undefined)?.lastSettledCheckId || '',
+        ).trim(),
+      },
+    };
+  }
 }
