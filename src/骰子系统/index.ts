@@ -12,6 +12,7 @@ import { AcuDiceHistory } from './features/api/history';
 import { AcuDiceReadyState } from './features/api/ready';
 import { AcuDicePresets } from './features/api/presets';
 import { AcuDiceCharacters } from './features/api/characters';
+import { AcuDiceRoll } from './features/api/roll';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48076,6 +48077,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getFullAttributesForCharacter: (name: string) => getFullAttributesForCharacter(name),
     getAttributeValueInternal: (name: string, attribute: string) => getAttributeValue(name, attribute),
   });
+  const acuDiceRoll = new AcuDiceRoll({
+    evaluateFormula: (expr: string, ctx: any) => evaluateFormula(expr, ctx),
+  });
   const notifyReady = (): void => {
     acuDiceReady.markReady();
   };
@@ -49705,21 +49709,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * AcuDice.roll('1d20+5') // => { total: 15, formula: '1d20+5', breakdown: '1d20+5 = 15' }
      */
     roll(formula: string): { total: number; formula: string; breakdown: string } {
-      if (!formula || typeof formula !== 'string') {
-        throw new Error('[AcuDice] roll() 需要一个有效的骰子表达式字符串');
-      }
-      // 校验公式：必须包含骰子表达式（如 2d6）或是纯数学运算（如 3+5）
-      const hasDice = /\d*d(\d+|F)/i.test(formula);
-      const isMath = /^[\d\s+\-*/().]+$/.test(formula.trim());
-      if (!hasDice && !isMath) {
-        throw new Error(`[AcuDice] 无效的骰子表达式: ${formula}`);
-      }
-      const total = evaluateFormula(formula, {});
-      return {
-        total,
-        formula,
-        breakdown: `${formula} = ${total}`,
-      };
+      return acuDiceRoll.roll(formula);
     },
 
     /**
