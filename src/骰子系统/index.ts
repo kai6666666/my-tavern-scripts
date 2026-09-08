@@ -9,6 +9,7 @@ import { RollResult, CustomFieldConfig, DerivedVarSpec, DiceExprPatch } from './
 import { rollDiceExpression, rollComplexDiceExpression } from './features/dice/dice-engine';
 import { AcuDiceEvents } from './features/api/events';
 import { AcuDiceHistory } from './features/api/history';
+import { AcuDiceReadyState } from './features/api/ready';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48059,24 +48060,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   const rootWindow = resolveRootWindow();
-  const readyCallbacks: Array<() => void> = [];
-  let isAcuDiceReady = false;
-
-  const runReadyCallback = (callback: () => void) => {
-    try {
-      callback();
-    } catch (error) {
-      console.error('[AcuDice] onReady 回调出错', error);
-    }
-  };
-
-  const notifyReady = () => {
-    if (isAcuDiceReady) return;
-    isAcuDiceReady = true;
-    for (const callback of readyCallbacks) {
-      runReadyCallback(callback);
-    }
-    readyCallbacks.length = 0;
+  const acuDiceReady = new AcuDiceReadyState();
+  const notifyReady = (): void => {
+    acuDiceReady.markReady();
   };
 
   const defineAcuDiceOnWindow = (target: Window) => {
@@ -49888,17 +49874,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
      * @param callback 回调函数
      */
     onReady(callback: () => void): void {
-      if (typeof callback !== 'function') {
-        console.warn('[AcuDice] onReady() 需要一个函数');
-        return;
-      }
-
-      if (isAcuDiceReady) {
-        runReadyCallback(callback);
-        return;
-      }
-
-      readyCallbacks.push(callback);
+      acuDiceReady.onReady(callback);
     },
 
     /**
