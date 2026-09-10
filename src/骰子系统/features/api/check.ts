@@ -174,4 +174,41 @@ export class AcuDiceCheck {
       rule: isDND ? 'dnd' : 'coc',
     };
   }
+
+  async checkByCharacter(options: {
+    name: string;
+    attribute: string;
+    modifier?: number;
+    diceType?: string;
+    successCriteria?: 'lte' | 'gte';
+  }): Promise<{
+    success: boolean;
+    roll: number;
+    target: number;
+    margin: number;
+    criticalSuccess: boolean;
+    criticalFailure: boolean;
+    message: string;
+    diceType: string;
+    rule: 'coc' | 'dnd';
+  }> {
+    if (!options || !options.name || !options.attribute) {
+      throw new Error('[AcuDice] checkByCharacter() 需要 name 和 attribute 参数');
+    }
+
+    // 获取角色属性值
+    const targetValue = this.deps.getAttributeValueInternal(options.name, options.attribute);
+    if (targetValue === null) {
+      throw new Error(`[AcuDice] 未找到角色 "${options.name}" 的属性 "${options.attribute}"`);
+    }
+
+    // 调用现有的 check 方法
+    return this.check({
+      attribute: options.attribute,
+      targetValue,
+      modifier: options.modifier,
+      diceType: options.diceType,
+      successCriteria: options.successCriteria,
+    });
+  }
 }
