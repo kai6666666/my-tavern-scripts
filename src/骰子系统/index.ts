@@ -15,6 +15,7 @@ import { AcuDiceCharacters } from './features/api/characters';
 import { AcuDiceRoll } from './features/api/roll';
 import { AcuDiceProfiles } from './features/api/profiles';
 import { AcuDiceCheck } from './features/api/check';
+import { AcuDiceContest } from './features/api/contest';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -48106,6 +48107,24 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     },
     emitEvent: (event: string, payload: any) => emitEvent(event, payload),
   });
+  const acuDiceContest = new AcuDiceContest({
+    getRawData: () => cachedRawData || getTableData(),
+    processJsonData: (raw: any) => processJsonData(raw),
+    rebuildAliasRegistry: (tables: any) => NameAliasRegistry.rebuild(tables),
+    resolveCanonicalCharacterName: (name: string) => resolveCanonicalCharacterName(name),
+    getAttributeValueInternal: (name: string, attr: string) => getAttributeValue(name, attr),
+    getDiceConfig: () => getDiceConfig(),
+    normalizeDiceFormula: (f: string) => normalizeCheckSuggestionDiceFormula(f),
+    rollComplexDiceExpression: (expr: string) => rollComplexDiceExpression(expr),
+    getSuccessLevel: (roll: number, target: number, sides: number) => getSuccessLevel(roll, target, sides),
+    appendContestHistory: (entry: any) => {
+      contestHistory.push(entry);
+      if (contestHistory.length > MAX_HISTORY) {
+        contestHistory.shift();
+      }
+    },
+    emitEvent: (event: string, payload: any) => emitEvent(event, payload),
+  });
   const notifyReady = (): void => {
     acuDiceReady.markReady();
   };
@@ -49950,133 +49969,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       winner: 'left' | 'right' | 'tie';
       message: string;
     }> {
-      // 兼容 attacker/defender 别名
-      const left = options?.left || options?.attacker;
-      const right = options?.right || options?.defender;
-
-      if (!left?.name || !left?.attribute) {
-        throw new Error('[AcuDice] contest() 需要 left.name 和 left.attribute 参数');
-      }
-      if (!right?.name || !right?.attribute) {
-        throw new Error('[AcuDice] contest() 需要 right.name 和 right.attribute 参数');
-      }
-
-      try {
-        const rawDataForAlias = cachedRawData || getTableData();
-        if (rawDataForAlias) {
-          NameAliasRegistry.rebuild(processJsonData(rawDataForAlias || {}));
-        }
-      } catch (error) {
-        console.warn('[AcuDice] contest() 别名映射刷新失败', error);
-      }
-
-      const leftName = resolveCanonicalCharacterName(left.name);
-      const rightName = resolveCanonicalCharacterName(right.name);
-
-      // 获取双方属性值（优先使用 targetValue，否则从角色数据查找）
-      let leftTarget = left.targetValue ?? null;
-      if (leftTarget === null) {
-        leftTarget = getAttributeValue(leftName, left.attribute);
-        if (leftTarget === null) {
-          throw new Error(`[AcuDice] 未找到角色 "${leftName}" 的属性 "${left.attribute}"`);
-        }
-      }
-
-      let rightTarget = right.targetValue ?? null;
-      if (rightTarget === null) {
-        rightTarget = getAttributeValue(rightName, right.attribute);
-        if (rightTarget === null) {
-          throw new Error(`[AcuDice] 未找到角色 "${rightName}" 的属性 "${right.attribute}"`);
-        }
-      }
-
-      // 获取骰子配置
-      const diceCfg = getDiceConfig();
-      const formula = normalizeCheckSuggestionDiceFormula(options.diceType || diceCfg.lastDiceType || '1d100');
-
-      // 投骰
-      const leftResult = rollComplexDiceExpression(formula).total;
-      const rightResult = rollComplexDiceExpression(formula).total;
-      if (Number.isNaN(leftResult) || Number.isNaN(rightResult)) {
-        throw new Error(`[AcuDice] 无效的骰子公式: ${formula}`);
-      }
-
-      // 解析骰子类型获取 sides
-      const sidesMatch = formula.match(/\d+d(\d+)/i);
-      const sides = sidesMatch ? parseInt(sidesMatch[1], 10) : 100;
-
-      // 计算成功等级
-      const leftSuccessLevel = getSuccessLevel(leftResult, leftTarget, sides);
-      const rightSuccessLevel = getSuccessLevel(rightResult, rightTarget, sides);
-
-      // 判定胜负
-      let winner: 'left' | 'right' | 'tie';
-      let message: string;
-
-      if (leftSuccessLevel.level > rightSuccessLevel.level) {
-        winner = 'left';
-        message = `${leftName} 胜利！(${leftSuccessLevel.name} 胜过 ${rightSuccessLevel.name})`;
-      } else if (leftSuccessLevel.level < rightSuccessLevel.level) {
-        winner = 'right';
-        message = `${rightName} 胜利！(${rightSuccessLevel.name} 胜过 ${leftSuccessLevel.name})`;
-      } else {
-        // 平手情况
-        const tieRule = options.rule || diceCfg.contestTieRule || 'initiator_lose';
-        message = `双方平手！(均为 ${leftSuccessLevel.name})`;
-
-        if (tieRule === 'initiator_win') {
-          winner = 'left';
-          message += ` - ${leftName} 判胜`;
-        } else if (tieRule === 'tie') {
-          winner = 'tie';
-        } else {
-          // initiator_lose
-          winner = 'right';
-          message += ` - ${leftName} 判负`;
-        }
-      }
-
-      const result = {
-        left: {
-          name: leftName,
-          attribute: left.attribute,
-          roll: leftResult,
-          target: leftTarget,
-          successLevel: leftSuccessLevel.level,
-        },
-        right: {
-          name: rightName,
-          attribute: right.attribute,
-          roll: rightResult,
-          target: rightTarget,
-          successLevel: rightSuccessLevel.level,
-        },
-        winner,
-        message,
-      };
-
-      // 触发事件
-      emitEvent('contest', result);
-
-      // 记录到历史
-      contestHistory.push({
-        ...result,
-        timestamp: Date.now(),
-        detailId: `contest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        detailLines: [
-          `发起方: ${result.left.name} / 对抗方: ${result.right.name}`,
-          `属性: ${result.left.attribute} vs ${result.right.attribute}`,
-          `掷骰: ${result.left.roll} vs ${result.right.roll}`,
-          `目标: ${result.left.target} vs ${result.right.target}`,
-          `胜者: ${result.winner === 'left' ? result.left.name : result.winner === 'right' ? result.right.name : '平局'}`,
-          `说明: ${result.message}`,
-        ],
-      });
-      if (contestHistory.length > MAX_HISTORY) {
-        contestHistory.shift();
-      }
-
-      return result;
+      return acuDiceContest.contest(options);
     },
   };
 
