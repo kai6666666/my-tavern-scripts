@@ -20,11 +20,11 @@ export function createRegexTransformationManager(deps: any) {
     getAllRules() {
       if (this._cache) return this._cache;
 
-      const storedRules = Store.get(STORAGE_KEY_REGEX_RULES, []);
+      const storedRules = Store.get(deps.STORAGE_KEY_REGEX_RULES, []);
       const rules = Array.isArray(storedRules) ? storedRules : [];
       const filteredRules = deps.filterDeprecatedBuiltinRegexRules(rules);
       if (filteredRules.length !== rules.length) {
-        Store.set(STORAGE_KEY_REGEX_RULES, filteredRules);
+        Store.set(deps.STORAGE_KEY_REGEX_RULES, filteredRules);
       }
       // 直接使用规则中存储的 enabled 状态，不再从全局 enabledStates 覆盖
       // 这确保了每个预设的开关状态是独立的
@@ -79,11 +79,11 @@ export function createRegexTransformationManager(deps: any) {
     // 切换规则启用状态
     toggleRuleEnabled(ruleId, enabled) {
       // 更新 STORAGE_KEY_REGEX_RULES 中的规则状态
-      const rules = Store.get(STORAGE_KEY_REGEX_RULES, []);
+      const rules = Store.get(deps.STORAGE_KEY_REGEX_RULES, []);
       const ruleIndex = rules.findIndex(r => r.id === ruleId);
       if (ruleIndex !== -1) {
         rules[ruleIndex].enabled = enabled;
-        Store.set(STORAGE_KEY_REGEX_RULES, rules);
+        Store.set(deps.STORAGE_KEY_REGEX_RULES, rules);
       }
 
       // 同时更新当前激活预设中的规则状态
@@ -97,7 +97,7 @@ export function createRegexTransformationManager(deps: any) {
 
     // 添加自定义规则
     addCustomRule(rule) {
-      const rules = Store.get(STORAGE_KEY_REGEX_RULES, []);
+      const rules = Store.get(deps.STORAGE_KEY_REGEX_RULES, []);
 
       // 验证必填字段
       if (!rule.name || !rule.pattern || !rule.scope) {
@@ -124,7 +124,7 @@ export function createRegexTransformationManager(deps: any) {
       };
 
       rules.push(newRule);
-      Store.set(STORAGE_KEY_REGEX_RULES, rules);
+      Store.set(deps.STORAGE_KEY_REGEX_RULES, rules);
       this.clearCache();
 
       // 同步规则到当前激活预设
@@ -137,19 +137,19 @@ export function createRegexTransformationManager(deps: any) {
     _syncRulesToActivePreset() {
       const activePreset = deps.getRegexPresetManager().getActivePreset();
       if (activePreset) {
-        const allRules = Store.get(STORAGE_KEY_REGEX_RULES, []);
+        const allRules = Store.get(deps.STORAGE_KEY_REGEX_RULES, []);
         deps.getRegexPresetManager().updatePresetRules(activePreset.id, allRules);
       }
     },
 
     // 删除规则
     removeRule(ruleId) {
-      const rules = Store.get(STORAGE_KEY_REGEX_RULES, []);
+      const rules = Store.get(deps.STORAGE_KEY_REGEX_RULES, []);
       const index = rules.findIndex(r => r.id === ruleId);
       if (index === -1) return false;
 
       rules.splice(index, 1);
-      Store.set(STORAGE_KEY_REGEX_RULES, rules);
+      Store.set(deps.STORAGE_KEY_REGEX_RULES, rules);
       this.clearCache();
 
       // 同步规则到当前激活预设
@@ -160,7 +160,7 @@ export function createRegexTransformationManager(deps: any) {
 
     // 更新规则
     updateRule(ruleId, updates) {
-      const rules = Store.get(STORAGE_KEY_REGEX_RULES, []);
+      const rules = Store.get(deps.STORAGE_KEY_REGEX_RULES, []);
       const index = rules.findIndex(r => r.id === ruleId);
       if (index === -1) return false;
 
@@ -170,7 +170,7 @@ export function createRegexTransformationManager(deps: any) {
         id: ruleId,
         updatedAt: Date.now(),
       };
-      Store.set(STORAGE_KEY_REGEX_RULES, rules);
+      Store.set(deps.STORAGE_KEY_REGEX_RULES, rules);
       this.clearCache();
 
       // 同步规则到当前激活预设

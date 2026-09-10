@@ -3694,6 +3694,7 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     filterDeprecatedBuiltinRegexRules: (...a: any[]) => filterDeprecatedBuiltinRegexRules(...a),
     getRegexPresetManager: () => RegexPresetManager,
     STORAGE_KEY_REGEX_ENABLED: STORAGE_KEY_REGEX_ENABLED,
+    STORAGE_KEY_REGEX_RULES: STORAGE_KEY_REGEX_RULES,
   });
   // ========================================
   // RegexPresetManager - 表格正则预设管理器 (Phase 1.3)
@@ -15451,6 +15452,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getCachedRawData: () => cachedRawData,
     getValidationEngine: () => ValidationEngine,
     getValidationRuleManager: () => ValidationRuleManager,
+    renderInterface: () => renderInterface(),
+    updateValidationIndicator: (...a: any[]) => updateValidationIndicator(...a),
   });
   // 更新导航栏验证指示器
   const updateValidationIndicator = count => {
