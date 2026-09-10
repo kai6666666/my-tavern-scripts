@@ -25,6 +25,10 @@ import { CustomTableNameIconImageDB } from './shared/storage/custom-table-name-i
 import { DiceProfileDB } from './shared/storage/dice-profile-db';
 import { Store, STORAGE_KEY_LAST_SNAPSHOT } from './shared/storage/store';
 import { FavoritesManager } from './features/favorites/favorites-manager';
+import { createDashboardDataParser } from './features/dashboard/dashboard-data-parser';
+import { createDiceHistoryStatsDB } from './features/history/dice-history-stats-db';
+import { createBookmarkManager } from './features/bookmarks/bookmark-manager';
+import { createUpdateController } from './features/validation/update-controller';
 import { DEFAULT_GM_CONFIG, DEFAULT_CONFIG, DEFAULT_DICE_CONFIG, DEFAULT_VIRTUAL_PRESET, DEFAULT_CRAZY_MODE_CONFIG, DEFAULT_SPECIAL_ATTR_TEMPLATE, RULE_TYPE_INFO, INVENTORY_QUALITY_ORDER } from './shared/defaults-config';
 import { computeEffectVariables, computePendingEffectVariables, parseEffectValueInput, buildEffectMetaLines, buildEffectTraceLines } from './shared/effect-math';
 import { alignAndFixPairedTables, isValueInRelationTable, getRelationOptions, getColumnExamples, getRowKey, getNearestValidNumber, extractCodesFromTable, buildCodeMapping } from './shared/table-utils';
@@ -1135,134 +1139,9 @@ import { GachaStateCore } from './features/gacha/gacha-state';
   // ========================================
   // BookmarkManager - 书签管理器（按聊天隔离）
   // ========================================
-  const BookmarkManager = {
-    STORAGE_KEY_PREFIX: 'acu_bookmarks_v1_',
-    MAX_CONTEXTS: 20, // 最多保留多少个聊天的bookmark数据
-
-    _cache: null,
-    _currentContextId: null,
-
-    // 获取当前上下文专属的存储键
-    _getStorageKey(ctxId) {
-      return this.STORAGE_KEY_PREFIX + (ctxId || getCurrentContextFingerprint());
-    },
-
-    // 清理过旧的bookmark数据，只保留最近使用的 N 个
-    _cleanupOldContexts() {
-      try {
-        const prefix = this.STORAGE_KEY_PREFIX;
-        const allKeys = [];
-
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(prefix)) {
-            allKeys.push(key);
-          }
-        }
-
-        if (allKeys.length <= this.MAX_CONTEXTS) {
-          // 数据量在限制内，无需清理
-          return;
-        }
-
-        // 按最后访问时间排序（通过内部 _lastAccess 字段）
-        const keyWithTime = allKeys.map(key => {
-          try {
-            const data = JSON.parse(localStorage.getItem(key));
-            return { key, time: data?._lastAccess || 0 };
-          } catch {
-            return { key, time: 0 };
-          }
-        });
-
-        keyWithTime.sort((a, b) => b.time - a.time);
-
-        // 删除超出限制的旧数据
-        const toDelete = keyWithTime.slice(this.MAX_CONTEXTS);
-        toDelete.forEach(item => {
-          localStorage.removeItem(item.key);
-        });
-
-        if (toDelete.length > 0) {
-          console.log(
-            `[DICE]BookmarkManager 清理了 ${toDelete.length} 个过期的bookmark数据（当前保留 ${this.MAX_CONTEXTS} 个聊天的数据，清理前共有 ${allKeys.length} 个）`,
-          );
-        }
-      } catch (e) {
-        console.warn('[DICE]BookmarkManager 清理失败', e);
-      }
-    },
-
-    _load() {
-      const ctxId = getCurrentContextFingerprint();
-
-      // 上下文变化时清空缓存
-      if (this._currentContextId !== ctxId) {
-        this._cache = null;
-        this._currentContextId = ctxId;
-      }
-
-      if (!this._cache) {
-        try {
-          const stored = localStorage.getItem(this._getStorageKey());
-          this._cache = stored ? JSON.parse(stored) : {};
-          // 移除内部元数据字段，不暴露给业务逻辑
-          delete this._cache._lastAccess;
-        } catch (e) {
-          this._cache = {};
-        }
-      }
-      return this._cache;
-    },
-
-    _save() {
-      try {
-        // 写入时附带最后访问时间戳
-        const dataToSave = { ...this._cache, _lastAccess: Date.now() };
-        localStorage.setItem(this._getStorageKey(), JSON.stringify(dataToSave));
-
-        // 每次保存后尝试清理（内部有数量判断，不会频繁执行）
-        this._cleanupOldContexts();
-      } catch (e) {
-        console.warn('[DICE]BookmarkManager 保存失败', e);
-      }
-    },
-
-    isBookmarked(tableName, rowKey) {
-      const data = this._load();
-      return !!(data[tableName] && data[tableName][rowKey]);
-    },
-
-    toggleBookmark(tableName, rowKey) {
-      const data = this._load();
-      if (!data[tableName]) data[tableName] = {};
-
-      if (data[tableName][rowKey]) {
-        // 取消bookmark
-        delete data[tableName][rowKey];
-        if (Object.keys(data[tableName]).length === 0) {
-          delete data[tableName];
-        }
-      } else {
-        // 添加bookmark
-        data[tableName][rowKey] = true;
-      }
-      this._save();
-    },
-
-    getBookmarks(tableName) {
-      const data = this._load();
-      if (!data[tableName]) return [];
-      return Object.keys(data[tableName]);
-    },
-
-    // 清理当前聊天的所有bookmark（调试用）
-    clearCurrentContext() {
-      localStorage.removeItem(this._getStorageKey());
-      this._cache = null;
-    },
-  };
-  const escapeHtml = s =>
+  const BookmarkManager = createBookmarkManager({
+    getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
+  });  const escapeHtml = s =>
     String(s ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -6095,170 +5974,9 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     checkSuccessRate: number;
   }
 
-  const DiceHistoryStatsDB = {
-    DB_NAME: 'acu_dice_history_stats',
-    STORE_NAME: 'records',
-    DB_VERSION: 1,
-    _db: null as IDBDatabase | null,
-
-    async init(): Promise<IDBDatabase> {
-      if (this._db) return this._db;
-
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-
-        request.onerror = () => {
-          console.error('[DICE]DiceHistoryStatsDB 打开数据库失败:', request.error);
-          reject(request.error);
-        };
-
-        request.onsuccess = () => {
-          this._db = request.result;
-          resolve(this._db);
-        };
-
-        request.onupgradeneeded = event => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-            const store = db.createObjectStore(this.STORE_NAME, {
-              keyPath: 'id',
-              autoIncrement: true,
-            });
-            store.createIndex('eventType', 'eventType', { unique: false });
-            store.createIndex('timestamp', 'timestamp', { unique: false });
-            store.createIndex('chatId', 'chatId', { unique: false });
-            store.createIndex('characterId', 'characterId', { unique: false });
-            store.createIndex('chatCharacter', ['chatId', 'characterId'], { unique: false });
-          }
-        };
-      });
-    },
-
-    async add(record: DiceHistoryStatRecord): Promise<void> {
-      try {
-        const db = await this.init();
-        await new Promise<void>(resolve => {
-          const tx = db.transaction(this.STORE_NAME, 'readwrite');
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => {
-            console.warn('[DICE]DiceHistoryStatsDB add 失败:', tx.error);
-            resolve();
-          };
-          tx.objectStore(this.STORE_NAME).add(record);
-        });
-      } catch (error) {
-        console.warn('[DICE]DiceHistoryStatsDB add error:', error);
-      }
-    },
-
-    async getAll(): Promise<DiceHistoryStatRecord[]> {
-      try {
-        const db = await this.init();
-        return await new Promise(resolve => {
-          const tx = db.transaction(this.STORE_NAME, 'readonly');
-          const request = tx.objectStore(this.STORE_NAME).getAll();
-          request.onsuccess = () => resolve((request.result || []) as DiceHistoryStatRecord[]);
-          request.onerror = () => resolve([]);
-        });
-      } catch (error) {
-        console.warn('[DICE]DiceHistoryStatsDB getAll error:', error);
-        return [];
-      }
-    },
-
-    async clear(): Promise<void> {
-      try {
-        const db = await this.init();
-        await new Promise<void>(resolve => {
-          const tx = db.transaction(this.STORE_NAME, 'readwrite');
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => resolve();
-          tx.objectStore(this.STORE_NAME).clear();
-        });
-      } catch (error) {
-        console.warn('[DICE]DiceHistoryStatsDB clear error:', error);
-      }
-    },
-
-    async recordEvent(event: string, payload: unknown): Promise<void> {
-      if (event !== 'check' && event !== 'contest') return;
-
-      const context = getDiceStatsContext();
-      const record = payload as Record<string, unknown>;
-      const now = Date.now();
-      const timestampRaw = Number(record.timestamp);
-      const timestamp = Number.isFinite(timestampRaw) ? timestampRaw : now;
-
-      const entry: DiceHistoryStatRecord = {
-        eventType: event,
-        timestamp,
-        chatId: context.chatId,
-        characterId: context.characterId,
-        success: false,
-        attrName: '',
-        formula: '',
-        total: 0,
-        target: 0,
-        outcomeText: '',
-      };
-
-      if (event === 'check') {
-        entry.success = Boolean(record.success);
-        entry.attrName = String(record.attrName || '检定');
-        entry.formula = String(record.formula || '');
-        entry.total = Number(record.total) || 0;
-        entry.target = Number(record.target) || 0;
-        entry.outcomeText = String(record.outcomeText || (entry.success ? '成功' : '失败'));
-      } else {
-        const winner = String(record.winner || 'tie');
-        entry.success = winner !== 'tie';
-        const left = (record.left || {}) as Record<string, unknown>;
-        const right = (record.right || {}) as Record<string, unknown>;
-        entry.attrName = `${String(left.attribute || '')} vs ${String(right.attribute || '')}`.trim() || '对抗检定';
-        entry.formula = 'contest';
-        entry.total = Number(left.roll) || 0;
-        entry.target = Number(left.target) || 0;
-        entry.outcomeText = String(record.message || (winner === 'tie' ? '平局' : '分出胜负'));
-      }
-
-      await this.add(entry);
-    },
-
-    summarize(records: DiceHistoryStatRecord[]): DiceHistoryStatsSummary {
-      const checks = records.filter(item => item.eventType === 'check');
-      const contests = records.filter(item => item.eventType === 'contest');
-      const checkSuccess = checks.filter(item => item.success).length;
-      const checkSuccessRate = checks.length > 0 ? Number(((checkSuccess / checks.length) * 100).toFixed(1)) : 0;
-      return {
-        total: records.length,
-        checks: checks.length,
-        contests: contests.length,
-        checkSuccess,
-        checkSuccessRate,
-      };
-    },
-
-    async getDashboardStats(): Promise<Record<DiceStatsScope, DiceHistoryStatsSummary>> {
-      const all = await this.getAll();
-      const context = getDiceStatsContext();
-      const hasChatScope = context.chatId !== 'unknown_chat';
-      const hasCharacterScope = context.characterId !== 'unknown_character';
-
-      const chatRecords = hasChatScope
-        ? all.filter(item => item.chatId === context.chatId && item.chatId !== 'unknown_chat')
-        : [];
-      const characterRecords = hasCharacterScope
-        ? all.filter(item => item.characterId === context.characterId && item.characterId !== 'unknown_character')
-        : [];
-
-      return {
-        chat: this.summarize(chatRecords),
-        character: this.summarize(characterRecords),
-        global: this.summarize(all),
-      };
-    },
-  };
-
+  const DiceHistoryStatsDB = createDiceHistoryStatsDB({
+    getDiceStatsContext: (...a: any[]) => getDiceStatsContext(...a),
+  });
   // ========================================
   // FavoritesManager - 收藏夹业务逻辑层
   // ========================================
@@ -16946,136 +16664,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getDashboardRuntimeConfig()[moduleKey] || null;
 
   // 仪表盘数据解析器
-  const DashboardDataParser = {
-    // 根据配置查找所有匹配表
-    findTables(allTables, moduleKey) {
-      const config = getDashboardModuleConfig(moduleKey);
-      if (!config) {
-        console.info(`[DICE]仪表盘查找表格: 模块"${moduleKey}"配置不存在`);
-        return [];
-      }
-
-      const results = [];
-      const matchedTableNames = new Set();
-      for (const keyword of config.tableKeywords) {
-        for (const tableName in allTables) {
-          if (tableName.includes(keyword) && !matchedTableNames.has(tableName)) {
-            matchedTableNames.add(tableName);
-            console.info(`[DICE]仪表盘查找表格: 模块"${moduleKey}"找到表格"${tableName}" (关键词: "${keyword}")`);
-            results.push({
-              data: allTables[tableName],
-              name: tableName,
-              key: allTables[tableName].key,
-              config: config,
-            });
-          }
-        }
-      }
-
-      if (results.length === 0) {
-        console.info(
-          `[DICE]仪表盘查找表格: 模块"${moduleKey}"未找到匹配表格 (关键词: ${config.tableKeywords.join(', ')})`,
-        );
-      }
-      return results;
-    },
-
-    // 根据配置查找表
-    findTable(allTables, moduleKey) {
-      return this.findTables(allTables, moduleKey)[0] || null;
-    },
-
-    // 根据配置查找列索引
-    findColumnIndex(headers, columnKey, moduleConfig) {
-      const colConfig = moduleConfig.columns[columnKey];
-      if (!colConfig) return -1;
-
-      // 先尝试关键词匹配
-      for (let i = 0; i < headers.length; i++) {
-        const h = String(headers[i] || '').toLowerCase();
-        if (colConfig.keywords.some(kw => h.includes(kw.toLowerCase()))) {
-          return i;
-        }
-      }
-
-      // 回退到默认索引
-      return colConfig.fallbackIndex ?? -1;
-    },
-
-    // 从行中提取指定列的值
-    getValue(row, headers, columnKey, moduleConfig) {
-      const idx = this.findColumnIndex(headers, columnKey, moduleConfig);
-      if (idx < 0 || idx >= row.length) return null;
-      return row[idx];
-    },
-
-    // 获取模块的所有列索引映射
-    getColumnMap(headers, moduleKey) {
-      const config = getDashboardModuleConfig(moduleKey);
-      if (!config) return {};
-
-      const map = {};
-      for (const colKey in config.columns) {
-        map[colKey] = this.findColumnIndex(headers, colKey, config);
-      }
-      return map;
-    },
-
-    // 解析表格数据为结构化对象数组
-    parseRows(tableResult, moduleKey) {
-      if (!tableResult || !tableResult.data) {
-        console.info(`[DICE]仪表盘解析数据: 模块"${moduleKey}"无数据，跳过解析`);
-        return [];
-      }
-
-      const { data, config } = tableResult;
-      const headers = data.headers || [];
-      const rows = data.rows || [];
-      const colMap = this.getColumnMap(headers, moduleKey);
-
-      const parsed = rows.map((row, idx) => {
-        const obj = { _rowIndex: idx, _raw: row };
-        for (const colKey in colMap) {
-          const colIdx = colMap[colKey];
-          obj[colKey] = colIdx >= 0 && colIdx < row.length ? row[colIdx] : null;
-        }
-        return obj;
-      });
-
-      console.info(`[DICE]仪表盘解析数据: 模块"${moduleKey}"解析完成，共${parsed.length}行`);
-      return parsed;
-    },
-
-    // 应用过滤器（容错：当目标列不存在时返回全部数据）
-    applyFilter(parsedRows, filterKey, moduleKey) {
-      const config = getDashboardModuleConfig(moduleKey);
-      if (!config || !config.filters || !config.filters[filterKey]) return parsedRows;
-
-      const filter = config.filters[filterKey];
-
-      // 容错：检查过滤列是否存在（即parsedRows中是否有该字段的有效值）
-      const hasFilterColumn = parsedRows.some(row => row[filter.column] !== null && row[filter.column] !== undefined);
-      if (!hasFilterColumn) {
-        // 过滤列不存在，返回全部数据
-        return parsedRows;
-      }
-
-      return parsedRows.filter(row => {
-        const value = String(row[filter.column] || '').toLowerCase();
-        const matchInclude = filter.includes.some(inc => value.includes(inc.toLowerCase()));
-
-        if (filter.excludes && filter.excludes.length > 0) {
-          const excludeColumn = filter.excludeColumn || filter.column;
-          const excludeValue = String(row[excludeColumn] || '').toLowerCase();
-          const matchExclude = filter.excludes.some(exc => excludeValue.includes(exc.toLowerCase()));
-          return matchInclude && !matchExclude;
-        }
-
-        return matchInclude;
-      });
-    },
-  };
-
+  const DashboardDataParser = createDashboardDataParser({
+    getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
+  });
   const getGMConfig = () => {
     const baseConfig = Store.get(STORAGE_KEY_GM_CONFIG, DEFAULT_GM_CONFIG);
 
@@ -18051,66 +17642,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     console.warn('[DICE]ACU Error:', e);
   }
   // [优化] 智能更新控制器：后端数据变动时，自动更新快照
-  const UpdateController = {
-    _lastValidationCount: 0,
-
-    handleUpdate: () => {
-      // === 更新拦截逻辑（检查启用了 intercept 的规则） ===
-      let newData: unknown = null;
-      try {
-        const snapshot = loadSnapshot();
-        newData = getTableData({ silent: true });
-        if (snapshot && newData) {
-          const rules = ValidationRuleManager.getEnabledRules();
-          const violations = ValidationEngine.checkTableRules(snapshot, newData, rules);
-
-          if (violations.length > 0) {
-            console.warn('[DICE]ACU 规则拦截触发，仅标注不回滚:', violations);
-            if (window.toastr) {
-              window.toastr.warning(violations[0].message, '验证提示', {
-                timeOut: 5000,
-                positionClass: 'toast-bottom-right',
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.error('[DICE]ACU 拦截检查失败:', e);
-      }
-
-      if (newData && cachedRawData && isSameSheetData(cachedRawData, newData)) {
-        return;
-      }
-
-      // 直接触发渲染，让 renderInterface 内部处理数据获取和差异计算
-      // 注意：不要在这里更新快照！快照只在用户主动保存时更新
-      renderInterface();
-
-      // 执行实时验证
-      setTimeout(() => {
-        try {
-          const rawData = cachedRawData || getTableData();
-          if (rawData) {
-            const errors = ValidationEngine.validateAllData(rawData);
-            const newCount = errors.length;
-
-            // 只有当错误数量增加时才弹出提示
-            if (newCount > UpdateController._lastValidationCount && newCount > 0) {
-              // 错误数量已增加
-            }
-
-            UpdateController._lastValidationCount = newCount;
-
-            // 更新导航栏指示器
-            updateValidationIndicator(newCount);
-          }
-        } catch (e) {
-          console.error('[DICE]ACU 验证执行失败:', e);
-        }
-      }, 100);
-    },
-  };
-
+  const UpdateController = createUpdateController({
+    getTableData: (...a: any[]) => getTableData(...a),
+    isSameSheetData: (...a: any[]) => isSameSheetData(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    getCachedRawData: () => cachedRawData,
+    getValidationEngine: () => ValidationEngine,
+    getValidationRuleManager: () => ValidationRuleManager,
+  });
   // 更新导航栏验证指示器
   const updateValidationIndicator = count => {
     const { $ } = getCore();
