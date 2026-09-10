@@ -17,6 +17,7 @@ import { AcuDiceProfiles } from './features/api/profiles';
 import { AcuDiceCheck } from './features/api/check';
 import { AcuDiceContest } from './features/api/contest';
 import { createAcuDiceGachaApi } from './features/api/gacha';
+import { GachaRegexActions } from './features/gacha/gacha-regex-actions';
 import {
   SCRIPT_ID,
   DICE_ROOT_CLASS,
@@ -70871,190 +70872,23 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     showSettings: (...a: any[]) => showGachaSettingsDialog(...a),
   });
 
-  const ACUDICE_GACHA_REGEX_ACTION_SELECTOR = '[data-acu-gacha-action]';
-
-  const getAcuDiceGachaRegexToastr = () => {
-    try {
-      return window.toastr || (rootWindow !== window ? (rootWindow as unknown as { toastr?: typeof window.toastr }).toastr : undefined);
-    } catch {
-      return window.toastr;
-    }
-  };
-
-  const setAcuDiceGachaRegexActionBusy = (element: HTMLElement, busy: boolean) => {
-    element.classList.toggle('is-busy', busy);
-    if (busy) {
-      element.dataset.acuGachaBusy = '1';
-      element.setAttribute('aria-disabled', 'true');
-    } else {
-      delete element.dataset.acuGachaBusy;
-      element.removeAttribute('aria-disabled');
-    }
-  };
-
-  const getAcuDiceGachaRegexInteger = (element: HTMLElement, key: string, fallback = 0): number => {
-    const raw = element.dataset[key] ?? element.getAttribute(`data-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`);
-    const value = Number.parseInt(String(raw ?? ''), 10);
-    return Number.isFinite(value) ? value : fallback;
-  };
-
-  const executeAcuDiceGachaRegexAction = async (element: HTMLElement) => {
-    const action = String(element.dataset.acuGachaAction || '').trim();
-    const toastr = getAcuDiceGachaRegexToastr();
-
-    switch (action) {
-      case 'openShop':
-      case 'shop':
-        await acuDiceGachaApi.openShop();
-        break;
-
-      case 'addFortune': {
-        const amount = getAcuDiceGachaRegexInteger(element, 'acuGachaAmount');
-        const result = await acuDiceGachaApi.addFortune(amount, {
-          reason: '正则按钮',
-          detail: String(element.dataset.acuGachaDetail || ''),
-        });
-        toastr?.success?.(`当前${FORTUNE_CURRENCY_NAME}：${result.after}`, '骰子商店');
-        break;
+  const gachaRegexActions = new GachaRegexActions({
+    gachaApi: acuDiceGachaApi,
+    currencyName: FORTUNE_CURRENCY_NAME,
+    getToastr: () => {
+      try {
+        return window.toastr || (rootWindow !== window ? (rootWindow as unknown as { toastr?: typeof window.toastr }).toastr : undefined);
+      } catch {
+        return window.toastr;
       }
-
-      case 'clearFortune': {
-        const result = await acuDiceGachaApi.clearFortune({ confirm: true, reason: '正则按钮' });
-        if (!result.canceled) toastr?.success?.(`${FORTUNE_CURRENCY_NAME}已清空`, '骰子商店');
-        break;
-      }
-
-      case 'state': {
-        const state = acuDiceGachaApi.getState();
-        console.log('[AcuDice.gacha] state', state);
-        toastr?.info?.(`当前${FORTUNE_CURRENCY_NAME}：${state.fortune}`, '骰子商店');
-        break;
-      }
-
-      case 'singleDraw': {
-        const result = await acuDiceGachaApi.singleDraw();
-        console.log('[AcuDice.gacha] singleDraw', result);
-        break;
-      }
-
-      case 'tenDraw': {
-        const result = await acuDiceGachaApi.tenDraw();
-        console.log('[AcuDice.gacha] tenDraw', result);
-        break;
-      }
-
-      case 'openShardShop':
-      case 'shardShop':
-        await acuDiceGachaApi.openShardShop();
-        break;
-
-      case 'createTestCatalog':
-        await acuDiceGachaApi.upsertPool({ id: 'API测试', name: 'API测试', includeInAll: true, order: 990 }, { silent: true });
-        await acuDiceGachaApi.upsertItems(
-          {
-            items: [
-              {
-                id: 'regex_test_candy',
-                name: '测试糖',
-                type: '道具',
-                quality: '普通',
-                description: '正则按钮测试用糖果',
-                poolTags: ['API测试'],
-                weight: 1,
-                stackable: true,
-                unique: false,
-                grantQuantity: 1,
-                rewardTarget: 'inventory',
-              },
-            ],
-          },
-          { mode: 'overwrite', silent: true },
-        );
-        acuDiceGachaApi.setActivePool('API测试');
-        toastr?.success?.('已创建 API测试 池和 测试糖', '骰子商店');
-        break;
-
-      case 'drawTestCatalog': {
-        acuDiceGachaApi.setActivePool('API测试');
-        await acuDiceGachaApi.addFortune(20, { silent: true, reason: '正则奖池测试' });
-        const result = await acuDiceGachaApi.singleDraw();
-        console.log('[AcuDice.gacha] API测试池单抽', result);
-        break;
-      }
-
-      case 'listTestCatalog': {
-        const items = await acuDiceGachaApi.listItems({ poolTag: 'API测试', includeDisabled: true });
-        console.log('[AcuDice.gacha] API测试池物品', items);
-        toastr?.info?.(`API测试池物品数：${items.length}`, '骰子商店');
-        break;
-      }
-
-      case 'clearTestCatalog':
-        await acuDiceGachaApi.removeCustomItem('regex_test_candy', { silent: true });
-        await acuDiceGachaApi.removeCustomPool('API测试', { silent: true });
-        toastr?.success?.('已清理 API测试 池', '骰子商店');
-        break;
-
-      case 'listPools': {
-        const pools = await acuDiceGachaApi.listPools({ includeHidden: true });
-        console.log('[AcuDice.gacha] pools', pools);
-        toastr?.info?.(`卡池数：${pools.length}`, '骰子商店');
-        break;
-      }
-
-      case 'exportCatalog': {
-        const json = await acuDiceGachaApi.exportCatalog();
-        console.log('[AcuDice.gacha] custom catalog JSON', json);
-        toastr?.info?.('已输出到浏览器控制台', '骰子商店');
-        break;
-      }
-
-      case 'openSettings':
-      case 'settings':
-        await acuDiceGachaApi.openSettings();
-        break;
-
-      default:
-        console.warn('[AcuDice][GachaRegex] 未知按钮动作:', action);
-        toastr?.warning?.(`未知骰子商店动作：${action || '(空)'}`, '骰子商店');
-    }
-  };
-
-  const handleAcuDiceGachaRegexAction = async (element: HTMLElement) => {
-    if (element.dataset.acuGachaBusy === '1' || element.getAttribute('aria-disabled') === 'true') return;
-
-    setAcuDiceGachaRegexActionBusy(element, true);
-    try {
-      await executeAcuDiceGachaRegexAction(element);
-    } catch (error) {
-      const message = getRuntimeErrorMessage(error);
-      console.error('[AcuDice][GachaRegex] 按钮执行失败:', error);
-      showActionableErrorToast(`骰子商店按钮执行失败：${message}`, { title: '骰子商店', developerHint: true });
-    } finally {
-      setAcuDiceGachaRegexActionBusy(element, false);
-    }
-  };
+    },
+    getRuntimeErrorMessage: (error: unknown) => getRuntimeErrorMessage(error),
+    showActionableErrorToast: (message: string, options?: any) => showActionableErrorToast(message, options),
+    getCore: () => getCore(),
+  });
 
   function bindAcuDiceGachaRegexActions() {
-    const { $ } = getCore();
-    if (!$) return;
-
-    $('body')
-      .off('click.acu_gacha_regex_action')
-      .on('click.acu_gacha_regex_action', ACUDICE_GACHA_REGEX_ACTION_SELECTOR, function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        void handleAcuDiceGachaRegexAction(this as HTMLElement);
-      });
-
-    $('body')
-      .off('keydown.acu_gacha_regex_action')
-      .on('keydown.acu_gacha_regex_action', ACUDICE_GACHA_REGEX_ACTION_SELECTOR, function (event) {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        event.stopPropagation();
-        void handleAcuDiceGachaRegexAction(this as HTMLElement);
-      });
+    gachaRegexActions.bind();
   }
 
   (AcuDiceAPI as Record<string, unknown>).gacha = acuDiceGachaApi;
