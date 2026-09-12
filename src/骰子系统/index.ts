@@ -77,6 +77,14 @@ import { createShowGachaPoolNameDialog } from './features/gacha/gacha-pool-name-
 import { createShowGachaConfirmDialog } from './features/gacha/gacha-confirm-dialog';
 import { createShowGachaSettingsDialog } from './features/gacha/gacha-settings-dialog';
 import { createShowGachaItemEditorDialog } from './features/gacha/gacha-item-editor-dialog';
+import { createShowGachaCatalogImportConfirm } from './features/gacha/gacha-catalog-import-confirm';
+import { createShowGachaSaveError } from './features/gacha/gacha-save-error';
+import { createShowGachaRecentRewardDetail } from './features/gacha/gacha-recent-reward-detail';
+import { createShowGachaShardShop } from './features/gacha/gacha-shard-shop';
+import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shard-exchange-confirm';
+import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
+import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
+import { createInitSortable } from './shared/ui/init-sortable';
 import { DEFAULT_GM_CONFIG, DEFAULT_CONFIG, DEFAULT_DICE_CONFIG, DEFAULT_VIRTUAL_PRESET, DEFAULT_CRAZY_MODE_CONFIG, DEFAULT_SPECIAL_ATTR_TEMPLATE, RULE_TYPE_INFO, INVENTORY_QUALITY_ORDER } from './shared/defaults-config';
 import { computeEffectVariables, computePendingEffectVariables, parseEffectValueInput, buildEffectMetaLines, buildEffectTraceLines } from './shared/effect-math';
 import { alignAndFixPairedTables, isValueInRelationTable, getRelationOptions, getColumnExamples, getRowKey, getNearestValidNumber, extractCodesFromTable, buildCodeMapping } from './shared/table-utils';
@@ -12290,620 +12298,40 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     });
   };
 
-  const showCustomTableNameIconManager = () => {
-    const { $ } = getCore();
-    $('.acu-custom-table-name-icon-manager-overlay').remove();
-
-    const config = getConfig();
-    let candidates = getCustomTableNameIconManagerCandidates();
-    let candidateByKey = new Map(candidates.map(candidate => [candidate.key, candidate]));
-    let selectedKey = candidates[0]?.key || '';
-    let pendingLocalFile: File | null = null;
-
-    const moduleOptions = [...new Set(candidates.map(candidate => candidate.context.moduleId))]
-      .map(
-        moduleId =>
-          `<option value="${escapeHtml(moduleId)}">${escapeHtml(getCustomTableNameIconManagerModuleLabel(moduleId))}</option>`,
-      )
-      .join('');
-    const tableOptions = [...new Set(candidates.map(candidate => candidate.context.tableName))]
-      .sort((left, right) => left.localeCompare(right, 'zh-CN'))
-      .map(tableName => `<option value="${escapeHtml(tableName)}">${escapeHtml(tableName)}</option>`)
-      .join('');
-
-    const overlay = $(`
-      <div class="acu-avatar-manager-overlay acu-custom-table-name-icon-manager-overlay acu-theme-${config.theme}">
-        <div class="acu-avatar-manager acu-custom-icon-manager" role="dialog" aria-modal="true" aria-labelledby="acu-custom-icon-manager-title">
-          <div class="acu-custom-icon-guide-top">
-            <div class="acu-panel-header">
-              <div class="acu-avatar-title" id="acu-custom-icon-manager-title"><i class="fa-solid fa-icons"></i> 图标预设管理</div>
-              <div class="acu-avatar-header-actions">
-                ${getTutorialButtonHtml('customIconManager', '查看图标预设管理教程', 'acu-btn-icon')}
-                <button type="button" class="acu-custom-icon-close acu-btn-icon" title="关闭" aria-label="关闭图标预设管理"><i class="fa-solid fa-times"></i></button>
-              </div>
-            </div>
-            <div class="acu-avatar-toolbar acu-custom-icon-toolbar">
-              <div class="acu-toolbar-group left acu-avatar-filter-controls acu-custom-icon-filter-controls">
-                <div class="acu-select-wrapper sort-field">
-                  <select id="acu-custom-icon-module-filter" class="acu-toolbar-select" title="模块过滤" aria-label="按模块过滤">
-                    <option value="">全部模块</option>
-                    ${moduleOptions}
-                  </select>
-                </div>
-                <div class="acu-select-wrapper sort-field">
-                  <select id="acu-custom-icon-table-filter" class="acu-toolbar-select" title="表格过滤" aria-label="按表格过滤">
-                    <option value="">全部表格</option>
-                    ${tableOptions}
-                  </select>
-                </div>
-              </div>
-              <div class="acu-toolbar-group right acu-custom-icon-pack-actions">
-                <button type="button" id="acu-custom-icon-import" class="acu-custom-icon-pack-btn" title="导入图标包" aria-label="导入图标包">
-                  <i class="fa-solid fa-file-import"></i> <span class="acu-custom-icon-action-label">导入图标包</span>
-                </button>
-                <button type="button" id="acu-custom-icon-export" class="acu-custom-icon-pack-btn" title="导出图标包" aria-label="导出图标包">
-                  <i class="fa-solid fa-file-export"></i> <span class="acu-custom-icon-action-label">导出图标包</span>
-                </button>
-              </div>
-              <div class="acu-search-wrapper acu-custom-icon-search-wrapper">
-                <i class="fa-solid fa-magnifying-glass acu-search-icon"></i>
-                <input type="text" id="acu-custom-icon-search" class="acu-avatar-search" placeholder="搜索" autocomplete="off" aria-label="搜索图标条目">
-              </div>
-            </div>
-          </div>
-          <div class="acu-custom-icon-body">
-            <div class="acu-avatar-list acu-custom-icon-list" id="acu-custom-icon-list"></div>
-            <div class="acu-avatar-list acu-custom-icon-detail" id="acu-custom-icon-detail"></div>
-          </div>
-          <input type="file" id="acu-custom-icon-local-file" class="acu-custom-icon-file-input" accept="image/png,image/jpeg,image/webp,image/gif" />
-          <input type="file" id="acu-custom-icon-import-file" class="acu-custom-icon-file-input" accept=".json,application/json" />
-        </div>
-      </div>
-    `);
-
-    $('body').append(overlay);
-    bindTutorialButtonsIn(overlay);
-
-    const updateCandidateCache = (): void => {
-      candidates = getCustomTableNameIconManagerCandidates();
-      candidateByKey = new Map(candidates.map(candidate => [candidate.key, candidate]));
-      if (!candidates.some(candidate => candidate.key === selectedKey)) {
-        selectedKey = candidates[0]?.key || '';
-      }
-    };
-
-    const updateFilterOptions = (): void => {
-      const moduleSelect = overlay.find('#acu-custom-icon-module-filter');
-      const tableSelect = overlay.find('#acu-custom-icon-table-filter');
-      const currentModule = String(moduleSelect.val() || '').trim();
-      const currentTable = String(tableSelect.val() || '').trim();
-      const nextModuleOptions = [...new Set(candidates.map(candidate => candidate.context.moduleId))]
-        .map(
-          moduleId =>
-            `<option value="${escapeHtml(moduleId)}">${escapeHtml(getCustomTableNameIconManagerModuleLabel(moduleId))}</option>`,
-        )
-        .join('');
-      const nextTableOptions = [...new Set(candidates.map(candidate => candidate.context.tableName))]
-        .sort((left, right) => left.localeCompare(right, 'zh-CN'))
-        .map(tableName => `<option value="${escapeHtml(tableName)}">${escapeHtml(tableName)}</option>`)
-        .join('');
-      moduleSelect.html(`<option value="">全部模块</option>${nextModuleOptions}`);
-      tableSelect.html(`<option value="">全部表格</option>${nextTableOptions}`);
-      moduleSelect.val(candidates.some(candidate => candidate.context.moduleId === currentModule) ? currentModule : '');
-      tableSelect.val(candidates.some(candidate => candidate.context.tableName === currentTable) ? currentTable : '');
-    };
-
-    const getFilteredCandidates = (): CustomTableNameIconManagerCandidate[] => {
-      const moduleFilter = String(overlay.find('#acu-custom-icon-module-filter').val() || '').trim();
-      const tableFilter = String(overlay.find('#acu-custom-icon-table-filter').val() || '').trim();
-      const query = String(overlay.find('#acu-custom-icon-search').val() || '')
-        .trim()
-        .toLowerCase();
-      return candidates.filter(candidate => {
-        if (moduleFilter && candidate.context.moduleId !== moduleFilter) return false;
-        if (tableFilter && candidate.context.tableName !== tableFilter) return false;
-        if (query && !candidate.searchText.includes(query)) return false;
-        return true;
-      });
-    };
-
-    const getSelectedCandidate = (): CustomTableNameIconManagerCandidate | null =>
-      selectedKey ? candidateByKey.get(selectedKey) || null : null;
-
-    const renderList = async (): Promise<void> => {
-      const filteredCandidates = getFilteredCandidates();
-      if (!filteredCandidates.some(candidate => candidate.key === selectedKey)) {
-        selectedKey = filteredCandidates[0]?.key || '';
-        pendingLocalFile = null;
-      }
-
-      if (filteredCandidates.length === 0) {
-        overlay.find('#acu-custom-icon-list').html(`
-          <div class="acu-import-empty">
-            <i class="fa-solid fa-ban"></i> 没有可选择的白名单上下文<br>
-            <span class="acu-custom-icon-empty-note">角色、角色头像预设、全局数据表、选项表、检定建议表等非白名单上下文不会出现在这里。</span>
-          </div>
-        `);
-        await renderDetail();
-        return;
-      }
-
-      const rows = await Promise.all(
-        filteredCandidates.map(async candidate => {
-          const entry = CustomTableNameIconStoreManager.get(candidate.context);
-          const asset = await getCustomTableNameIconManagerEntryAsset(entry);
-          const sourceText = entry ? (entry.sourceType === 'local' ? '本地' : 'URL') : '未设置';
-          const sourceClass =
-            entry?.sourceType === 'local' ? 'acu-source-local' : entry?.sourceType === 'url' ? 'acu-source-url' : '';
-          const isSelected = candidate.key === selectedKey;
-          const previewImageUrl = formatCssImageUrl(asset.assetUrl, { allowInternalObjectUrl: true });
-          const previewStyle = previewImageUrl ? escapeHtml(`background-image:${previewImageUrl};`) : '';
-          const missingText = asset.isMissing ? '<span class="acu-custom-icon-missing-text">缺失/需重传</span>' : '';
-          const itemLabel = `选择图标预设条目：${candidate.context.name}`;
-          return `
-            <div class="acu-avatar-item acu-custom-table-name-icon-item ${isSelected ? 'expanded is-selected' : ''}" data-key="${escapeHtml(candidate.key)}" role="button" tabindex="0" aria-label="${escapeHtml(itemLabel)}" aria-current="${isSelected ? 'true' : 'false'}">
-              <div class="acu-avatar-row-collapsed">
-                <div class="acu-avatar-preview-wrap">
-                  <div class="acu-avatar-preview ${asset.assetUrl ? 'has-image' : ''}" style="${previewStyle}">
-                    ${asset.assetUrl ? '' : '<span><i class="fa-solid fa-table"></i></span>'}
-                  </div>
-                  <span class="acu-avatar-source ${sourceClass}">${sourceText}</span>
-                </div>
-                <div class="acu-avatar-info acu-custom-icon-list-info">
-                  <div class="acu-avatar-name acu-custom-icon-list-name">
-                    <span>${escapeHtml(candidate.context.name)}</span>${missingText}
-                  </div>
-                  <div class="acu-avatar-url-preview">
-                    ${escapeHtml(getCustomTableNameIconManagerContextLabel(candidate.context))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-        }),
-      );
-      overlay.find('#acu-custom-icon-list').html(rows.join(''));
-    };
-
-    const renderDetail = async (): Promise<void> => {
-      const candidate = getSelectedCandidate();
-      if (!candidate) {
-        overlay.find('#acu-custom-icon-detail').html(`
-          <div class="acu-import-empty">
-            <i class="fa-solid fa-circle-info"></i> 请选择一个白名单条目
-          </div>
-        `);
-        return;
-      }
-
-      const entry = CustomTableNameIconStoreManager.get(candidate.context);
-      const asset = await getCustomTableNameIconManagerEntryAsset(entry);
-      const previewImageUrl = formatCssImageUrl(asset.assetUrl, { allowInternalObjectUrl: true });
-      const previewStyle = previewImageUrl ? escapeHtml(`background-image:${previewImageUrl};`) : '';
-      const missingNotice = asset.isMissing
-        ? '<div class="acu-custom-icon-warning"><i class="fa-solid fa-triangle-exclamation"></i> 本地图片缺失或 URL 无效，运行时会回退默认图标，请重新上传或保存 URL。</div>'
-        : '';
-
-      overlay.find('#acu-custom-icon-detail').html(`
-        <div class="acu-custom-icon-detail-panel">
-          <div class="acu-custom-icon-detail-head">
-            <div class="acu-avatar-preview ${asset.assetUrl ? 'has-image' : ''}" style="${previewStyle}">
-              ${asset.assetUrl ? '' : '<span><i class="fa-solid fa-table"></i></span>'}
-            </div>
-            <div class="acu-custom-icon-detail-title">
-              <div class="acu-avatar-name">${escapeHtml(candidate.context.name)}</div>
-              <div class="acu-avatar-url-preview">${escapeHtml(getCustomTableNameIconManagerContextLabel(candidate.context))}</div>
-            </div>
-          </div>
-          <div class="acu-custom-icon-detail-form">
-            <label class="acu-custom-icon-field">
-              <span class="acu-custom-icon-url-label">
-                URL 图片地址
-                ${
-                  pendingLocalFile
-                    ? `<span id="acu-custom-icon-local-status" class="acu-custom-icon-local-status">已选择：${escapeHtml(pendingLocalFile.name)}</span>`
-                    : ''
-                }
-              </span>
-              <input id="acu-custom-icon-url" class="acu-input acu-custom-icon-url-input" type="url" value="${escapeHtml(entry?.sourceType === 'url' ? entry.imageUrl : '')}" placeholder="https://example.com/icon.png" autocomplete="off" aria-label="URL 图片地址" />
-            </label>
-            ${missingNotice}
-          </div>
-          <div class="acu-custom-icon-detail-actions">
-            <button type="button" id="acu-custom-icon-save" class="acu-custom-icon-detail-btn acu-custom-icon-primary-btn" title="保存 URL" aria-label="保存图标 URL">
-              <i class="fa-solid fa-link"></i> 保存 URL
-            </button>
-            <button type="button" id="acu-custom-icon-pick-local" class="acu-custom-icon-detail-btn" title="上传本地图片" aria-label="上传本地图片">
-              <i class="fa-solid fa-cloud-arrow-up"></i> 上传
-            </button>
-            <button type="button" id="acu-custom-icon-save-local" class="acu-custom-icon-detail-btn" title="保存本地图片" aria-label="保存本地图片">
-              <i class="fa-solid fa-floppy-disk"></i> 保存本地
-            </button>
-            <button type="button" id="acu-custom-icon-clear-input" class="acu-custom-icon-detail-btn" title="清空图标输入" aria-label="清空图标输入">
-              <i class="fa-solid fa-eraser"></i> 清空输入框
-            </button>
-            <button type="button" id="acu-custom-icon-delete" class="acu-custom-icon-detail-btn acu-custom-icon-danger-btn" title="删除图标映射" aria-label="删除图标映射">
-              <i class="fa-solid fa-trash"></i> 删除
-            </button>
-          </div>
-        </div>
-      `);
-      overlay.find('#acu-custom-icon-save i').removeClass('fa-link').addClass('fa-floppy-disk');
-    };
-
-    const refreshManager = async (): Promise<void> => {
-      updateCandidateCache();
-      updateFilterOptions();
-      await renderList();
-      await renderDetail();
-    };
-
-    const refreshRenderedIconConsumers = (): void => {
-      const dataArea = $('#acu-data-area');
-      if (!dataArea.length || !dataArea.hasClass('visible')) return;
-
-      const rawData = cachedRawData || getTableData();
-      if (Store.get(STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE, false)) {
-        dataArea.html(renderGlobalInteractionsPanel(rawData));
-        hydrateCustomTableNameIconsIn(dataArea as JQuery<HTMLElement>);
-        bindGlobalInteractionEvents(dataArea as JQuery<HTMLElement>);
-        return;
-      }
-
-      if (Store.get(STORAGE_KEY_DASHBOARD_ACTIVE, false)) {
-        const tables = processJsonData(rawData || {});
-        dataArea.html(renderDashboard(tables));
-        hydrateCustomTableNameIconsIn(dataArea as JQuery<HTMLElement>);
-        bindEvents(tables);
-        loadDashboardNpcAvatars();
-        return;
-      }
-
-      hydrateCustomTableNameIconsIn(dataArea as JQuery<HTMLElement>);
-    };
-
-    let renderedIconConsumersRefreshTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const cancelRenderedIconConsumersRefresh = (): void => {
-      if (!renderedIconConsumersRefreshTimer) return;
-      clearTimeout(renderedIconConsumersRefreshTimer);
-      renderedIconConsumersRefreshTimer = null;
-    };
-
-    const scheduleRenderedIconConsumersRefresh = (): void => {
-      cancelRenderedIconConsumersRefresh();
-      renderedIconConsumersRefreshTimer = setTimeout(() => {
-        renderedIconConsumersRefreshTimer = null;
-        refreshRenderedIconConsumers();
-      }, 80);
-    };
-
-    const closeCustomIconManager = (): void => {
-      cancelRenderedIconConsumersRefresh();
-      overlay.remove();
-    };
-
-    const removeSelectedCustomIconMapping = async (successMessage: string): Promise<boolean> => {
-      const candidate = getSelectedCandidate();
-      if (!candidate) return false;
-      const entry = CustomTableNameIconStoreManager.get(candidate.context);
-      pendingLocalFile = null;
-      overlay.find('#acu-custom-icon-url').val('');
-      if (!entry) {
-        if (window.toastr) window.toastr.info('该条目没有图标映射');
-        await refreshManager();
-        return false;
-      }
-      if (entry.sourceType === 'local' && entry.localIconKey) {
-        await CustomTableNameIconImageDB.delete(entry.localIconKey);
-      }
-      const removed = CustomTableNameIconStoreManager.delete(candidate.context);
-      CustomTableNameIconStoreManager.invalidate();
-      if (removed) window.toastr?.success(successMessage);
-      else showActionableErrorToast('删除图标映射失败，当前条目可能已被刷新或存储状态异常。', { developerHint: true });
-      await refreshManager();
-      scheduleRenderedIconConsumersRefresh();
-      return removed;
-    };
-
-    overlay.on(
-      'change input',
-      '#acu-custom-icon-module-filter, #acu-custom-icon-table-filter, #acu-custom-icon-search',
-      () => {
-        pendingLocalFile = null;
-        void refreshManager();
-      },
-    );
-
-    overlay.on('click', '.acu-custom-table-name-icon-item', function () {
-      selectedKey = String($(this).data('key') || '');
-      pendingLocalFile = null;
-      void refreshManager();
-    });
-
-    overlay.on('keydown', '.acu-custom-table-name-icon-item', function (event) {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      $(this).trigger('click');
-    });
-
-    overlay.on('click', '#acu-custom-icon-save', async () => {
-      const candidate = getSelectedCandidate();
-      if (!candidate) return;
-      const previousEntry = CustomTableNameIconStoreManager.get(candidate.context);
-      const now = Date.now();
-
-      if (pendingLocalFile) {
-        const validationError = getCustomTableNameIconLocalFileValidationError(pendingLocalFile);
-        if (validationError) {
-          if (window.toastr) window.toastr.warning(getCustomTableNameIconManagerInvalidSourceText(validationError));
-          return;
-        }
-
-        const localIconKey = getCustomTableNameIconManagerLocalKey(candidate.context);
-        const savedImage = await CustomTableNameIconImageDB.save(localIconKey, pendingLocalFile);
-        if (!savedImage) {
-          showActionableErrorToast('本地图标保存失败，图片没有写入本地浏览器存储。', { suggestion: 'image' });
-          return;
-        }
-
-        const saved = CustomTableNameIconStoreManager.save({
-          ...candidate.context,
-          sourceType: 'local',
-          imageUrl: '',
-          localIconKey,
-          imageMimeType: pendingLocalFile.type || null,
-          imageSize: pendingLocalFile.size,
-          createdAt: previousEntry?.createdAt || now,
-          updatedAt: now,
-        });
-        CustomTableNameIconStoreManager.invalidate();
-        pendingLocalFile = null;
-        scheduleRenderedIconConsumersRefresh();
-        if (saved) window.toastr?.success('本地图标已保存');
-        else showActionableErrorToast('保存本地图标映射失败，图标文件已读取但映射配置没有写入。', { developerHint: true });
-        await refreshManager();
-        return;
-      }
-
-      if (previousEntry?.sourceType === 'local') {
-        if (window.toastr) window.toastr.info('已保留本地图标；如需改用 URL，请先清空映射。');
-        await refreshManager();
-        return;
-      }
-
-      const imageUrl = String(overlay.find('#acu-custom-icon-url').val() || '').trim();
-      const validationError = getCustomTableNameIconImageUrlValidationError(imageUrl);
-      if (validationError) {
-        if (window.toastr) window.toastr.warning(getCustomTableNameIconManagerInvalidSourceText(validationError));
-        return;
-      }
-
-      if (previousEntry?.sourceType === 'local' && previousEntry.localIconKey) {
-        await CustomTableNameIconImageDB.delete(previousEntry.localIconKey);
-      }
-
-      const saved = CustomTableNameIconStoreManager.save({
-        ...candidate.context,
-        sourceType: 'url',
-        imageUrl,
-        localIconKey: null,
-        imageMimeType: null,
-        imageSize: null,
-        createdAt: previousEntry?.createdAt || now,
-        updatedAt: now,
-      });
-      CustomTableNameIconStoreManager.invalidate();
-      CustomTableNameIconImageDB.clearUrlFailure(imageUrl);
-      scheduleRenderedIconConsumersRefresh();
-      if (saved) window.toastr?.success('图标 URL 已保存');
-      else showActionableErrorToast('保存图标 URL 映射失败，配置没有写入本地存储。', { developerHint: true });
-      await refreshManager();
-    });
-
-    overlay.on('click', '#acu-custom-icon-save-url', async () => {
-      const candidate = getSelectedCandidate();
-      if (!candidate) return;
-      const imageUrl = String(overlay.find('#acu-custom-icon-url').val() || '').trim();
-      const validationError = getCustomTableNameIconImageUrlValidationError(imageUrl);
-      if (validationError) {
-        if (window.toastr) window.toastr.warning(getCustomTableNameIconManagerInvalidSourceText(validationError));
-        return;
-      }
-
-      const previousEntry = CustomTableNameIconStoreManager.get(candidate.context);
-      if (previousEntry?.sourceType === 'local' && previousEntry.localIconKey) {
-        await CustomTableNameIconImageDB.delete(previousEntry.localIconKey);
-      }
-
-      const now = Date.now();
-      const saved = CustomTableNameIconStoreManager.save({
-        ...candidate.context,
-        sourceType: 'url',
-        imageUrl,
-        localIconKey: null,
-        imageMimeType: null,
-        imageSize: null,
-        createdAt: previousEntry?.createdAt || now,
-        updatedAt: now,
-      });
-      CustomTableNameIconStoreManager.invalidate();
-      CustomTableNameIconImageDB.clearUrlFailure(imageUrl);
-      pendingLocalFile = null;
-      scheduleRenderedIconConsumersRefresh();
-      if (saved) window.toastr?.success('图标 URL 已保存');
-      else showActionableErrorToast('保存图标 URL 映射失败，配置没有写入本地存储。', { developerHint: true });
-      await refreshManager();
-    });
-
-    overlay.on('click', '#acu-custom-icon-pick-local', () => {
-      overlay.find('#acu-custom-icon-local-file').trigger('click');
-    });
-
-    overlay.on('change', '#acu-custom-icon-local-file', function (event) {
-      const input = event.target as HTMLInputElement;
-      const file = input.files?.[0] || null;
-      const validationError = getCustomTableNameIconLocalFileValidationError(file);
-      if (validationError) {
-        pendingLocalFile = null;
-        if (window.toastr) window.toastr.warning(getCustomTableNameIconManagerInvalidSourceText(validationError));
-        input.value = '';
-        void renderDetail();
-        return;
-      }
-      pendingLocalFile = file;
-      input.value = '';
-      void renderDetail();
-    });
-
-    overlay.on('click', '#acu-custom-icon-save-local', async () => {
-      const candidate = getSelectedCandidate();
-      if (!candidate) return;
-      const validationError = getCustomTableNameIconLocalFileValidationError(pendingLocalFile);
-      if (validationError || !pendingLocalFile) {
-        if (window.toastr) window.toastr.warning(getCustomTableNameIconManagerInvalidSourceText(validationError));
-        return;
-      }
-
-      const localIconKey = getCustomTableNameIconManagerLocalKey(candidate.context);
-      const savedImage = await CustomTableNameIconImageDB.save(localIconKey, pendingLocalFile);
-      if (!savedImage) {
-        showActionableErrorToast('本地图片保存失败，图片没有写入本地浏览器存储。', { suggestion: 'image' });
-        return;
-      }
-
-      const previousEntry = CustomTableNameIconStoreManager.get(candidate.context);
-      const now = Date.now();
-      const saved = CustomTableNameIconStoreManager.save({
-        ...candidate.context,
-        sourceType: 'local',
-        imageUrl: '',
-        localIconKey,
-        imageMimeType: pendingLocalFile.type || null,
-        imageSize: pendingLocalFile.size,
-        createdAt: previousEntry?.createdAt || now,
-        updatedAt: now,
-      });
-      CustomTableNameIconStoreManager.invalidate();
-      pendingLocalFile = null;
-      scheduleRenderedIconConsumersRefresh();
-      if (saved) window.toastr?.success('本地图标已保存');
-      else showActionableErrorToast('保存本地图标映射失败，图标文件已读取但映射配置没有写入。', { developerHint: true });
-      await refreshManager();
-    });
-
-    overlay.on('click', '#acu-custom-icon-clear-input', async () => {
-      await removeSelectedCustomIconMapping('图标映射已清空');
-    });
-
-    overlay.on('click', '#acu-custom-icon-delete', async () => {
-      const candidate = getSelectedCandidate();
-      if (!candidate) return;
-      const entry = CustomTableNameIconStoreManager.get(candidate.context);
-      if (!entry) {
-        if (window.toastr) window.toastr.info('该条目没有图标映射');
-        return;
-      }
-      const confirmed = await showDiceSystemConfirmDialog({
-        title: '删除图标映射',
-        message: `确定删除「${candidate.context.name}」的图标映射吗？`,
-        detail: `${getCustomTableNameIconManagerContextLabel(candidate.context)}\n删除后会回退到默认图标。`,
-        iconClass: 'fa-trash',
-        confirmText: '删除映射',
-        tone: 'danger',
-      });
-      if (!confirmed) return;
-      await removeSelectedCustomIconMapping('图标映射已删除');
-    });
-
-    overlay.on('click', '#acu-custom-icon-export', () => {
-      const pack = buildCustomTableNameIconPack();
-      downloadCustomTableNameIconPack(pack);
-      if (window.toastr) window.toastr.success(`已导出 ${pack.entries.length} 条图标映射`);
-    });
-
-    overlay.on('click', '#acu-custom-icon-import', () => {
-      overlay.find('#acu-custom-icon-import-file').trigger('click');
-    });
-
-    overlay.on('change', '#acu-custom-icon-import-file', function (event) {
-      const input = event.target as HTMLInputElement;
-      const file = input.files?.[0] || null;
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async loadEvent => {
-        input.value = '';
-        try {
-          const jsonText = typeof loadEvent.target?.result === 'string' ? loadEvent.target.result : '';
-          const parsed = JSON.parse(jsonText) as unknown;
-          const analysis = analyzeCustomTableNameIconPackImport(parsed);
-          if (analysis.importedCount === 0) {
-            if (window.toastr) window.toastr.warning('没有可导入的有效图标映射');
-            return;
-          }
-
-          const summaryText = getCustomTableNameIconPackImportSummaryText(analysis);
-          const confirmed = await showDiceSystemConfirmDialog({
-            title: '导入图标包',
-            message: '将按合并覆盖方式导入图标包。',
-            detail: summaryText,
-            iconClass: 'fa-file-import',
-            confirmText: '继续导入',
-            tone: 'warning',
-          });
-          if (!confirmed) return;
-
-          let importedCount = 0;
-          for (const entry of analysis.entriesToImport) {
-            const previousEntry = CustomTableNameIconStoreManager.get(entry);
-            if (
-              previousEntry?.sourceType === 'local' &&
-              previousEntry.localIconKey &&
-              previousEntry.localIconKey !== entry.localIconKey
-            ) {
-              await CustomTableNameIconImageDB.delete(previousEntry.localIconKey);
-            }
-            if (entry.sourceType === 'local' && entry.localIconKey) {
-              await CustomTableNameIconImageDB.delete(entry.localIconKey);
-            } else if (entry.sourceType === 'url') {
-              CustomTableNameIconImageDB.clearUrlFailure(entry.imageUrl);
-            }
-            if (CustomTableNameIconStoreManager.save(entry)) {
-              importedCount += 1;
-            }
-          }
-
-          CustomTableNameIconStoreManager.invalidate();
-          CustomTableNameIconImageDB.cleanup();
-          pendingLocalFile = null;
-          scheduleRenderedIconConsumersRefresh();
-          await refreshManager();
-          if (window.toastr) {
-            window.toastr.success(
-              `图标包导入完成：导入 ${importedCount} 条，覆盖 ${analysis.overwrittenCount} 条，跳过无效 URL ${analysis.skippedInvalidUrlCount} 条，跳过非白名单 ${analysis.skippedNonWhitelistCount} 条，本地缺失 ${analysis.localMissingCount} 条`,
-            );
-          }
-        } catch (error) {
-          console.error('[DICE][CUSTOM_ICON]导入图标包失败:', error);
-          if (window.toastr) {
-            showActionableErrorToast(`图标包导入失败: ${error instanceof Error ? error.message : String(error)}`, {
-              suggestion: '请确认图标包是从本功能导出的 JSON 文件；如果文件无误仍失败，请打开控制台复制 [DICE][CUSTOM_ICON] 日志联系开发者。',
-            });
-          }
-        }
-      };
-      reader.readAsText(file);
-    });
-
-    overlay.find('.acu-custom-icon-close').on('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      closeCustomIconManager();
-    });
-    setupOverlayClose(overlay, 'acu-custom-table-name-icon-manager-overlay', closeCustomIconManager);
-    void refreshManager();
-  };
+  const showCustomTableNameIconManager = createShowCustomTableNameIconManager({
+    analyzeCustomTableNameIconPackImport: (...a: any[]) => analyzeCustomTableNameIconPackImport(...a),
+    bindEvents: (...a: any[]) => bindEvents(...a),
+    bindGlobalInteractionEvents: (...a: any[]) => bindGlobalInteractionEvents(...a),
+    bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
+    buildCustomTableNameIconPack: (...a: any[]) => buildCustomTableNameIconPack(...a),
+    downloadCustomTableNameIconPack: (...a: any[]) => downloadCustomTableNameIconPack(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    formatCssImageUrl: (...a: any[]) => formatCssImageUrl(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getCustomTableNameIconImageUrlValidationError: (...a: any[]) => getCustomTableNameIconImageUrlValidationError(...a),
+    getCustomTableNameIconLocalFileValidationError: (...a: any[]) => getCustomTableNameIconLocalFileValidationError(...a),
+    getCustomTableNameIconManagerCandidates: (...a: any[]) => getCustomTableNameIconManagerCandidates(...a),
+    getCustomTableNameIconManagerContextLabel: (...a: any[]) => getCustomTableNameIconManagerContextLabel(...a),
+    getCustomTableNameIconManagerEntryAsset: (...a: any[]) => getCustomTableNameIconManagerEntryAsset(...a),
+    getCustomTableNameIconManagerInvalidSourceText: (...a: any[]) => getCustomTableNameIconManagerInvalidSourceText(...a),
+    getCustomTableNameIconManagerLocalKey: (...a: any[]) => getCustomTableNameIconManagerLocalKey(...a),
+    getCustomTableNameIconManagerModuleLabel: (...a: any[]) => getCustomTableNameIconManagerModuleLabel(...a),
+    getCustomTableNameIconPackImportSummaryText: (...a: any[]) => getCustomTableNameIconPackImportSummaryText(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    renderDashboard: (...a: any[]) => renderDashboard(...a),
+    renderGlobalInteractionsPanel: (...a: any[]) => renderGlobalInteractionsPanel(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
+    CustomTableNameIconStoreManager: CustomTableNameIconStoreManager,
+    STORAGE_KEY_DASHBOARD_ACTIVE: STORAGE_KEY_DASHBOARD_ACTIVE,
+    STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE: STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE,
+    loadDashboardNpcAvatars: loadDashboardNpcAvatars,
+    getCachedRawData: () => cachedRawData,
+  });
 
   const handleCustomTableNameIconImageDBPagehide = (): void => {
     CustomTableNameIconImageDB.cleanup();
@@ -43926,118 +43354,23 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
       stats.warnings.length > 0 ? `，提示 ${stats.warnings.length}` : ''
     }`;
 
-  const showGachaCatalogImportConfirm = (jsonString: string, analysis: GachaCatalogImportAnalysis) => {
-    const { $ } = getCore();
-    const config = getConfig();
-    $('.acu-import-confirm-overlay').remove();
-    const conflictText =
-      analysis.conflictIds.length > 0
-        ? `发现 ${analysis.conflictIds.length} 个同 id 物品：${analysis.conflictIds.slice(0, 5).join('、')}${
-            analysis.conflictIds.length > 5 ? '…' : ''
-          }`
-        : '未发现 id 冲突';
-    const errorHtml =
-      analysis.errors.length > 0
-        ? `<div class="acu-import-warning-message">${analysis.errors
-            .slice(0, 6)
-            .map(error => `<div>${escapeHtml(error)}</div>`)
-            .join('')}${analysis.errors.length > 6 ? '<div>还有更多无效项已跳过…</div>' : ''}</div>`
-        : '';
-    const dialogHtml = `
-      <div class="acu-import-confirm-overlay acu-gacha-catalog-dialog-overlay acu-theme-${config.theme}">
-        <div class="acu-import-confirm-dialog">
-          <div class="acu-import-confirm-header">
-            <span class="acu-import-confirm-title"><i class="fa-solid fa-file-import"></i> 导入自定义物品</span>
-            <button class="acu-import-close-btn acu-gacha-catalog-import-close" type="button" title="关闭" aria-label="关闭">
-              <i class="fa-solid fa-times"></i>
-            </button>
-          </div>
-          <div class="acu-import-confirm-body">
-            <div class="acu-import-warning-container">
-              <i class="fa-solid fa-box-open acu-import-warning-icon acu-gacha-catalog-import-icon"></i>
-              <div class="acu-import-warning-title">准备导入 ${escapeHtml(String(analysis.items.length))} 个有效物品</div>
-              <div class="acu-import-warning-message">${escapeHtml(conflictText)}；已跳过 ${escapeHtml(String(analysis.skipped))} 个无效项。</div>
-              ${errorHtml}
-            </div>
-            <div class="acu-import-conflict-options">
-              <label class="acu-import-radio">
-                <input type="radio" name="gacha-catalog-conflict-mode" value="overwrite" checked />
-                <span>覆盖同 id 物品</span>
-              </label>
-              <label class="acu-import-radio">
-                <input type="radio" name="gacha-catalog-conflict-mode" value="skip" />
-                <span>跳过同 id 物品</span>
-              </label>
-              <label class="acu-import-radio">
-                <input type="radio" name="gacha-catalog-conflict-mode" value="rename" />
-                <span>重命名同 id 物品</span>
-              </label>
-            </div>
-          </div>
-          <div class="acu-import-confirm-footer">
-            <button class="acu-import-cancel-btn">取消</button>
-            <button class="acu-import-confirm-btn">确认导入</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const $dialog = $(dialogHtml);
-    $('body').append($dialog);
-    const overlayEl = $dialog[0];
-    overlayEl.style.cssText = `
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      background: rgba(0,0,0,0.6) !important;
-      z-index: 31380 !important;
-      display: flex;
-      justify-content: center !important;
-      align-items: center !important;
-      padding: 16px;
-      box-sizing: border-box !important;
-    `;
-
-    const closeDialog = () => $dialog.remove();
-    $dialog.find('.acu-import-cancel-btn').click(closeDialog);
-    $dialog.find('.acu-gacha-catalog-import-close').click(closeDialog);
-    setupOverlayClose($dialog, 'acu-import-confirm-overlay', closeDialog);
-    $dialog.find('.acu-import-confirm-btn').click(function () {
-      const mode = String(
-        $dialog.find('input[name="gacha-catalog-conflict-mode"]:checked').val() || 'overwrite',
-      ) as GachaCatalogImportMode;
-      closeDialog();
-      void runInSaveQueue(async () => {
-        const rawData = getRuntimeGachaRawData();
-        await ensureGachaCatalogLoaded(rawData);
-        const latestAnalysis = analyzeGachaCatalogImport(jsonString, rawData);
-        if (!latestAnalysis || latestAnalysis.items.length === 0) {
-          if (window.toastr) {
-            showActionableErrorToast(getGachaCatalogImportFailureMessage(latestAnalysis), { suggestion: 'importExport' });
-          }
-          return;
-        }
-        const stats = await applyGachaCatalogImport(rawData, latestAnalysis, mode);
-        if (stats.warnings.length > 0) console.warn('[DICE][GACHA]自定义物品导入提示:', stats.warnings);
-        refreshGachaVisualization();
-        refreshGachaShardShop();
-        if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
-        if (window.toastr) {
-          const title = stats.warnings.length > 0 ? '骰子商店导入完成，有部分跳过' : '骰子商店导入完成';
-          window.toastr.success(formatGachaCatalogImportStatsText(stats), title);
-        }
-      }).catch(error => {
-        console.error('[DICE][GACHA]导入自定义物品失败:', error);
-        if (window.toastr) {
-          showActionableErrorToast(`导入失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-        }
-      });
-    });
-  };
+  const showGachaCatalogImportConfirm = createShowGachaCatalogImportConfirm({
+    analyzeGachaCatalogImport: (...a: any[]) => analyzeGachaCatalogImport(...a),
+    applyGachaCatalogImport: (...a: any[]) => applyGachaCatalogImport(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    formatGachaCatalogImportStatsText: (...a: any[]) => formatGachaCatalogImportStatsText(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getGachaCatalogImportFailureMessage: (...a: any[]) => getGachaCatalogImportFailureMessage(...a),
+    getJsonLikeErrorMessage: (...a: any[]) => getJsonLikeErrorMessage(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showGachaSettingsDialog: showGachaSettingsDialog,
+  });
 
   const importGachaCatalogJsonFromFile = () => {
     void (async () => {
@@ -44185,18 +43518,9 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     if (state) assertSaveStoredGachaStateSnapshot(state);
   };
 
-  const showGachaSaveError = (error: unknown, actionText: string) => {
-    const message = getRuntimeErrorMessage(error);
-    const detail = message || '未知错误';
-    const toast = window.toastr || window.parent?.toastr;
-    if (toast) {
-      showActionableErrorToast(`${actionText}失败：${detail}`, {
-        title: '骰子商店',
-        suggestion: 'save',
-        toastrOptions: { timeOut: 9000 },
-      });
-    }
-  };
+  const showGachaSaveError = createShowGachaSaveError({
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+  });
 
   const getGachaRarityRank = (rarity: GachaRarity): number => {
     const index = GACHA_RARITY_ORDER.indexOf(rarity);
@@ -45113,11 +44437,10 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     getCachedRawData: () => cachedRawData,
   });
 
-  const showGachaRecentRewardDetail = (itemId: string, itemName: string, itemQuality: string): void => {
-    if (itemId && showGachaPickupItemDetail(itemId)) return;
-    const fallbackItem = findGachaDefinitionByNameQuality(itemName, itemQuality);
-    if (fallbackItem) showGachaPickupItemDetail(fallbackItem.id);
-  };
+  const showGachaRecentRewardDetail = createShowGachaRecentRewardDetail({
+    findGachaDefinitionByNameQuality: (...a: any[]) => findGachaDefinitionByNameQuality(...a),
+    showGachaPickupItemDetail: showGachaPickupItemDetail,
+  });
 
   const getTotalGachaShards = (state: GachaState): number =>
     GACHA_RARITY_ORDER.reduce(
@@ -46803,31 +46126,16 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     })();
   };
 
-  const showGachaShardShop = async () => {
-    const { $ } = getCore();
-    $('.acu-gacha-shard-shop-overlay').remove();
-    const rawData = cachedRawData || getTableData();
-    await ensureGachaCatalogLoaded(rawData);
-    const overlay = $(renderGachaShardShopHtml(rawData));
-    $('body').append(overlay);
-    const overlayEl = overlay[0] as HTMLElement | undefined;
-    if (overlayEl) {
-      overlayEl.style.setProperty('position', 'fixed', 'important');
-      overlayEl.style.setProperty('top', '0', 'important');
-      overlayEl.style.setProperty('left', '0', 'important');
-      overlayEl.style.setProperty('right', '0', 'important');
-      overlayEl.style.setProperty('bottom', '0', 'important');
-      overlayEl.style.setProperty('width', '100vw', 'important');
-      overlayEl.style.setProperty('height', '100dvh', 'important');
-      overlayEl.style.setProperty('display', 'flex', 'important');
-      overlayEl.style.setProperty('justify-content', 'center', 'important');
-      overlayEl.style.setProperty('align-items', 'center', 'important');
-      overlayEl.style.setProperty('z-index', '31320', 'important');
-    }
-    bindGachaShardShopInteractions(overlay as JQuery<HTMLElement>);
-    hydrateCustomTableNameIconsIn(overlay);
-    setupOverlayClose(overlay, 'acu-inventory-detail-overlay', () => overlay.remove());
-  };
+  const showGachaShardShop = createShowGachaShardShop({
+    bindGachaShardShopInteractions: (...a: any[]) => bindGachaShardShopInteractions(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    renderGachaShardShopHtml: (...a: any[]) => renderGachaShardShopHtml(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   const exchangeGachaShardItem = async (itemId: string) => {
     try {
@@ -46886,75 +46194,29 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     }
   };
 
-  const showGachaShardExchangeConfirm = (itemId: string) => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const rawData = cachedRawData || getTableData();
-    const item = getAllGachaItemDefinitions(rawData).find(definition => definition.id === itemId);
-    if (!item) return;
-    if (!isGachaItemEnabled(item)) {
-      if (window.toastr) window.toastr.warning('这个物品已禁用，暂时无法兑换');
-      return;
-    }
-    const state = getGachaState(rawData, true) || createDefaultGachaState();
-    const balance = Math.max(0, Math.floor(Number(state.wallet.shards[item.quality] || 0)));
-    if (balance < GACHA_SHARD_EXCHANGE_COST) {
-      if (window.toastr) window.toastr.warning(`${getGachaShardLabel(item.quality)}不足`);
-      return;
-    }
-    if (isGachaItemOwned(rawData, item) && (item.unique || !item.stackable)) {
-      if (window.toastr)
-        window.toastr.warning(`这个物品已在${formatGachaRewardDestinationLabel(rawData, item)}中拥有，不能重复兑换`);
-      return;
-    }
-
-    const targetLabel = formatGachaRewardDestinationLabel(rawData, item);
-    const customFieldsDetailsHtml = renderGachaCustomFieldsDetailsHtml(item, { openThreshold: 2 });
-
-    $('.acu-gacha-shard-confirm-overlay').remove();
-    const overlay = $(`
-      <div class="acu-gacha-shard-confirm-overlay acu-theme-${config.theme}">
-        <div class="acu-gacha-shard-confirm">
-          <div class="acu-gacha-shard-confirm-head">
-            <div class="acu-gacha-shard-confirm-icon">${renderGachaItemIconContent(item, getGachaItemCustomTableNameIconContext(item))}</div>
-            <div class="acu-gacha-shard-confirm-text">
-              <strong>兑换 ${escapeHtml(item.name)}</strong>
-              <span><i class="fa-solid ${getGachaRarityIconClass(item.quality)}"></i> ${escapeHtml(String(GACHA_SHARD_EXCHANGE_COST))} / 持有 ${escapeHtml(String(balance))}</span>
-              <small>将写入${escapeHtml(targetLabel)}${hasGachaCustomFields(item) ? '，包含自定义字段' : ''}</small>
-            </div>
-          </div>
-          ${customFieldsDetailsHtml}
-          <div class="acu-gacha-shard-confirm-actions">
-            <button class="acu-gacha-shard-confirm-btn secondary" type="button" data-action="cancel">取消</button>
-            <button class="acu-gacha-shard-confirm-btn primary" type="button" data-action="confirm">兑换</button>
-          </div>
-        </div>
-      </div>
-    `);
-    $('body').append(overlay);
-    hydrateCustomTableNameIconsIn(overlay);
-    const overlayEl = overlay[0] as HTMLElement | undefined;
-    if (overlayEl) {
-      overlayEl.style.setProperty('position', 'fixed', 'important');
-      overlayEl.style.setProperty('top', '0', 'important');
-      overlayEl.style.setProperty('left', '0', 'important');
-      overlayEl.style.setProperty('right', '0', 'important');
-      overlayEl.style.setProperty('bottom', '0', 'important');
-      overlayEl.style.setProperty('width', '100vw', 'important');
-      overlayEl.style.setProperty('height', '100dvh', 'important');
-      overlayEl.style.setProperty('display', 'flex', 'important');
-      overlayEl.style.setProperty('justify-content', 'center', 'important');
-      overlayEl.style.setProperty('align-items', 'center', 'important');
-      overlayEl.style.setProperty('z-index', '31360', 'important');
-    }
-    setupOverlayClose(overlay, 'acu-gacha-shard-confirm-overlay', () => overlay.remove());
-    overlay.on('click', '.acu-gacha-shard-confirm-btn', function (event) {
-      event.stopPropagation();
-      const action = String($(this).data('action') || '');
-      overlay.remove();
-      if (action === 'confirm') void exchangeGachaShardItem(itemId);
-    });
-  };
+  const showGachaShardExchangeConfirm = createShowGachaShardExchangeConfirm({
+    createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    exchangeGachaShardItem: (...a: any[]) => exchangeGachaShardItem(...a),
+    formatGachaRewardDestinationLabel: (...a: any[]) => formatGachaRewardDestinationLabel(...a),
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getGachaItemCustomTableNameIconContext: (...a: any[]) => getGachaItemCustomTableNameIconContext(...a),
+    getGachaRarityIconClass: (...a: any[]) => getGachaRarityIconClass(...a),
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    hasGachaCustomFields: (...a: any[]) => hasGachaCustomFields(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    isGachaItemOwned: (...a: any[]) => isGachaItemOwned(...a),
+    renderGachaCustomFieldsDetailsHtml: (...a: any[]) => renderGachaCustomFieldsDetailsHtml(...a),
+    renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    GACHA_SHARD_EXCHANGE_COST: GACHA_SHARD_EXCHANGE_COST,
+    getCachedRawData: () => cachedRawData,
+  });
 
   const getInventoryActionLabel = itemType => {
     if (itemType === '任务物品') return '检查';
@@ -47056,35 +46318,22 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     })();
   };
 
-  const showGachaVisualization = async () => {
-    const { $ } = getCore();
-    closeInventoryVisualization();
-    closeGachaVisualization();
-    const rawData = cachedRawData || getTableData();
-    await ensureGachaCatalogLoaded(rawData);
-    const overlay = $(`<div class="acu-gacha-overlay acu-theme-${getConfig().theme}"></div>`);
-    overlay.html(renderGachaPanelHtml(rawData));
-    $('body').append(overlay);
-    hydrateCustomTableNameIconsIn(overlay);
-    gachaShopRootElement = overlay[0] as HTMLElement | null;
-    startGachaShopUiRefresh();
-    updateGachaShopProgressUi();
-    const overlayEl = overlay[0] as HTMLElement | undefined;
-    if (overlayEl) {
-      overlayEl.style.setProperty('position', 'fixed', 'important');
-      overlayEl.style.setProperty('top', '0', 'important');
-      overlayEl.style.setProperty('left', '0', 'important');
-      overlayEl.style.setProperty('right', '0', 'important');
-      overlayEl.style.setProperty('bottom', '0', 'important');
-      overlayEl.style.setProperty('width', '100vw', 'important');
-      overlayEl.style.setProperty('height', '100vh', 'important');
-      overlayEl.style.setProperty('display', 'flex', 'important');
-      overlayEl.style.setProperty('justify-content', 'center', 'important');
-      overlayEl.style.setProperty('align-items', 'center', 'important');
-      overlayEl.style.setProperty('z-index', '31145', 'important');
-    }
-    setupOverlayClose(overlay, 'acu-gacha-overlay', closeGachaVisualization);
-  };
+  const showGachaVisualization = createShowGachaVisualization({
+    closeGachaVisualization: (...a: any[]) => closeGachaVisualization(...a),
+    closeInventoryVisualization: (...a: any[]) => closeInventoryVisualization(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    renderGachaPanelHtml: (...a: any[]) => renderGachaPanelHtml(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    startGachaShopUiRefresh: (...a: any[]) => startGachaShopUiRefresh(...a),
+    updateGachaShopProgressUi: (...a: any[]) => updateGachaShopProgressUi(...a),
+    getCachedRawData: () => cachedRawData,
+    getGachaShopRootElement: () => gachaShopRootElement,
+    setGachaShopRootElement: (v: any) => { gachaShopRootElement = v; },
+  });
 
   const closeInventoryVisualization = () => {
     $('.acu-inventory-detail-overlay, .acu-inventory-overlay').remove();
@@ -50750,223 +49999,12 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     }
   };
 
-  const initSortable = ($root?: JQuery<HTMLElement>) => {
-    const { $ } = getCore();
-    const $scope = $root && $root.length ? $root : $(DICE_ROOT_SELECTOR).last();
-    let $dragSrcEl = null;
-
-    // 清理旧事件
-    $scope.find('.acu-nav-btn, .acu-action-btn, #acu-action-pool, #acu-active-actions').off('.sort');
-
-    // --- 1. 按钮本身的拖拽逻辑 (交换顺序) ---
-    const $items = $scope.find('.acu-nav-btn, .acu-action-btn');
-
-    $items.on('dragstart.sort', function (e) {
-      $dragSrcEl = $(this);
-      $(this).css('opacity', '0.4');
-      e.originalEvent.dataTransfer.effectAllowed = 'move';
-    });
-
-    $items.on('dragend.sort', function (e) {
-      $(this).css('opacity', '1');
-      $scope.find('.acu-drag-over').removeClass('acu-drag-over');
-      $scope.find('.acu-actions-group, .acu-unused-pool').removeClass('dragging-over');
-    });
-
-    $items.on('dragover.sort', function (e) {
-      e.preventDefault();
-      return false;
-    });
-    $items.on('dragenter.sort', function () {
-      if ($dragSrcEl && this !== $dragSrcEl[0]) $(this).addClass('acu-drag-over');
-    });
-    $items.on('dragleave.sort', function () {
-      $(this).removeClass('acu-drag-over');
-    });
-
-    $items.on('drop.sort', function (e) {
-      e.stopPropagation();
-      $(this).removeClass('acu-drag-over');
-      if (!$dragSrcEl || $dragSrcEl[0] === this) return false;
-
-      const isSrcAction = $dragSrcEl.hasClass('acu-action-btn');
-      const isTgtAction = $(this).hasClass('acu-action-btn');
-      if (isSrcAction !== isTgtAction) return false;
-
-      if (isSrcAction) {
-        const targetPoolId = $(this).parent().attr('id');
-        const srcPoolId = $dragSrcEl.parent().attr('id');
-
-        if (srcPoolId === 'acu-action-pool' && targetPoolId === 'acu-active-actions') {
-          if ($scope.find('#acu-active-actions').children().length >= MAX_ACTION_BUTTONS) {
-            if (window.toastr) window.toastr.warning('活动栏最多6个，请先拖走一个');
-            return false;
-          }
-        }
-
-        if (srcPoolId !== targetPoolId) {
-          $(this).before($dragSrcEl);
-          return false;
-        }
-      }
-
-      const $temp = $('<span>').hide();
-      $dragSrcEl.before($temp);
-      $(this).before($dragSrcEl);
-      $temp.replaceWith($(this));
-      return false;
-    });
-
-    // --- 2. 容器的拖拽逻辑 (上架/下架) ---
-    const $containers = $scope.find('#acu-action-pool, #acu-active-actions');
-
-    $containers.on('dragover.sort', function (e) {
-      e.preventDefault();
-      if ($dragSrcEl && $dragSrcEl.hasClass('acu-action-btn')) {
-        $(this).addClass('dragging-over');
-      }
-    });
-
-    $containers.on('dragleave.sort', function (e) {
-      $(this).removeClass('dragging-over');
-    });
-
-    $containers.on('drop.sort', function (e) {
-      e.stopPropagation();
-      $(this).removeClass('dragging-over');
-
-      if ($dragSrcEl && $dragSrcEl.hasClass('acu-action-btn')) {
-        const currentParentId = $dragSrcEl.parent().attr('id');
-        const targetId = $(this).attr('id');
-        const btnId = $dragSrcEl.attr('id');
-
-        if (currentParentId !== targetId) {
-          if (targetId === 'acu-action-pool') {
-            if (btnId === 'acu-btn-settings') {
-              if (window.toastr) window.toastr.warning('设置按钮是核心组件，无法移除');
-              return false;
-            }
-            $(this).append($dragSrcEl);
-          } else if (targetId === 'acu-active-actions') {
-            if ($(this).children().length >= 6) {
-              if (window.toastr) window.toastr.warning('活动栏已满6个，无法继续添加');
-              return false;
-            }
-            $(this).append($dragSrcEl);
-          }
-        }
-      }
-      return false;
-    });
-
-    // --- 【新增】3. 容器点击事件 - 支持点动移动功能按钮 ---
-    $containers.on('click.sort', function (e) {
-      e.stopPropagation();
-
-      // 如果点击的是按钮本身，不处理
-      if ($(e.target).closest('.acu-action-btn, .acu-nav-btn').length > 0) return;
-
-      // 如果没有选中任何按钮，不处理
-      if (!selectedSwapSource) return;
-
-      const $src = $(selectedSwapSource);
-
-      // 只有功能按钮才能跨池移动
-      if (!$src.hasClass('acu-action-btn')) {
-        if (window.toastr) window.toastr.warning('表格标签不能移入功能池');
-        $src.removeClass('acu-swap-selected');
-        selectedSwapSource = null;
-        return;
-      }
-
-      const srcPoolId = $src.parent().attr('id');
-      const targetId = $(this).attr('id');
-      const btnId = $src.attr('id');
-
-      // 同一个容器内点击，取消选中
-      if (srcPoolId === targetId) {
-        $src.removeClass('acu-swap-selected');
-        selectedSwapSource = null;
-        return;
-      }
-
-      // 活动栏 → 备选池
-      if (targetId === 'acu-action-pool') {
-        if (btnId === 'acu-btn-settings') {
-          if (window.toastr) window.toastr.warning('设置按钮是核心组件，无法移除');
-          $src.removeClass('acu-swap-selected');
-          selectedSwapSource = null;
-          return;
-        }
-        $(this).append($src);
-        $src.removeClass('acu-swap-selected');
-        selectedSwapSource = null;
-      }
-      // 备选池 → 活动栏
-      else if (targetId === 'acu-active-actions') {
-        if ($scope.find('#acu-active-actions').children().length >= MAX_ACTION_BUTTONS) {
-          if (window.toastr) window.toastr.warning('活动栏已满6个，请先移走一个');
-          return;
-        }
-        $(this).append($src);
-        $src.removeClass('acu-swap-selected');
-        selectedSwapSource = null;
-      }
-    });
-
-    // --- 4. 点击互换模式 (Click-to-Swap) - 按钮之间 ---
-    $items.on('click.sort', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (selectedSwapSource && selectedSwapSource === this) {
-        $(this).removeClass('acu-swap-selected');
-        selectedSwapSource = null;
-        return;
-      }
-
-      if (!selectedSwapSource) {
-        selectedSwapSource = this;
-        $(this).addClass('acu-swap-selected');
-        return;
-      }
-
-      const $src = $(selectedSwapSource);
-      const $tgt = $(this);
-
-      const isSrcAction = $src.hasClass('acu-action-btn');
-      const isTgtAction = $tgt.hasClass('acu-action-btn');
-      if (isSrcAction !== isTgtAction) {
-        if (window.toastr) window.toastr.warning('无法在表格标签和功能按钮之间交换');
-        $src.removeClass('acu-swap-selected');
-        selectedSwapSource = this;
-        $(this).addClass('acu-swap-selected');
-        return;
-      }
-
-      const srcPoolId = $src.parent().attr('id');
-      const tgtPoolId = $tgt.parent().attr('id');
-
-      if (isSrcAction && srcPoolId === 'acu-action-pool' && tgtPoolId === 'acu-active-actions') {
-        if ($scope.find('#acu-active-actions').children().length >= MAX_ACTION_BUTTONS) {
-          if (window.toastr) window.toastr.warning('活动栏最多6个，请先移走一个');
-          return;
-        }
-      }
-
-      if (srcPoolId !== tgtPoolId) {
-        $tgt.before($src);
-      } else {
-        const $temp = $('<span>').hide();
-        $src.before($temp);
-        $tgt.before($src);
-        $temp.replaceWith($tgt);
-      }
-
-      $src.removeClass('acu-swap-selected');
-      selectedSwapSource = null;
-    });
-  };
+  const initSortable = createInitSortable({
+    getCore: (...a: any[]) => getCore(...a),
+    MAX_ACTION_BUTTONS: MAX_ACTION_BUTTONS,
+    getSelectedSwapSource: () => selectedSwapSource,
+    setSelectedSwapSource: (v: any) => { selectedSwapSource = v; },
+  });
 
   const showCellMenu = (e, cell) => {
     const { $ } = getCore();
