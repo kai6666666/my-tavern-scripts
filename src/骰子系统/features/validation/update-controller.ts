@@ -38,7 +38,7 @@ export function createUpdateController(deps: any) {
 
       // 直接触发渲染，让 renderInterface 内部处理数据获取和差异计算
       // 注意：不要在这里更新快照！快照只在用户主动保存时更新
-      renderInterface();
+      deps.renderInterface();
 
       // 执行实时验证
       setTimeout(() => {
@@ -56,7 +56,7 @@ export function createUpdateController(deps: any) {
             UpdateController._lastValidationCount = newCount;
 
             // 更新导航栏指示器
-            updateValidationIndicator(newCount);
+            deps.updateValidationIndicator(newCount);
           }
         } catch (e) {
           console.error('[DICE]ACU 验证执行失败:', e);
