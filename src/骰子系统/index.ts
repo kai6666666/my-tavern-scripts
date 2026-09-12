@@ -85,6 +85,15 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createRenderGachaShardShopHtml } from './features/gacha/render-shard-shop-html';
+import { createRenderGachaPanelHtml } from './features/gacha/render-gacha-panel-html';
+import { createPerformGachaDraw } from './features/gacha/perform-gacha-draw';
+import { createGenerateCrazyRoll } from './features/dice/generate-crazy-roll';
+import { createCrazyRollWithPreset } from './features/dice/crazy-roll-with-preset';
+import { createRenderOptionTableContent } from './features/table/render-option-table-content';
+import { createRenderCheckSuggestionTableContent } from './features/table/render-check-suggestion-table-content';
+import { createApplySheetDataViaCrud } from './features/table/sheet-data-crud';
+import { createInsertHtmlToPage } from './features/ui/insert-html-to-page';
 import { createShowDiceSettingsPanel } from './features/dice/dice-settings-panel';
 import { createShowAddRegexRuleModal } from './features/regex/add-regex-rule-dialog';
 import { createShowAvatarCropModal } from './features/avatar/avatar-crop-modal';
@@ -7962,105 +7971,9 @@ ${attributeScaleStr}`;
   };
 
   // 根据预设执行疯狂模式投骰
-  const crazyRollWithPreset = (preset: AdvancedDicePreset | null, attrValue: number) => {
-    if (!preset) {
-      // 没有激活预设时，使用默认 d100 规则
-      const roll = Math.floor(Math.random() * 100) + 1;
-      let result = '失败';
-      if (roll <= 5) result = '大成功';
-      else if (roll >= 96) result = '大失败';
-      else if (roll <= attrValue) result = '成功';
-      return { roll, result, formula: '1d100' };
-    }
+  const crazyRollWithPreset = createCrazyRollWithPreset({
 
-    // 使用预设的骰子表达式
-    const diceExpr = preset.diceExpression || '1d100';
-    const rollResult = rollComplexDiceExpression(diceExpr);
-    const rollTotal = rollResult.total;
-
-    // 根据预设的 outcomes 判定结果
-    if (preset.outcomes && preset.outcomes.length > 0) {
-      // 简化的条件判断：根据预设类型进行基本判定
-      const presetId = preset.id;
-
-      if (presetId === 'dnd5e_check') {
-        // DND5e: 1d20 + 调整值 >= DC
-        // 调整值 = floor((属性值-10)/2)
-        const attrMod = Math.floor((attrValue - 10) / 2);
-        const dc = 10; // 默认DC
-        const total = rollTotal + attrMod;
-
-        if (rollResult.rawDice && rollResult.rawDice[0] === 20) {
-          return { roll: rollTotal, result: '大成功', formula: diceExpr, total, dc, attrMod };
-        } else if (rollResult.rawDice && rollResult.rawDice[0] === 1) {
-          return { roll: rollTotal, result: '大失败', formula: diceExpr, total, dc, attrMod };
-        } else if (total >= dc) {
-          return { roll: rollTotal, result: '成功', formula: diceExpr, total, dc, attrMod };
-        } else {
-          return { roll: rollTotal, result: '失败', formula: diceExpr, total, dc, attrMod };
-        }
-      } else if (presetId === 'coc7_check') {
-        // CoC7: 1d100 <= 属性值
-        if (rollTotal === 1) {
-          return { roll: rollTotal, result: '大成功', formula: diceExpr };
-        } else if ((attrValue < 50 && rollTotal >= 96) || (attrValue >= 50 && rollTotal === 100)) {
-          return { roll: rollTotal, result: '大失败', formula: diceExpr };
-        } else if (rollTotal <= Math.floor(attrValue / 5)) {
-          return { roll: rollTotal, result: '极难成功', formula: diceExpr };
-        } else if (rollTotal <= Math.floor(attrValue / 2)) {
-          return { roll: rollTotal, result: '困难成功', formula: diceExpr };
-        } else if (rollTotal <= attrValue) {
-          return { roll: rollTotal, result: '成功', formula: diceExpr };
-        } else {
-          return { roll: rollTotal, result: '失败', formula: diceExpr };
-        }
-      } else if (presetId === 'fate_check') {
-        // 命运骰: 4dF + 属性值
-        const total = rollTotal + attrValue;
-        const dc = 0; // 默认DC
-        if (total >= dc + 3) {
-          return { roll: rollTotal, result: '大成功', formula: diceExpr, total };
-        } else if (total >= dc) {
-          return { roll: rollTotal, result: '成功', formula: diceExpr, total };
-        } else if (total >= dc - 2) {
-          return { roll: rollTotal, result: '失败', formula: diceExpr, total };
-        } else {
-          return { roll: rollTotal, result: '大失败', formula: diceExpr, total };
-        }
-      } else if (presetId === 'pbta_check') {
-        // PbtA: 2d6 + 属性值
-        const total = rollTotal + attrValue;
-        if (total >= 10) {
-          return { roll: rollTotal, result: '完全成功', formula: diceExpr, total };
-        } else if (total >= 7) {
-          return { roll: rollTotal, result: '部分成功', formula: diceExpr, total };
-        } else {
-          return { roll: rollTotal, result: '失败', formula: diceExpr, total };
-        }
-      }
-    }
-
-    // 通用判定逻辑：根据骰子类型自动选择成功条件
-    if (diceExpr.includes('d100') || diceExpr.includes('D100')) {
-      // d100 系统: 投骰结果 <= 目标值 为成功
-      if (rollTotal <= 5) return { roll: rollTotal, result: '大成功', formula: diceExpr };
-      if (rollTotal >= 96) return { roll: rollTotal, result: '大失败', formula: diceExpr };
-      if (rollTotal <= attrValue) return { roll: rollTotal, result: '成功', formula: diceExpr };
-      return { roll: rollTotal, result: '失败', formula: diceExpr };
-    } else if (diceExpr.includes('d20') || diceExpr.includes('D20')) {
-      // d20 系统: 投骰结果 + 修正 >= DC 为成功
-      const dc = 10;
-      if (rollTotal === 20) return { roll: rollTotal, result: '大成功', formula: diceExpr };
-      if (rollTotal === 1) return { roll: rollTotal, result: '大失败', formula: diceExpr };
-      if (rollTotal + attrValue >= dc) return { roll: rollTotal, result: '成功', formula: diceExpr };
-      return { roll: rollTotal, result: '失败', formula: diceExpr };
-    } else {
-      // 其他骰子: 简单判断高低
-      const midValue = attrValue;
-      if (rollTotal >= midValue) return { roll: rollTotal, result: '成功', formula: diceExpr };
-      return { roll: rollTotal, result: '失败', formula: diceExpr };
-    }
-  };
+  });
 
   // 判断检定结果 (保留用于无预设时的兼容)
   const judgeCrazyRollResult = (roll, target) => {
@@ -8071,110 +7984,14 @@ ${attributeScaleStr}`;
   };
 
   // 生成疯狂骰子结果
-  const generateCrazyRoll = () => {
-    const config = getCrazyModeConfig();
-    const rollType = selectCrazyRollType(config.crazyLevel);
-
-    // 获取当前激活的检定预设
-    const activePreset = AdvancedDicePresetManager.getActivePreset();
-
-    if (rollType === 'normal') {
-      // 普通检定
-      const participant = selectCrazyParticipant();
-      if (!participant) return null;
-
-      const attr = selectCrazyAttribute(participant);
-      const rollData = crazyRollWithPreset(activePreset, attr.value);
-
-      // 根据预设类型格式化输出
-      if (activePreset) {
-        const presetName = activePreset.name;
-        if (activePreset.id === 'dnd5e_check' && rollData.attrMod !== undefined) {
-          return `<meta:检定结果>\n元叙事：${participant.name}发起了【${attr.name}】检定(${presetName})，${rollData.formula}=${rollData.roll}，调整值${rollData.attrMod >= 0 ? '+' : ''}${rollData.attrMod}，总计${rollData.total}，DC${rollData.dc}，【${rollData.result}】\n</meta:检定结果>`;
-        } else if (rollData.total !== undefined) {
-          return `<meta:检定结果>\n元叙事：${participant.name}发起了【${attr.name}】检定(${presetName})，${rollData.formula}=${rollData.roll}，总计${rollData.total}，【${rollData.result}】\n</meta:检定结果>`;
-        } else {
-          return `<meta:检定结果>\n元叙事：${participant.name}发起了【${attr.name}】检定(${presetName})，${rollData.formula}=${rollData.roll}，目标${attr.value}，【${rollData.result}】\n</meta:检定结果>`;
-        }
-      }
-
-      // 无预设时使用默认格式
-      return `<meta:检定结果>\n元叙事：${participant.name}发起了【${attr.name}】检定，掷出${rollData.roll}，目标${attr.value}，【${rollData.result}】\n</meta:检定结果>`;
-    } else {
-      // 对抗检定
-      const participant1 = selectCrazyParticipant();
-      if (!participant1) return null;
-
-      // 选择第二个参与者（排除第一个）
-      let participant2 = null;
-      for (let i = 0; i < 5; i++) {
-        const candidate = selectCrazyParticipant();
-        if (candidate && candidate.name !== participant1.name) {
-          participant2 = candidate;
-          break;
-        }
-      }
-
-      // 如果找不到第二个参与者，降级为普通检定
-      if (!participant2) {
-        const attr = selectCrazyAttribute(participant1);
-        const rollData = crazyRollWithPreset(activePreset, attr.value);
-        if (activePreset) {
-          return `<meta:检定结果>\n元叙事：${participant1.name}发起了【${attr.name}】检定(${activePreset.name})，${rollData.formula}=${rollData.roll}，目标${attr.value}，【${rollData.result}】\n</meta:检定结果>`;
-        }
-        return `<meta:检定结果>\n元叙事：${participant1.name}发起了【${attr.name}】检定，掷出${rollData.roll}，目标${attr.value}，【${rollData.result}】\n</meta:检定结果>`;
-      }
-
-      const attr1 = selectCrazyAttribute(participant1);
-      const attr2 = selectCrazyAttribute(participant2);
-      const rollData1 = crazyRollWithPreset(activePreset, attr1.value);
-      const rollData2 = crazyRollWithPreset(activePreset, attr2.value);
-
-      // 计算成功度和判定结果
-      const result1 = rollData1.result;
-      const result2 = rollData2.result;
-
-      // 根据预设类型计算胜负
-      let winner;
-      if (
-        activePreset &&
-        (activePreset.id === 'dnd5e_check' || activePreset.id === 'pbta_check' || activePreset.id === 'fate_check')
-      ) {
-        // 加值系统: 比较总值
-        const total1 = rollData1.total !== undefined ? rollData1.total : rollData1.roll + attr1.value;
-        const total2 = rollData2.total !== undefined ? rollData2.total : rollData2.roll + attr2.value;
-        if (total1 > total2) {
-          winner = `${participant1.name}胜出`;
-        } else if (total2 > total1) {
-          winner = `${participant2.name}胜出`;
-        } else {
-          winner = '平局';
-        }
-      } else {
-        // d100系统: 比较成功余量 (目标值 - 投骰结果)
-        const margin1 = attr1.value - rollData1.roll;
-        const margin2 = attr2.value - rollData2.roll;
-        if (margin1 > margin2) {
-          winner = `${participant1.name}胜出`;
-        } else if (margin2 > margin1) {
-          winner = `${participant2.name}胜出`;
-        } else {
-          winner = '平局';
-        }
-      }
-
-      // 格式与现有对抗检定保持一致
-      const presetLabel = activePreset ? `(${activePreset.name})` : '';
-      return (
-        `<meta:检定结果>\n` +
-        `元叙事：进行了一次【${participant1.name} ${attr1.name} vs ${participant2.name} ${attr2.name}】的对抗检定${presetLabel}。` +
-        `${participant1.name} ${attr1.name} (目标${attr1.value}) ${rollData1.formula}=${rollData1.roll}，判定为【${result1}】；` +
-        `${participant2.name} ${attr2.name} (目标${attr2.value}) ${rollData2.formula}=${rollData2.roll}，判定为【${result2}】。` +
-        `最终结果：【${winner}】\n` +
-        `</meta:检定结果>`
-      );
-    }
-  };
+  const generateCrazyRoll = createGenerateCrazyRoll({
+    crazyRollWithPreset: (...a: any[]) => crazyRollWithPreset(...a),
+    getCrazyModeConfig: (...a: any[]) => getCrazyModeConfig(...a),
+    selectCrazyAttribute: (...a: any[]) => selectCrazyAttribute(...a),
+    selectCrazyParticipant: (...a: any[]) => selectCrazyParticipant(...a),
+    selectCrazyRollType: (...a: any[]) => selectCrazyRollType(...a),
+    AdvancedDicePresetManager: AdvancedDicePresetManager,
+  });
 
 
   /**
@@ -30030,94 +29847,23 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     desiredSheet: unknown,
   ): { key: string; sheet: DiffSheet } | null => findDiffSnapshotEntry(latestData, sheetKey, desiredSheet);
 
-  const applySheetDataViaCrud = async (api, sheetKey: string, desiredSheet, latestSheet) => {
-    if (!desiredSheet?.name || !Array.isArray(desiredSheet?.content)) {
-      throw new Error(`修改表不存在或格式非法：${sheetKey}`);
-    }
-    if (!latestSheet?.name || !Array.isArray(latestSheet?.content)) {
-      throw new Error(`表 "${desiredSheet.name || sheetKey}" 不存在，整表新增/恢复不支持快捷保存。`);
-    }
-    if (!sameHeaders(desiredSheet, latestSheet)) {
-      throw new Error(`表 "${desiredSheet.name || sheetKey}" 的结构已变化，结构级变更只标注，不支持快捷保存。`);
-    }
-
-    const tableName = desiredSheet.name;
-    const crudTableName = getCrudTableIdentifier(desiredSheet, tableName);
-    const headers = getSheetHeaders(desiredSheet);
-    const desiredRows = getSheetRows(desiredSheet);
-    const oldRows = getSheetRows(latestSheet);
-    const columnAliasMap = buildCrudColumnAliasMap(desiredSheet);
-    assertCrudRequiredColumnsRepresented(tableName, headers, desiredSheet);
-
-    if (desiredRows.length > oldRows.length) {
-      assertAppendOnlyRows(oldRows, desiredRows);
-    }
-
-    let workingRows = oldRows.map(row => [...row]);
-    if (desiredRows.length < oldRows.length) {
-      const deleteIndices = findDeletionIndicesForCrud(oldRows, desiredRows);
-      if (!deleteIndices) {
-        throw new Error(`表 "${tableName}" 的行删除无法安全定位，已取消快捷保存。`);
-      }
-      for (const rowIndex of deleteIndices.sort((left, right) => right - left)) {
-        const result = await api.deleteRow({ tableName: crudTableName, rowIndex: rowIndex + 1, skipNotify: true });
-        if (result === false) throw new Error(`删除 "${tableName}" 第 ${rowIndex + 1} 行失败`);
-        workingRows.splice(rowIndex, 1);
-      }
-    }
-
-    if (desiredRows.length > workingRows.length) {
-      for (let index = workingRows.length; index < desiredRows.length; index++) {
-        assertCrudInsertRequiredCells(tableName, headers, desiredRows[index], desiredSheet, index);
-        assertCrudEnumConstraints(
-          tableName,
-          headers,
-          desiredRows[index],
-          desiredSheet,
-          index,
-          undefined,
-          columnAliasMap,
-        );
-        assertCrudLengthConstraints(
-          tableName,
-          headers,
-          desiredRows[index],
-          desiredSheet,
-          index,
-          undefined,
-          columnAliasMap,
-        );
-        const rowData = buildRowDataForCrud(headers, desiredRows[index], undefined, desiredSheet, columnAliasMap);
-        const result = await api.insertRow({ tableName: crudTableName, data: rowData, skipNotify: true });
-        if (result === false || result === -1) {
-          throw new Error(`向 "${tableName}" 追加新行失败：数据库拒绝写入，请检查表结构、必填列和枚举约束。`);
-        }
-        workingRows.push([...desiredRows[index]]);
-      }
-    }
-
-    for (let rowIndex = 0; rowIndex < desiredRows.length; rowIndex++) {
-      const desiredRow = desiredRows[rowIndex] || [];
-      const currentRow = workingRows[rowIndex] || [];
-      if (sameRow(currentRow, desiredRow)) continue;
-
-      const changedColumns = getCrudChangedColumns(headers, currentRow, desiredRow);
-      await applyExistingRowCellPatchesViaCrud({
-        api,
-        sheetKey,
-        tableName,
-        crudTableName,
-        headers,
-        currentRow,
-        nextRow: desiredRow,
-        sheet: desiredSheet,
-        rowIndex,
-        changedColumns,
-        columnAliasMap,
-      });
-      workingRows[rowIndex] = [...desiredRow];
-    }
-  };
+  const applySheetDataViaCrud = createApplySheetDataViaCrud({
+    applyExistingRowCellPatchesViaCrud: (...a: any[]) => applyExistingRowCellPatchesViaCrud(...a),
+    assertAppendOnlyRows: (...a: any[]) => assertAppendOnlyRows(...a),
+    assertCrudEnumConstraints: (...a: any[]) => assertCrudEnumConstraints(...a),
+    assertCrudInsertRequiredCells: (...a: any[]) => assertCrudInsertRequiredCells(...a),
+    assertCrudLengthConstraints: (...a: any[]) => assertCrudLengthConstraints(...a),
+    assertCrudRequiredColumnsRepresented: (...a: any[]) => assertCrudRequiredColumnsRepresented(...a),
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    buildRowDataForCrud: (...a: any[]) => buildRowDataForCrud(...a),
+    findDeletionIndicesForCrud: (...a: any[]) => findDeletionIndicesForCrud(...a),
+    getCrudChangedColumns: (...a: any[]) => getCrudChangedColumns(...a),
+    getCrudTableIdentifier: (...a: any[]) => getCrudTableIdentifier(...a),
+    getSheetHeaders: (...a: any[]) => getSheetHeaders(...a),
+    getSheetRows: (...a: any[]) => getSheetRows(...a),
+    sameHeaders: (...a: any[]) => sameHeaders(...a),
+    sameRow: (...a: any[]) => sameRow(...a),
+  });
 
   const sanitizeRuntimeTableData = (tableData, modifiedSheetKeys?: string[], commitDeletes = false) => {
     const sourceData = tableData && typeof tableData === 'object' ? tableData : {};
@@ -37522,91 +37268,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       });
   };
 
-  const insertHtmlToPage = html => {
-    const { $ } = getCore();
-    const config = getConfig();
-
-    // --- 模式分支处理 ---
-
-    // 1. 固定底部模式：挂到 body，避免被 #chat 的滚动上下文带走
-    if (config.positionMode === 'viewport') {
-      const targetDocument = getTavernHostDocument();
-      const wrapper = createElementFromHtml(targetDocument, html);
-      if (wrapper) {
-        targetDocument.body.appendChild(wrapper);
-      } else {
-        $(targetDocument.body).append(html);
-      }
-      return;
-    }
-
-    // 2. 嵌入模式 (Embedded)：保持您原版 v19 的复杂逻辑，跟随气泡
-    if (config.positionMode === 'embedded') {
-      $(DICE_ROOT_SELECTOR).remove(); // 嵌入模式下，为了准确性，先移除旧的
-
-      const getTargetContainer = () => {
-        const $allMes = $('#chat .mes');
-        const $aiMes = $allMes.filter(function () {
-          const $this = $(this);
-          if ($this.attr('is_user') === 'true') return false;
-          if ($this.attr('is_system') === 'true') return false;
-          if ($this.hasClass('sys_mes')) return false;
-          const name = $this.find('.name_text').text().trim();
-          if (name === 'System') return false;
-          if ($this.css('display') === 'none') return false;
-          const $textDiv = $this.find('.mes_text');
-          if ($textDiv.length === 0) return false;
-          const textContent = $textDiv.text().trim();
-          const hasImage = $textDiv.find('img').length > 0;
-          if (textContent.length === 0 && !hasImage) return false;
-          return true;
-        });
-        // 如果找不到 AI 消息，回退到 chat
-        if ($aiMes.length === 0) return $('#chat');
-
-        // 锁定逻辑
-
-        let targetIndex = $aiMes.length - 1;
-        const $targetMes = $aiMes.eq(targetIndex);
-        const $targetBlock = $targetMes.find('.mes_block');
-        return $targetBlock.length ? $targetBlock : $targetMes;
-      };
-
-      const $target = getTargetContainer();
-      if ($target.length) {
-        if ($target.hasClass('mes_block') || $target.hasClass('mes')) {
-          if ($target.find(DICE_ROOT_SELECTOR).length === 0) {
-            $target.append(html);
-          } else {
-            $target.find(DICE_ROOT_SELECTOR).replaceWith(html);
-          }
-        } else {
-          // Fallback
-          if ($('#chat').find(DICE_ROOT_SELECTOR).length === 0) {
-            $target.append(html);
-          }
-        }
-      } else {
-        $('body').append(html);
-      }
-      return;
-    }
-
-    // 3. 悬浮底部模式 (Fixed)：【核心修改】完全照搬脚本 B 的稳健逻辑
-    // 不再每次都移除，而是“有则替换，无则追加”，防止闪烁
-    const $chat = $('#chat');
-    const $oldWrapper = $(DICE_ROOT_SELECTOR);
-
-    if ($oldWrapper.length) {
-      $oldWrapper.replaceWith(html);
-    } else {
-      if ($chat.length) {
-        $chat.append(html);
-      } else {
-        $('body').append(html);
-      }
-    }
-  };
+  const insertHtmlToPage = createInsertHtmlToPage({
+    createElementFromHtml: (...a: any[]) => createElementFromHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+  });
   // [新增] 渲染变更审核面板
   const renderChangesPanel = rawData => {
     const snapshot = loadSnapshot();
@@ -43037,118 +42704,20 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
       0,
     );
 
-  const renderGachaPanelHtml = rawData => {
-    const config = getConfig();
-    const horizontalScrollbarClass = config.showHorizontalScrollbar === true ? 'acu-show-horizontal-scrollbar' : '';
-    const state = getGachaState(rawData, true) || createDefaultGachaState();
-    const activePoolTag = getGachaActivePoolTag(state);
-    const inventoryTable = parseInventoryItems(rawData);
-    const recentSummary =
-      state.recentRewards.length > 0
-        ? `最近 ${Math.min(state.recentRewards.length, 6)} 条：${formatGachaRecentRewardText(state.recentRewards[0])}`
-        : '还没有最近抽取记录';
-    const recentRewardsHtml =
-      state.recentRewards.length > 0
-        ? state.recentRewards
-            .slice(0, 6)
-            .map(
-              reward => `
-                <button class="acu-gacha-recent-detail-btn" type="button" data-item-id="${escapeHtml(reward.itemId)}" data-item-name="${escapeHtml(reward.name)}" data-item-quality="${escapeHtml(reward.quality)}" title="${escapeHtml(`查看 ${reward.name}`)}">
-                  <span class="acu-gacha-recent-reward-text">${escapeHtml(formatGachaRecentRewardText(reward))}</span>
-                  <span class="acu-gacha-recent-quality">${escapeHtml(reward.quality)}</span>
-                </button>
-              `,
-            )
-            .join('')
-        : `<div class="acu-inventory-empty compact"><i class="fa-solid fa-receipt"></i><span>还没有最近抽取记录</span></div>`;
-    const totalShards = getTotalGachaShards(state);
-    const poolDefinitions = getVisibleGachaPoolConfigDefinitions(rawData);
-
-    const poolButtonsHtml = poolDefinitions
-      .map(pool => {
-        const isActive = activePoolTag === pool.id;
-        return `
-        <button
-          class="acu-gacha-pool-tab acu-gacha-pool-btn ${isActive ? 'active' : ''}"
-          type="button"
-          role="tab"
-          aria-selected="${isActive ? 'true' : 'false'}"
-          data-pool-tag="${escapeHtml(pool.id)}"
-          title="${escapeHtml(pool.name)}"
-        >
-          <i class="fa-solid fa-tags"></i>
-          <span>${escapeHtml(pool.name)}</span>
-        </button>
-      `;
-      })
-      .join('');
-
-    return `
-      <div class="acu-gacha-shell acu-theme-${config.theme} ${horizontalScrollbarClass}">
-        <div class="acu-panel-header acu-inventory-window-header">
-          <div class="acu-panel-title">
-            <div class="acu-title-main"><i class="fa-solid fa-store"></i> <span class="acu-title-text">骰子商店</span></div>
-          </div>
-          <div class="acu-header-actions">
-            ${getTutorialButtonHtml('gacha', '查看骰子商店教程')}
-            <button class="acu-view-btn acu-gacha-settings-open" type="button" title="骰子商城设置" aria-label="骰子商城设置">
-              <i class="fa-solid fa-gear"></i>
-            </button>
-            <button class="acu-view-btn acu-gacha-inventory-open" type="button" title="打开物品栏" aria-label="打开物品栏">
-              <i class="fa-solid fa-box-open"></i>
-            </button>
-            ${
-              inventoryTable.tableKey
-                ? `<button class="acu-view-btn acu-gacha-open-table" type="button" data-table="${escapeHtml(inventoryTable.tableName)}" title="跳转到物品表" aria-label="跳转到物品表">
-              <i class="fa-solid fa-table"></i>
-            </button>`
-                : ''
-            }
-            <button class="acu-close-btn acu-gacha-close" type="button" title="关闭" aria-label="关闭骰子商店"><i class="fa-solid fa-times"></i></button>
-          </div>
-        </div>
-        <div class="acu-gacha-content">
-          <div class="acu-gacha-stat-row">
-            <span class="acu-badge acu-gacha-fortune-badge"><i class="fa-solid fa-coins"></i>${escapeHtml(FORTUNE_CURRENCY_NAME)} <strong class="acu-gacha-fortune-amount">${escapeHtml(String(state.wallet.fortune || 0))}</strong></span>
-            <button class="acu-dialog-btn acu-gacha-fortune-clear danger" type="button" title="清空当前骰运余额" aria-label="清空当前骰运余额">
-              <i class="fa-solid fa-eraser"></i>
-              <span>清零</span>
-            </button>
-            <span class="acu-badge"><i class="fa-solid fa-gem"></i>稀有保底 ${escapeHtml(String(state.pity.rare || 0))}/${escapeHtml(String(GACHA_RARE_PITY_THRESHOLD))}</span>
-            <span class="acu-badge"><i class="fa-solid fa-star"></i>传说保底 ${escapeHtml(String(state.pity.legend || 0))}/${escapeHtml(String(GACHA_LEGEND_PITY_THRESHOLD))}</span>
-            <button class="acu-dialog-btn acu-gacha-shard-shop-open" type="button" title="打开碎片商城">
-              <i class="fa-solid fa-cubes-stacked"></i>
-              <span>碎片商城</span>
-              <strong class="acu-gacha-shard-total">${escapeHtml(String(totalShards))}</strong>
-            </button>
-          </div>
-          ${renderGachaFortuneProgressHtml(state)}
-          <div class="acu-gacha-pool-tabs" role="tablist">${poolButtonsHtml}</div>
-          ${renderGachaPickupHtml(activePoolTag)}
-          <details class="acu-gacha-section acu-gacha-recent-section" open>
-            <summary>
-              <span><i class="fa-solid fa-clock-rotate-left"></i> 最近收获</span>
-              <strong>${escapeHtml(recentSummary)}</strong>
-              <i class="fa-solid fa-chevron-down acu-gacha-recent-toggle"></i>
-            </summary>
-            <div class="acu-gacha-recent-list">${recentRewardsHtml}</div>
-          </details>
-        </div>
-        <div class="acu-gacha-draw-row">
-          <button class="acu-dialog-btn acu-btn-confirm acu-gacha-draw-btn acu-gacha-draw-single" type="button" data-draw-count="1">
-            <i class="fa-solid fa-wand-sparkles"></i>
-            <span>单抽</span>
-            <strong>${GACHA_DRAW_COST_SINGLE}</strong>
-          </button>
-          <button class="acu-dialog-btn acu-btn-confirm acu-gacha-draw-btn acu-gacha-draw-ten" type="button" data-draw-count="10">
-            <i class="fa-solid fa-fire"></i>
-            <span>十连</span>
-            <strong>${GACHA_DRAW_COST_TEN}</strong>
-          </button>
-        </div>
-      </div>
-    `;
-  };
+  const renderGachaPanelHtml = createRenderGachaPanelHtml({
+    createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    formatGachaRecentRewardText: (...a: any[]) => formatGachaRecentRewardText(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getGachaActivePoolTag: (...a: any[]) => getGachaActivePoolTag(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getTotalGachaShards: (...a: any[]) => getTotalGachaShards(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    getVisibleGachaPoolConfigDefinitions: (...a: any[]) => getVisibleGachaPoolConfigDefinitions(...a),
+    parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
+    renderGachaFortuneProgressHtml: (...a: any[]) => renderGachaFortuneProgressHtml(...a),
+    renderGachaPickupHtml: (...a: any[]) => renderGachaPickupHtml(...a),
+  });
 
   const getGachaShopProgressContainers = (): HTMLElement[] => {
     const roots = new Set<HTMLElement>();
@@ -43251,114 +42820,28 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     }
   };
 
-  const performGachaDraw = async (drawCount: number) => {
-    const safeDrawCount = drawCount >= 10 ? 10 : 1;
-    const drawCost = safeDrawCount >= 10 ? GACHA_DRAW_COST_TEN : GACHA_DRAW_COST_SINGLE;
-    let drawResult = {
-      success: false,
-      drawCount: safeDrawCount,
-      cost: drawCost,
-      outcomes: [] as GachaDrawOutcome[],
-      state: null as GachaState | null,
-      message: '',
-      error: '',
-    };
-    try {
-      await runInSaveQueue(async () => {
-        const rawData = getTableData({ silent: true }) || cachedRawData;
-        if (!rawData) {
-          drawResult.message = '未找到当前聊天数据库表格';
-          return;
-        }
-        await ensureGachaCatalogLoaded(rawData);
-
-        const state = touchGachaActivity(getGachaState(rawData, true));
-        if (!state) {
-          drawResult.message = '骰子商店状态不可用';
-          return;
-        }
-        state.activePoolTag = getGachaActivePoolTag(state);
-        const availableTargets = getAvailableGachaRewardTargets(rawData);
-        const poolTargets = new Set(
-          getGachaPoolDefinitions(state.activePoolTag, rawData).map(item => item.rewardTarget),
-        ) as Set<GachaRewardTarget>;
-        if (poolTargets.size > 0 && Array.from(poolTargets).every(target => !availableTargets.has(target))) {
-          const label = Array.from(poolTargets).map(getGachaRewardTargetTableLabel).join('或');
-          drawResult.state = cloneGachaState(state);
-          drawResult.message = `未找到${label}，暂时无法发放骰子商店奖励`;
-          warnTableTemplateIssue(`未找到${label}，暂时无法发放骰子商店奖励`);
-          return;
-        }
-        if (state.wallet.fortune < drawCost) {
-          drawResult.state = cloneGachaState(state);
-          drawResult.message = `${FORTUNE_CURRENCY_NAME}不足，无法抽取`;
-          if (window.toastr) window.toastr.warning(`${FORTUNE_CURRENCY_NAME}不足，无法抽取`);
-          return;
-        }
-
-        const stateSnapshot = cloneRuntimeDataValue(state);
-        state.wallet.fortune -= drawCost;
-        const modifiedSheetKeys = new Set<string>();
-        const outcomes: GachaDrawOutcome[] = [];
-        // 按需表级快照：只深拷贝本卡池实际写入的表，避免每次抽卡克隆全部工作表。
-        const sheetSnapshots = new Map<string, unknown>();
-        try {
-          for (let index = 0; index < safeDrawCount; index++) {
-            const result = drawSingleGachaOutcome(rawData, state, availableTargets, sheetSnapshots);
-            if (!result) continue;
-            if (result.modifiedSheetKey) modifiedSheetKeys.add(result.modifiedSheetKey);
-            outcomes.push(result.outcome);
-          }
-        } catch (error) {
-          sheetSnapshots.forEach((snapshot, sheetKey) => {
-            restoreMutableRuntimeValue(rawData[sheetKey], snapshot);
-          });
-          restoreMutableRuntimeValue(state, stateSnapshot);
-          throw error;
-        }
-
-        if (outcomes.length === 0) {
-          state.wallet.fortune += drawCost;
-          drawResult.state = cloneGachaState(state);
-          drawResult.message = '当前卡池没有可发放的奖励';
-          if (window.toastr) window.toastr.warning('当前卡池没有可发放的奖励');
-          return;
-        }
-
-        await persistRawDataWithGacha(rawData, Array.from(modifiedSheetKeys), state);
-        refreshGachaVisualization();
-        refreshInventoryVisualization();
-        const summary = outcomes
-          .slice(0, 5)
-          .map(outcome =>
-            outcome.duplicateConverted
-              ? `${outcome.item.name}→${outcome.shardGain}${getGachaShardLabel(outcome.item.quality)}`
-              : outcome.item.name,
-          )
-          .join('、');
-        if (window.toastr) {
-          window.toastr.success(
-            `${safeDrawCount >= 10 ? '十连' : '单抽'}完成：${summary}${outcomes.length > 5 ? '…' : ''}`,
-            '骰子商店',
-          );
-        }
-        drawResult = {
-          success: true,
-          drawCount: safeDrawCount,
-          cost: drawCost,
-          outcomes,
-          state: cloneGachaState(state),
-          message: `${safeDrawCount >= 10 ? '十连' : '单抽'}完成`,
-          error: '',
-        };
-      });
-    } catch (error) {
-      showGachaSaveError(error, safeDrawCount >= 10 ? '十连抽取保存' : '单抽保存');
-      drawResult.error = getRuntimeErrorMessage(error) || String(error);
-      drawResult.message = safeDrawCount >= 10 ? '十连抽取保存失败' : '单抽保存失败';
-    }
-    return drawResult;
-  };
+  const performGachaDraw = createPerformGachaDraw({
+    cloneRuntimeDataValue: (...a: any[]) => cloneRuntimeDataValue(...a),
+    drawSingleGachaOutcome: (...a: any[]) => drawSingleGachaOutcome(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getAvailableGachaRewardTargets: (...a: any[]) => getAvailableGachaRewardTargets(...a),
+    getGachaActivePoolTag: (...a: any[]) => getGachaActivePoolTag(...a),
+    getGachaPoolDefinitions: (...a: any[]) => getGachaPoolDefinitions(...a),
+    getGachaRewardTargetTableLabel: (...a: any[]) => getGachaRewardTargetTableLabel(...a),
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    persistRawDataWithGacha: (...a: any[]) => persistRawDataWithGacha(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    refreshInventoryVisualization: (...a: any[]) => refreshInventoryVisualization(...a),
+    restoreMutableRuntimeValue: (...a: any[]) => restoreMutableRuntimeValue(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    showGachaSaveError: (...a: any[]) => showGachaSaveError(...a),
+    touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
+    warnTableTemplateIssue: (...a: any[]) => warnTableTemplateIssue(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   const refreshGachaPoolSelectionUi = (poolTag: GachaPoolTag) => {
     const { $ } = getCore();
@@ -44563,119 +44046,29 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     }
   };
 
-  const renderGachaShardShopHtml = rawData => {
-    const config = getConfig();
-    const horizontalScrollbarClass = config.showHorizontalScrollbar === true ? 'acu-show-horizontal-scrollbar' : '';
-    const state = getGachaState(rawData, true) || createDefaultGachaState();
-    const activePoolTag = getGachaActivePoolTag(state);
-    const activeRarity = getStoredGachaShardShopRarity();
-    const poolTabsHtml = getVisibleGachaPoolConfigDefinitions(rawData)
-      .map(pool => {
-        const isActive = activePoolTag === pool.id;
-        return `
-          <button
-            class="acu-gacha-pool-tab acu-gacha-shard-pool-tab ${isActive ? 'active' : ''}"
-            type="button"
-            role="tab"
-            aria-selected="${isActive ? 'true' : 'false'}"
-            data-pool-tag="${escapeHtml(pool.id)}"
-            title="${escapeHtml(pool.name)}"
-          >
-            <i class="fa-solid fa-tags"></i>
-            <span>${escapeHtml(pool.name)}</span>
-          </button>
-        `;
-      })
-      .join('');
-    const rarityTabsHtml = GACHA_RARITY_ORDER.map(rarity => {
-      const isActive = activeRarity === rarity;
-      const shardCount = Math.max(0, Math.floor(Number(state.wallet.shards[rarity] || 0)));
-      return `
-        <button
-          class="acu-gacha-shard-tab ${isActive ? 'active' : ''}"
-          type="button"
-          data-rarity="${escapeHtml(rarity)}"
-          aria-label="${escapeHtml(`${rarity}碎片 ${String(shardCount)}`)}"
-          aria-pressed="${isActive ? 'true' : 'false'}"
-          title="${escapeHtml(`${rarity}碎片 ${String(shardCount)}`)}"
-        >
-          <i class="fa-solid ${getGachaRarityIconClass(rarity)}"></i>
-          <strong>${escapeHtml(String(shardCount))}</strong>
-        </button>
-      `;
-    }).join('');
-    const items = getGachaPoolDefinitions(activePoolTag, rawData)
-      .filter(item => item.quality === activeRarity)
-      .sort(compareGachaItemDefinitionsForDisplay);
-    const itemCardsHtml =
-      items.length > 0
-        ? items
-            .map(item => {
-              const owned = isGachaItemOwned(rawData, item);
-              const balance = Math.max(0, Math.floor(Number(state.wallet.shards[item.quality] || 0)));
-              const canAfford = balance >= GACHA_SHARD_EXCHANGE_COST;
-              const ownedBlocked = owned && (item.unique || !item.stackable);
-              const disabled = !canAfford || ownedBlocked;
-              const statusHtml = ownedBlocked ? '<span class="acu-gacha-shard-owned">已拥有</span>' : '';
-              return `
-                <article
-                  class="acu-gacha-shard-item-card ${disabled ? 'is-disabled' : 'is-available'} ${ownedBlocked ? 'is-owned' : ''}"
-                  data-item-id="${escapeHtml(item.id)}"
-                >
-                  <button
-                    class="acu-gacha-shard-price acu-gacha-shard-buy-btn"
-                    type="button"
-                    data-item-id="${escapeHtml(item.id)}"
-                    title="${escapeHtml(`兑换：${GACHA_SHARD_EXCHANGE_COST}${getGachaShardLabel(item.quality)}`)}"
-                    aria-label="${escapeHtml(`兑换 ${item.name}`)}"
-                    aria-disabled="${disabled ? 'true' : 'false'}"
-                  >
-                    <i class="fa-solid ${getGachaRarityIconClass(item.quality)}"></i>
-                    <strong>${escapeHtml(String(GACHA_SHARD_EXCHANGE_COST))}</strong>
-                  </button>
-                  ${statusHtml}
-                  <button class="acu-gacha-shard-card-main acu-gacha-shard-detail-btn" type="button" data-item-id="${escapeHtml(item.id)}" aria-label="${escapeHtml(`查看 ${item.name}`)}">
-                    <span class="acu-gacha-shard-item-icon">${renderGachaItemIconContent(item, getGachaItemCustomTableNameIconContext(item, rawData))}</span>
-                    <span class="acu-gacha-shard-item-main">
-                    <span class="acu-gacha-shard-item-head">
-                      <strong>${escapeHtml(item.name)}</strong>
-                      <span>${escapeHtml(formatGachaItemCardMeta(item))}</span>
-                    </span>
-                    <span class="acu-gacha-shard-item-effect"><b>效果</b>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span>
-                    <span class="acu-gacha-shard-item-desc"><b>描述</b>${escapeHtml(getGachaItemDescriptionText(item) || '暂无描述')}</span>
-                    ${renderGachaCustomFieldsPreviewHtml(item, { limit: 2, showOverflowCount: true })}
-                    </span>
-                  </button>
-                </article>
-              `;
-            })
-            .join('')
-        : `<div class="acu-inventory-empty compact"><i class="fa-solid fa-cubes-stacked"></i><span>${escapeHtml(getGachaPoolDisplayName(activePoolTag, rawData))} · ${escapeHtml(activeRarity)} 暂无可兑换物品</span></div>`;
-
-    return `
-      <div class="acu-inventory-detail-overlay acu-theme-${config.theme} acu-gacha-shard-shop-overlay ${horizontalScrollbarClass}">
-        <div class="acu-inventory-detail acu-gacha-shard-shop">
-          <div class="acu-inventory-detail-header">
-            <div class="acu-inventory-detail-head-main">
-              <div class="acu-inventory-detail-icon"><i class="fa-solid fa-cubes-stacked"></i></div>
-              <div class="acu-inventory-detail-summary">
-                <div class="acu-inventory-detail-title-row">
-                <div class="acu-inventory-detail-title">碎片商城</div>
-              </div>
-              </div>
-            </div>
-            <div class="acu-inventory-detail-header-actions">
-              ${getTutorialButtonHtml('shardShop', '查看碎片商城教程')}
-              <button class="acu-preview-close acu-gacha-shard-shop-close" type="button" title="关闭" aria-label="关闭碎片商城"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-gacha-shard-pool-tabs acu-gacha-pool-tabs" role="tablist">${poolTabsHtml}</div>
-          <div class="acu-gacha-shard-tabs" role="tablist">${rarityTabsHtml}</div>
-          <div class="acu-gacha-shard-items">${itemCardsHtml}</div>
-        </div>
-      </div>
-    `;
-  };
+  const renderGachaShardShopHtml = createRenderGachaShardShopHtml({
+    compareGachaItemDefinitionsForDisplay: (...a: any[]) => compareGachaItemDefinitionsForDisplay(...a),
+    createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    formatGachaItemCardMeta: (...a: any[]) => formatGachaItemCardMeta(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getGachaActivePoolTag: (...a: any[]) => getGachaActivePoolTag(...a),
+    getGachaItemCustomTableNameIconContext: (...a: any[]) => getGachaItemCustomTableNameIconContext(...a),
+    getGachaItemDescriptionText: (...a: any[]) => getGachaItemDescriptionText(...a),
+    getGachaItemEffectText: (...a: any[]) => getGachaItemEffectText(...a),
+    getGachaPoolDefinitions: (...a: any[]) => getGachaPoolDefinitions(...a),
+    getGachaPoolDisplayName: (...a: any[]) => getGachaPoolDisplayName(...a),
+    getGachaRarityIconClass: (...a: any[]) => getGachaRarityIconClass(...a),
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getStoredGachaShardShopRarity: (...a: any[]) => getStoredGachaShardShopRarity(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    getVisibleGachaPoolConfigDefinitions: (...a: any[]) => getVisibleGachaPoolConfigDefinitions(...a),
+    isGachaItemOwned: (...a: any[]) => isGachaItemOwned(...a),
+    renderGachaCustomFieldsPreviewHtml: (...a: any[]) => renderGachaCustomFieldsPreviewHtml(...a),
+    renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
+    GACHA_SHARD_EXCHANGE_COST: GACHA_SHARD_EXCHANGE_COST,
+  });
 
   const bindGachaShardShopInteractions = ($overlay: JQuery<HTMLElement>) => {
     $overlay
@@ -45599,197 +44992,27 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     getCachedRawData: () => cachedRawData,
   });
 
-  const renderOptionTableContent = (tableData, tableName, reverseBtnHtml, isReversed) => {
-    const config = getConfig();
-    const searchTerm = String(tableSearchStates[tableName] || '')
-      .toLowerCase()
-      .trim();
-    let optionItems = getOptionItemsFromTable(tableData);
+  const renderOptionTableContent = createRenderOptionTableContent({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getIconForTableName: (...a: any[]) => getIconForTableName(...a),
+    getOptionItemsFromTable: (...a: any[]) => getOptionItemsFromTable(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    safeEncodeURIComponent: (...a: any[]) => safeEncodeURIComponent(...a),
+    getTablePageStates: () => tablePageStates,
+    getTableSearchStates: () => tableSearchStates,
+  });
 
-    if (searchTerm) {
-      optionItems = optionItems.filter(item => {
-        const text = item.text.toLowerCase();
-        const header = item.header.toLowerCase();
-        return text.includes(searchTerm) || header.includes(searchTerm);
-      });
-    }
-
-    if (isReversed) {
-      optionItems = [...optionItems].reverse();
-    }
-
-    const itemsPerPage = config.itemsPerPage || 50;
-    const totalItems = optionItems.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-    let currentPage = tablePageStates[tableName] || 1;
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-    tablePageStates[tableName] = currentPage;
-
-    const startIdx = (currentPage - 1) * itemsPerPage;
-    const endIdx = startIdx + itemsPerPage;
-    const rowsToRender = optionItems.slice(startIdx, endIdx);
-    const displayStart = totalItems > 0 ? startIdx + 1 : 0;
-    const displayEnd = Math.min(endIdx, totalItems);
-    const optionRowsHtml =
-      rowsToRender.length > 0
-        ? rowsToRender
-            .map((item, idx) => {
-              const displayIndex = startIdx + idx + 1;
-              return `
-                <button class="acu-opt-btn acu-option-table-row" data-val="${safeEncodeURIComponent(item.text)}" data-option-row="${item.rowIndex}" data-option-col="${item.colIndex}">
-                  <span class="acu-option-table-index">#${displayIndex}</span>
-                  <span class="acu-option-table-text">${escapeHtml(item.text)}</span>
-                </button>`;
-            })
-            .join('')
-        : `<div class="acu-option-table-empty">${searchTerm ? '暂无匹配选项' : '暂无可点击选项'}</div>`;
-
-    const headerActionCount = 4 + (reverseBtnHtml ? 1 : 0);
-    let html = `
-            <div class="acu-panel-header">
-                <div class="acu-panel-title">
-                    <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
-                    <div class="acu-title-sub">(${displayStart}-${displayEnd} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
-                </div>
-                <div class="acu-header-actions acu-table-header-actions" data-action-count="${headerActionCount}">
-                    <div class="acu-table-action-set">
-                        ${getTutorialButtonHtml('optionTable', '查看选项表教程')}
-                        ${reverseBtnHtml}
-                        <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索选项..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
-                    </div>
-                    <div class="acu-panel-control-set" aria-label="${escapeHtml(tableName)}面板控制">
-                        <div class="acu-height-control">
-                            <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
-                        </div>
-                        <button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                </div>
-            </div>
-            <div class="acu-panel-content acu-option-table-content">
-                <div class="acu-card-grid acu-option-table-grid">
-                    <div class="acu-option-panel acu-theme-${config.theme} acu-option-table-panel">
-                        ${optionRowsHtml}
-                    </div>
-                </div>
-            </div>`;
-
-    if (totalPages > 1) {
-      html += `<div class="acu-panel-footer"><button class="acu-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
-      const range = [];
-      if (totalPages <= 7) {
-        for (let i = 1; i <= totalPages; i++) range.push(i);
-      } else {
-        if (currentPage <= 4) range.push(1, 2, 3, 4, 5, '...', totalPages);
-        else if (currentPage >= totalPages - 3)
-          range.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-        else range.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-      }
-      range.forEach(p => {
-        if (p === '...') html += `<span class="acu-page-info">...</span>`;
-        else html += `<button class="acu-page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-      });
-      html += `<button class="acu-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button></div>`;
-    }
-
-    return html;
-  };
-
-  const renderCheckSuggestionTableContent = (tableData, tableName, reverseBtnHtml, isReversed) => {
-    const config = getConfig();
-    const searchTerm = String(tableSearchStates[tableName] || '')
-      .toLowerCase()
-      .trim();
-    let suggestionItems = getCheckSuggestionItemsFromTable(tableData);
-
-    if (searchTerm) {
-      suggestionItems = suggestionItems.filter(item => {
-        const displayText = item.displayText.toLowerCase();
-        const commandText = item.commandText.toLowerCase();
-        return displayText.includes(searchTerm) || commandText.includes(searchTerm);
-      });
-    }
-
-    if (isReversed) {
-      suggestionItems = [...suggestionItems].reverse();
-    }
-
-    const itemsPerPage = config.itemsPerPage || 50;
-    const totalItems = suggestionItems.length;
-    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-    let currentPage = tablePageStates[tableName] || 1;
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-    tablePageStates[tableName] = currentPage;
-
-    const startIdx = (currentPage - 1) * itemsPerPage;
-    const endIdx = startIdx + itemsPerPage;
-    const rowsToRender = suggestionItems.slice(startIdx, endIdx);
-    const displayStart = totalItems > 0 ? startIdx + 1 : 0;
-    const displayEnd = Math.min(endIdx, totalItems);
-    const suggestionRowsHtml =
-      rowsToRender.length > 0
-        ? rowsToRender
-            .map((item, idx) => {
-              const displayIndex = item.rowId || String(startIdx + idx + 1);
-              return `
-                <button class="acu-check-suggestion-btn acu-option-table-row" data-display="${safeEncodeURIComponent(item.displayText)}" data-command="${safeEncodeURIComponent(item.commandText)}" data-check-row="${item.rowIndex}">
-                  <span class="acu-option-table-index">#${escapeHtml(displayIndex)}</span>
-                  <span class="acu-option-table-text">${escapeHtml(item.displayText || '未填写展示文本')}</span>
-                </button>`;
-            })
-            .join('')
-        : `<div class="acu-option-table-empty">${searchTerm ? '暂无匹配建议' : '暂无检定建议'}</div>`;
-
-    const headerActionCount = 4 + (reverseBtnHtml ? 1 : 0);
-    let html = `
-            <div class="acu-panel-header">
-                <div class="acu-panel-title">
-                    <div class="acu-title-main"><i class="fa-solid ${getIconForTableName(tableName)}"></i> <span class="acu-title-text">${escapeHtml(tableName)}</span></div>
-                    <div class="acu-title-sub">(${displayStart}-${displayEnd} / 共${totalItems}项)${isReversed ? ' <span style="color:var(--acu-accent);">↓倒序</span>' : ''}</div>
-                </div>
-                <div class="acu-header-actions acu-table-header-actions" data-action-count="${headerActionCount}">
-                    <div class="acu-table-action-set">
-                        ${getTutorialButtonHtml('checkSuggestionTable', '查看检定建议表教程')}
-                        ${reverseBtnHtml}
-                        <div class="acu-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="text" class="acu-search-input" placeholder="搜索建议..." value="${escapeHtml(tableSearchStates[tableName] || '')}" /></div>
-                    </div>
-                    <div class="acu-panel-control-set" aria-label="${escapeHtml(tableName)}面板控制">
-                        <div class="acu-height-control">
-                            <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
-                        </div>
-                        <button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                </div>
-            </div>
-            <div class="acu-panel-content acu-option-table-content">
-                <div class="acu-card-grid acu-option-table-grid">
-                    <div class="acu-option-panel acu-theme-${config.theme} acu-option-table-panel">
-                        ${suggestionRowsHtml}
-                    </div>
-                </div>
-            </div>`;
-
-    if (totalPages > 1) {
-      html += `<div class="acu-panel-footer"><button class="acu-page-btn ${currentPage === 1 ? 'disabled' : ''}" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i></button>`;
-      const range = [];
-      if (totalPages <= 7) {
-        for (let i = 1; i <= totalPages; i++) range.push(i);
-      } else {
-        if (currentPage <= 4) range.push(1, 2, 3, 4, 5, '...', totalPages);
-        else if (currentPage >= totalPages - 3)
-          range.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-        else range.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-      }
-      range.forEach(p => {
-        if (p === '...') html += `<span class="acu-page-info">...</span>`;
-        else html += `<button class="acu-page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
-      });
-      html += `<button class="acu-page-btn ${currentPage === totalPages ? 'disabled' : ''}" data-page="${currentPage + 1}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right"></i></button></div>`;
-    }
-
-    return html;
-  };
+  const renderCheckSuggestionTableContent = createRenderCheckSuggestionTableContent({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getCheckSuggestionItemsFromTable: (...a: any[]) => getCheckSuggestionItemsFromTable(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getIconForTableName: (...a: any[]) => getIconForTableName(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    safeEncodeURIComponent: (...a: any[]) => safeEncodeURIComponent(...a),
+    getTablePageStates: () => tablePageStates,
+    getTableSearchStates: () => tableSearchStates,
+  });
 
   const renderTableContent = (tableData, tableName) => {
     const isReversed = isTableReversed(tableName);
