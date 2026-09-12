@@ -12329,7 +12329,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     CustomTableNameIconStoreManager: CustomTableNameIconStoreManager,
     STORAGE_KEY_DASHBOARD_ACTIVE: STORAGE_KEY_DASHBOARD_ACTIVE,
     STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE: STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE,
-    loadDashboardNpcAvatars: loadDashboardNpcAvatars,
+    loadDashboardNpcAvatars: (...a: any[]) => loadDashboardNpcAvatars(...a),
     getCachedRawData: () => cachedRawData,
   });
 
@@ -43369,7 +43369,7 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
     runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
     setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
-    showGachaSettingsDialog: showGachaSettingsDialog,
+    showGachaSettingsDialog: (...a: any[]) => showGachaSettingsDialog(...a),
   });
 
   const importGachaCatalogJsonFromFile = () => {
