@@ -85,6 +85,14 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createShowInventoryGiftDialog } from './features/table/inventory-gift-dialog';
+import { createRenderInventoryVisualization } from './features/table/inventory-visualization';
+import { createShowInventoryItemDetail } from './features/table/inventory-item-detail';
+import { createShowInventoryFieldEditDialog } from './features/table/inventory-field-edit-dialog';
+import { createShowChangeEditModal } from './features/changes/change-edit-modal';
+import { createShowRowCompareEditModal } from './features/changes/row-compare-edit-modal';
+import { createShowChangeSingleFieldModal } from './features/changes/change-single-field-modal';
+import { createToggleOrderEditMode } from './features/ui/toggle-order-edit-mode';
 import { DEFAULT_GM_CONFIG, DEFAULT_CONFIG, DEFAULT_DICE_CONFIG, DEFAULT_VIRTUAL_PRESET, DEFAULT_CRAZY_MODE_CONFIG, DEFAULT_SPECIAL_ATTR_TEMPLATE, RULE_TYPE_INFO, INVENTORY_QUALITY_ORDER } from './shared/defaults-config';
 import { computeEffectVariables, computePendingEffectVariables, parseEffectValueInput, buildEffectMetaLines, buildEffectTraceLines } from './shared/effect-math';
 import { alignAndFixPairedTables, isValueInRelationTable, getRelationOptions, getColumnExamples, getRowKey, getNearestValidNumber, extractCodesFromTable, buildCodeMapping } from './shared/table-utils';
@@ -40640,371 +40648,70 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
   // [新增] 变更面板专用编辑弹窗（保存后只更新单行快照）
-  const showChangeEditModal = (row, headers, tableName, rowIndex, tableKey) => {
-    const { $ } = getCore();
-    const config = getConfig();
-
-    const inputsHtml = row
-      .map((cell, idx) => {
-        if (idx === 0) return '';
-        const headerName = headers[idx] || `列 ${idx}`;
-        const val = cell || '';
-        return `
-                <div class="acu-card-edit-field">
-                    <label class="acu-card-edit-label">${escapeHtml(headerName)}</label>
-                    <textarea class="acu-card-edit-input acu-card-edit-textarea" data-col="${idx}" spellcheck="false" rows="1">${escapeHtml(val)}</textarea>
-                </div>`;
-      })
-      .join('');
-
-    const dialog = $(`
-            <div class="acu-edit-overlay">
-                <div class="acu-edit-dialog acu-theme-${config.theme}">
-                    <div class="acu-edit-title">编辑变更 (#${rowIndex + 1} - ${escapeHtml(tableName)})</div>
-                    <div class="acu-settings-content acu-settings-content-scroll">
-                        ${inputsHtml}
-                    </div>
-                    <div class="acu-dialog-btns">
-                        <button type="button" class="acu-dialog-btn" id="dlg-change-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-                        <button type="button" class="acu-dialog-btn acu-btn-confirm" id="dlg-change-save"><i class="fa-solid fa-check"></i> 保存并确认</button>
-                    </div>
-                </div>
-            </div>
-        `);
-    $('body').append(dialog);
-
-    // [修复] 自动高度调节逻辑
-    const adjustHeight = el => {
-      // 关键修复：使用 auto 而不是 0px，防止布局塌陷并正确获取 scrollHeight
-      el.style.height = 'auto';
-      const contentHeight = el.scrollHeight + 2;
-      const maxHeight = 500;
-      el.style.height = Math.min(contentHeight, maxHeight) + 'px';
-      el.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
-    };
-
-    // 1. 初始化时：使用 requestAnimationFrame 确保在 DOM 渲染后执行
-    requestAnimationFrame(() => {
-      dialog.find('textarea').each(function () {
-        adjustHeight(this);
-      });
-    });
-
-    // 2. 输入时：实时调整
-    dialog.find('textarea').on('input', function () {
-      adjustHeight(this);
-    });
-    dialog.find('textarea').on('input', function () {
-      adjustHeight(this);
-    });
-
-    const closeDialog = () => {
-      isSettingsOpen = false;
-      dialog.remove();
-    };
-    dialog.find('#dlg-change-cancel').click(closeDialog);
-    setupOverlayClose(dialog, 'acu-edit-overlay', closeDialog);
-
-    dialog.find('#dlg-change-save').click(async () => {
-      let rawData = cachedRawData || getTableData();
-      if (rawData && rawData[tableKey]) {
-        const currentRow = rawData[tableKey]?.content?.[rowIndex + 1];
-        if (!currentRow) {
-          closeDialog();
-          return;
-        }
-
-        const nextRow = [...currentRow];
-        let hasChanges = false;
-        dialog.find('textarea').each(function () {
-          const colIdx = parseInt($(this).data('col'));
-          const newVal = $(this).val();
-          if (String(nextRow[colIdx]) !== String(newVal)) {
-            hasChanges = true;
-            nextRow[colIdx] = newVal;
-          }
-        });
-
-        if (hasChanges) {
-          // 1. 保存到数据库（不更新快照）
-          try {
-            await saveRowInstantly(tableKey, rowIndex, nextRow, {
-              tableName,
-              headers,
-              currentRow,
-              sourceData: rawData,
-              sheet: rawData?.[tableKey],
-            });
-          } catch (e) {
-            console.error('[DICE]ACU 保存失败:', e);
-            let errorMessage = e.message || '保存出错，请检查数据格式和大小';
-            // 检查是否是 "Settings could not be saved" 相关的错误
-            const errorMsg = String(e);
-            if (
-              errorMsg.includes('Settings could not be saved') ||
-              errorMsg.includes('server connection') ||
-              errorMsg.includes('data loss')
-            ) {
-              errorMessage = '保存失败：服务器连接问题或数据过大，请检查网络连接或减少数据量';
-            }
-            if (window.toastr) {
-              showActionableErrorToast(errorMessage, { title: '保存失败', suggestion: 'save', toastrOptions: { timeOut: 7000 } });
-            } else {
-              void showDiceSystemConfirmDialog({
-                title: '保存失败',
-                message: errorMessage,
-                iconClass: 'fa-triangle-exclamation',
-                confirmText: '知道了',
-                tone: 'danger',
-                hideCancel: true,
-              });
-            }
-            // 保存失败时不关闭对话框，让用户重试
-            return;
-          }
-
-          // 2. 只更新快照中这一行（关键！）
-          const snapshot = loadSnapshot();
-          const snapshotEntry = snapshot ? findDiffSnapshotEntry(snapshot, tableKey, rawData[tableKey]) : null;
-          if (setDiffDataRow(snapshotEntry?.sheet, rowIndex, normalizeDiffRow(nextRow))) {
-            saveSnapshot(snapshot);
-          }
-
-          // 3. 重新计算 diffMap 并刷新变更面板
-          const latestRawData = cachedRawData || getTableData() || rawData;
-          currentDiffMap = generateDiffMap(latestRawData);
-
-          // 4. 刷新变更面板
-          const $panel = $('#acu-data-area');
-          $panel.html(renderChangesPanel(latestRawData));
-          bindChangesEvents();
-        }
-      }
-      closeDialog();
-    });
-  };
+  const showChangeEditModal = createShowChangeEditModal({
+    bindChangesEvents: (...a: any[]) => bindChangesEvents(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    generateDiffMap: (...a: any[]) => generateDiffMap(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    normalizeDiffRow: (...a: any[]) => normalizeDiffRow(...a),
+    renderChangesPanel: (...a: any[]) => renderChangesPanel(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    saveSnapshot: (...a: any[]) => saveSnapshot(...a),
+    setDiffDataRow: (...a: any[]) => setDiffDataRow(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
+    getCachedRawData: () => cachedRawData,
+    getCurrentDiffMap: () => currentDiffMap,
+    setCurrentDiffMap: (v: any) => { currentDiffMap = v; },
+    getIsSettingsOpen: () => isSettingsOpen,
+    setIsSettingsOpen: (v: any) => { isSettingsOpen = v; },
+  });
   // [新增] 变更面板专用单字段编辑弹窗
-  const showChangeSingleFieldModal = (value, headerName, tableName, rowIndex, colIndex, tableKey) => {
-    const { $ } = getCore();
-    const config = getConfig();
-
-    // 获取快照中的旧值
-    const snapshot = loadSnapshot();
-    const currentRawData = cachedRawData || getTableData();
-    const snapshotEntry = snapshot
-      ? findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(currentRawData, tableKey))
-      : null;
-    const oldRow = getDiffDataRow(snapshotEntry?.sheet, rowIndex);
-    const oldValue = String(oldRow?.[colIndex] ?? '');
-    const hasOldValue = oldValue !== '' && String(oldValue) !== String(value);
-
-    const dialog = $(`
-            <div class="acu-edit-overlay">
-                <div class="acu-edit-dialog acu-theme-${config.theme}" style="max-width:450px;">
-                    <div class="acu-edit-title">编辑: ${escapeHtml(tableName)} - ${escapeHtml(headerName)}</div>
-                    <div class="acu-settings-content" style="flex:1; overflow-y:auto; padding:15px;">
-                        ${
-                          hasOldValue
-                            ? `
-                        <div class="acu-diff-section acu-diff-old-section">
-                            <div class="acu-diff-label">
-                                <i class="fa-solid fa-clock-rotate-left"></i> 原始值（快照）
-                            </div>
-                            <div class="acu-diff-readonly">${escapeHtml(oldValue)}</div>
-                        </div>
-                        <div class="acu-diff-arrow-down">
-                            <i class="fa-solid fa-arrow-down"></i>
-                        </div>
-                        `
-                            : ''
-                        }
-                        <div class="acu-diff-section acu-diff-new-section">
-                            <div class="acu-diff-label">
-                                <i class="fa-solid fa-pen"></i> ${hasOldValue ? '当前值（可编辑）' : '内容'}
-                            </div>
-                            <textarea class="acu-change-single-input acu-edit-textarea" spellcheck="false"
-                                style="width:100%;min-height:60px;max-height:300px;padding:12px;resize:none;">${escapeHtml(value)}</textarea>
-                        </div>
-                    </div>
-                    <div class="acu-dialog-btns">
-                        <button type="button" class="acu-dialog-btn" id="dlg-single-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-                        ${hasOldValue ? `<button type="button" class="acu-dialog-btn acu-btn-revert" id="dlg-single-revert"><i class="fa-solid fa-rotate-left"></i> 恢复原值</button>` : ''}
-                        <button type="button" class="acu-dialog-btn acu-btn-confirm" id="dlg-single-save"><i class="fa-solid fa-check"></i> 保存</button>
-                    </div>
-                </div>
-            </div>
-        `);
-    $('body').append(dialog);
-
-    // 自动高度
-    const $textarea = dialog.find('.acu-change-single-input');
-    const adjustHeight = () => {
-      $textarea[0].style.height = 'auto';
-      const h = Math.max(60, Math.min($textarea[0].scrollHeight + 2, 300));
-      $textarea[0].style.height = h + 'px';
-    };
-    setTimeout(adjustHeight, 0);
-    $textarea.on('input', adjustHeight);
-    $textarea.focus();
-
-    const closeDialog = () => dialog.remove();
-    dialog.find('#dlg-single-cancel').click(closeDialog);
-    setupOverlayClose(dialog, 'acu-edit-overlay', closeDialog);
-
-    // [新增] 恢复原值按钮
-    dialog.find('#dlg-single-revert').click(function () {
-      $textarea.val(oldValue).trigger('input');
-    });
-
-    dialog.find('#dlg-single-save').click(async () => {
-      const newVal = $textarea.val();
-      let rawData = cachedRawData || getTableData();
-
-      if (rawData && rawData[tableKey] && rawData[tableKey].content) {
-        const currentRow = rawData[tableKey].content[rowIndex + 1];
-        if (currentRow && String(currentRow[colIndex]) !== String(newVal)) {
-          const nextRow = [...currentRow];
-          nextRow[colIndex] = newVal;
-          await saveRowInstantly(tableKey, rowIndex, nextRow, {
-            tableName,
-            headers: rawData[tableKey].content[0] || [],
-            currentRow,
-            sourceData: rawData,
-            sheet: rawData[tableKey],
-          });
-
-          // 只更新快照中这一个单元格
-          const snapshot = loadSnapshot();
-          const snapshotEntry = snapshot ? findDiffSnapshotEntry(snapshot, tableKey, rawData[tableKey]) : null;
-          if (setDiffDataCell(snapshotEntry?.sheet, rowIndex, colIndex, newVal)) {
-            saveSnapshot(snapshot);
-          }
-
-          // 刷新
-          currentDiffMap = generateDiffMap(cachedRawData || getTableData() || rawData);
-          refreshChangesPanel();
-        }
-      }
-      closeDialog();
-    });
-  };
+  const showChangeSingleFieldModal = createShowChangeSingleFieldModal({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    generateDiffMap: (...a: any[]) => generateDiffMap(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getDiffDataRow: (...a: any[]) => getDiffDataRow(...a),
+    getDiffSheetByKey: (...a: any[]) => getDiffSheetByKey(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    refreshChangesPanel: (...a: any[]) => refreshChangesPanel(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    saveSnapshot: (...a: any[]) => saveSnapshot(...a),
+    setDiffDataCell: (...a: any[]) => setDiffDataCell(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    getCachedRawData: () => cachedRawData,
+    getCurrentDiffMap: () => currentDiffMap,
+    setCurrentDiffMap: (v: any) => { currentDiffMap = v; },
+  });
 
   // [新增] 多字段变更整体对比编辑弹窗
-  const showRowCompareEditModal = (row, headers, tableName, rowIndex, tableKey) => {
-    const { $ } = getCore();
-    const config = getConfig();
-
-    // 获取快照中的旧行
-    const snapshot = loadSnapshot();
-    const currentRawData = cachedRawData || getTableData();
-    const snapshotEntry = snapshot
-      ? findDiffSnapshotEntry(snapshot, tableKey, getDiffSheetByKey(currentRawData, tableKey))
-      : null;
-    const oldRow = getDiffDataRow(snapshotEntry?.sheet, rowIndex) || [];
-
-    // 构建字段对比列表
-    let fieldsHtml = '';
-    for (let idx = 1; idx < headers.length; idx++) {
-      const headerName = headers[idx] || `列 ${idx}`;
-      const oldVal = oldRow[idx] ?? '';
-      const newVal = row[idx] ?? '';
-      const isChanged = String(oldVal) !== String(newVal);
-
-      fieldsHtml += `
-                <div class="acu-row-edit-field ${isChanged ? 'acu-field-changed' : ''}">
-                    <div class="acu-row-edit-label">${escapeHtml(headerName)} ${isChanged ? '<span class="acu-changed-badge">已改</span>' : ''}</div>
-                    ${isChanged ? `<div class="acu-row-edit-old">${escapeHtml(oldVal) || '<span class="acu-empty-val">(空)</span>'}</div>` : ''}
-                    <textarea class="acu-row-edit-input acu-edit-textarea" data-col="${idx}" spellcheck="false" rows="1">${escapeHtml(newVal)}</textarea>
-                </div>
-            `;
-    }
-
-    const dialog = $(`
-            <div class="acu-edit-overlay">
-                <div class="acu-edit-dialog acu-theme-${config.theme}" style="max-width:550px;">
-                    <div class="acu-edit-title">整体编辑: ${escapeHtml(tableName)} - ${escapeHtml(row[1] || '行 ' + (rowIndex + 1))}</div>
-                    <div class="acu-settings-content" style="flex:1; overflow-y:auto; padding:15px; max-height:60vh;">
-                        ${fieldsHtml}
-                    </div>
-                    <div class="acu-dialog-btns">
-                        <button type="button" class="acu-dialog-btn" id="dlg-row-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-                        <button type="button" class="acu-dialog-btn" id="dlg-row-revert"><i class="fa-solid fa-rotate-left"></i> 全部恢复</button>
-                        <button type="button" class="acu-dialog-btn acu-btn-confirm" id="dlg-row-save"><i class="fa-solid fa-check"></i> 保存</button>
-                    </div>
-                </div>
-            </div>
-        `);
-    $('body').append(dialog);
-
-    // 自动高度
-    const adjustHeight = el => {
-      el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight + 2, 200) + 'px';
-    };
-    dialog.find('textarea').each(function () {
-      adjustHeight(this);
-    });
-    dialog.find('textarea').on('input', function () {
-      adjustHeight(this);
-    });
-
-    const closeDialog = () => dialog.remove();
-    dialog.find('#dlg-row-cancel').click(closeDialog);
-    setupOverlayClose(dialog, 'acu-edit-overlay', closeDialog);
-
-    // 全部恢复
-    dialog.find('#dlg-row-revert').click(function () {
-      dialog.find('textarea').each(function () {
-        const colIdx = parseInt($(this).data('col'));
-        $(this)
-          .val(oldRow[colIdx] ?? '')
-          .trigger('input');
-      });
-    });
-
-    // 保存
-    dialog.find('#dlg-row-save').click(async () => {
-      let rawData = cachedRawData || getTableData();
-      if (!rawData?.[tableKey]?.content?.[rowIndex + 1]) {
-        closeDialog();
-        return;
-      }
-
-      const currentRow = rawData[tableKey].content[rowIndex + 1];
-      const nextRow = [...currentRow];
-      let hasChanges = false;
-
-      dialog.find('textarea').each(function () {
-        const colIdx = parseInt($(this).data('col'));
-        const newVal = $(this).val();
-        if (String(nextRow[colIdx]) !== String(newVal)) {
-          hasChanges = true;
-          nextRow[colIdx] = newVal;
-        }
-      });
-
-      if (hasChanges) {
-        await saveRowInstantly(tableKey, rowIndex, nextRow, {
-          tableName,
-          headers,
-          currentRow,
-          sourceData: rawData,
-          sheet: rawData[tableKey],
-        });
-
-        // 更新快照中这一行
-        const snapshot = loadSnapshot();
-        const snapshotEntry = snapshot ? findDiffSnapshotEntry(snapshot, tableKey, rawData[tableKey]) : null;
-        if (setDiffDataRow(snapshotEntry?.sheet, rowIndex, normalizeDiffRow(nextRow))) {
-          saveSnapshot(snapshot);
-        }
-
-        currentDiffMap = generateDiffMap(cachedRawData || getTableData() || rawData);
-        refreshChangesPanel();
-      }
-      closeDialog();
-    });
-  };
+  const showRowCompareEditModal = createShowRowCompareEditModal({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    generateDiffMap: (...a: any[]) => generateDiffMap(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getDiffDataRow: (...a: any[]) => getDiffDataRow(...a),
+    getDiffSheetByKey: (...a: any[]) => getDiffSheetByKey(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    normalizeDiffRow: (...a: any[]) => normalizeDiffRow(...a),
+    refreshChangesPanel: (...a: any[]) => refreshChangesPanel(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    saveSnapshot: (...a: any[]) => saveSnapshot(...a),
+    setDiffDataRow: (...a: any[]) => setDiffDataRow(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    getCachedRawData: () => cachedRawData,
+    getCurrentDiffMap: () => currentDiffMap,
+    setCurrentDiffMap: (v: any) => { currentDiffMap = v; },
+  });
   const renderDashboard = allTables => {
     console.info('[DICE]开始抓取仪表盘数据...');
     // 重建角色名别名注册表
@@ -46339,126 +46046,23 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     $('.acu-inventory-detail-overlay, .acu-inventory-overlay').remove();
   };
 
-  const renderInventoryVisualization = rawData => {
-    const config = getConfig();
-    const filters = getInventoryFilters();
-    const isFilterCollapsed = getInventoryFiltersCollapsedState();
-    const activeFilterCount = getInventoryActiveFilterCount(filters);
-    const { tableName, tableKey, items, colMap } = parseInventoryItems(rawData);
-    const normalizedSearch = String(filters.search || '')
-      .trim()
-      .toLowerCase();
-
-    let filteredItems = items.filter(item => {
-      if (filters.type !== '全部' && item.type !== filters.type) return false;
-      if (filters.quality !== '全部' && item.quality !== filters.quality) return false;
-      if (!normalizedSearch) return true;
-      return `${item.name} ${item.description}`.toLowerCase().includes(normalizedSearch);
-    });
-
-    filteredItems = filteredItems.sort((a, b) => {
-      const taskPriority = (b.type === '任务物品' ? 1 : 0) - (a.type === '任务物品' ? 1 : 0);
-      if (taskPriority !== 0) return taskPriority;
-      if (a.isChanged !== b.isChanged) return a.isChanged ? -1 : 1;
-      if (filters.sort === 'type') return a.type.localeCompare(b.type, 'zh-CN') || a.rowIndex - b.rowIndex;
-      if (filters.sort === 'quality') {
-        return (
-          (INVENTORY_QUALITY_ORDER[b.quality] || 0) - (INVENTORY_QUALITY_ORDER[a.quality] || 0) ||
-          a.rowIndex - b.rowIndex
-        );
-      }
-      if (filters.sort === 'quantity') return b.quantity - a.quantity || a.rowIndex - b.rowIndex;
-      if (filters.sort === 'name') return a.name.localeCompare(b.name, 'zh-CN');
-      return a.rowIndex - b.rowIndex;
-    });
-
-    const isInventoryEmpty = filteredItems.length === 0;
-    const itemCardsHtml =
-      filteredItems.length > 0
-        ? filteredItems
-            .map(item => {
-              const icon = getElementEmoji(item.name, null);
-              const depletedClass = item.quantity <= 0 ? ' is-depleted' : '';
-              const changedClass = item.isChanged ? ' acu-inventory-changed' : '';
-              const iconContext = createCustomTableNameIconContext('item', tableName, 'item', item.name);
-              return `
-                <article class="acu-inventory-card${depletedClass}${changedClass}" data-row-index="${item.rowIndex}" data-item-name="${escapeHtml(item.name)}">
-                  <button class="acu-inventory-card-main" type="button" data-action="detail" title="${escapeHtml(item.name)}" aria-label="查看 ${escapeHtml(item.name)} 详情">
-                    <span class="acu-inventory-slot-visual">
-                      <span class="acu-inventory-icon">${renderCustomTableNameIconContent(renderThemeIconContent(icon), iconContext)}</span>
-                      <span class="acu-inventory-count" title="数量">${escapeHtml(item.quantityText)}</span>
-                    </span>
-                    <span class="acu-inventory-card-text">
-                      <span class="acu-inventory-name">${escapeHtml(item.name)}</span>
-                    </span>
-                  </button>
-                </article>
-              `;
-            })
-            .join('')
-        : `<div class="acu-inventory-empty">
-             <i class="fa-solid fa-bag-shopping"></i>
-             <span>${items.length > 0 ? '没有符合筛选条件的物品' : '暂无物品'}</span>
-           </div>`;
-
-    return `
-      <div class="acu-inventory-shell acu-theme-${config.theme}">
-        <div class="acu-panel-header acu-inventory-window-header">
-          <div class="acu-panel-title">
-            <div class="acu-title-main"><i class="fa-solid fa-box-open"></i> <span class="acu-title-text">物品栏</span></div>
-            <div class="acu-title-sub">${escapeHtml(tableName)} · ${filteredItems.length}/${items.length} 项</div>
-          </div>
-          <div class="acu-header-actions">
-            <label class="acu-inventory-search acu-inventory-search-inline">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input class="acu-inventory-filter" data-filter="search" type="search" value="${escapeHtml(filters.search || '')}" placeholder="搜索" aria-label="搜索物品">
-            </label>
-            ${getTutorialButtonHtml('inventory', '查看物品栏教程')}
-            <button class="acu-view-btn acu-gacha-open-btn" type="button" title="骰子商店" aria-label="打开骰子商店"><i class="fa-solid fa-store"></i></button>
-            ${
-              tableKey
-                ? `<button class="acu-view-btn acu-inventory-open-table" type="button" data-table="${escapeHtml(tableName)}" title="打开物品表" aria-label="打开物品表"><i class="fa-solid fa-table"></i></button>`
-                : ''
-            }
-            <button class="acu-close-btn acu-inventory-close" type="button" title="关闭" aria-label="关闭物品栏"><i class="fa-solid fa-times"></i></button>
-          </div>
-        </div>
-        <div class="acu-inventory-content">
-          <div class="acu-inventory-toolbar acu-inventory-filter-collapsible ${isFilterCollapsed ? 'collapsed' : ''}">
-            <button class="acu-inventory-filter-collapse-btn" type="button" title="${isFilterCollapsed ? '展开筛选' : '收起筛选'}">
-              <span class="acu-inventory-filter-collapse-title">
-                <i class="fa-solid fa-sliders"></i>
-                <span>筛选选项</span>
-                ${activeFilterCount > 0 ? `<span class="acu-inventory-filter-count">${activeFilterCount}</span>` : ''}
-              </span>
-              <i class="fa-solid fa-chevron-down acu-inventory-filter-collapse-icon"></i>
-            </button>
-            <div class="acu-inventory-filter-collapse-body">
-              <div class="acu-inventory-filter-group">
-                <div class="acu-inventory-filter-label"><i class="fa-solid fa-shapes"></i><span>类型</span></div>
-                <div class="acu-inventory-filter-row">${renderInventoryFilterButtons('type', filters.type, INVENTORY_TYPE_FILTER_META)}</div>
-              </div>
-              <div class="acu-inventory-filter-group">
-                <div class="acu-inventory-filter-label"><i class="fa-solid fa-gem"></i><span>品质</span></div>
-                <div class="acu-inventory-filter-row">${renderInventoryFilterButtons(
-                  'quality',
-                  filters.quality,
-                  INVENTORY_QUALITY_FILTER_META,
-                )}</div>
-              </div>
-              <div class="acu-inventory-filter-group">
-                <div class="acu-inventory-filter-label"><i class="fa-solid fa-arrow-down-wide-short"></i><span>排序</span></div>
-                <div class="acu-inventory-filter-row">${renderInventoryFilterButtons('sort', filters.sort, INVENTORY_SORT_OPTIONS)}</div>
-              </div>
-            </div>
-          </div>
-          <div class="acu-inventory-grid${isInventoryEmpty ? ' is-empty' : ''}" data-table="${escapeHtml(tableName)}" data-table-key="${escapeHtml(tableKey)}" data-quantity-col="${colMap.quantity}">
-            ${itemCardsHtml}
-          </div>
-        </div>
-      </div>
-    `;
-  };
+  const renderInventoryVisualization = createRenderInventoryVisualization({
+    createCustomTableNameIconContext: (...a: any[]) => createCustomTableNameIconContext(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getElementEmoji: (...a: any[]) => getElementEmoji(...a),
+    getInventoryActiveFilterCount: (...a: any[]) => getInventoryActiveFilterCount(...a),
+    getInventoryFilters: (...a: any[]) => getInventoryFilters(...a),
+    getInventoryFiltersCollapsedState: (...a: any[]) => getInventoryFiltersCollapsedState(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
+    renderCustomTableNameIconContent: (...a: any[]) => renderCustomTableNameIconContent(...a),
+    renderInventoryFilterButtons: (...a: any[]) => renderInventoryFilterButtons(...a),
+    renderThemeIconContent: (...a: any[]) => renderThemeIconContent(...a),
+    INVENTORY_QUALITY_FILTER_META: INVENTORY_QUALITY_FILTER_META,
+    INVENTORY_SORT_OPTIONS: INVENTORY_SORT_OPTIONS,
+    INVENTORY_TYPE_FILTER_META: INVENTORY_TYPE_FILTER_META,
+  });
 
   const refreshInventoryVisualization = (options?: { focusSearch?: boolean; cursor?: number }) => {
     const rawData = cachedRawData || getTableData();
@@ -46653,123 +46257,20 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     `;
   };
 
-  const showInventoryFieldEditDialog = (rowIndex: number, fieldKey: InventoryEditableField) => {
-    const context = getInventoryDetailContext(rowIndex);
-    if (!context) {
-      if (window.toastr) window.toastr.warning('未找到物品数据');
-      return;
-    }
-
-    const fieldLabel = getInventoryFieldLabel(fieldKey);
-    if (fieldKey === 'type' || fieldKey === 'quality') {
-      const { $ } = getCore();
-      const config = getConfig();
-      const currentValue = fieldKey === 'type' ? context.item.type : context.item.quality;
-      const options = getInventoryEnumOptions(context.item.tableName, fieldKey);
-      const optionButtonsHtml = options
-        .map(
-          option => `
-            <button
-              type="button"
-              class="acu-dialog-btn acu-inventory-enum-option ${option === currentValue ? 'is-active' : ''}"
-              data-value="${escapeHtml(option)}"
-            >
-              ${escapeHtml(option)}
-            </button>
-          `,
-        )
-        .join('');
-      const dialog = $(`
-        <div class="acu-edit-overlay acu-inventory-edit-overlay acu-inventory-enum-overlay">
-          <div class="acu-edit-dialog acu-theme-${config.theme} acu-inventory-enum-dialog">
-            <div class="acu-edit-title"><i class="fa-solid fa-list"></i> 选择${escapeHtml(fieldLabel)}</div>
-            <div class="acu-inventory-enum-options">${optionButtonsHtml}</div>
-            <div class="acu-dialog-btns">
-              <button class="acu-dialog-btn acu-inventory-enum-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-            </div>
-          </div>
-        </div>
-      `);
-      $('body').append(dialog);
-      setupOverlayClose(dialog, 'acu-edit-overlay', () => dialog.remove());
-      dialog.on('click', '.acu-inventory-enum-cancel', () => dialog.remove());
-      dialog.on('click', '.acu-inventory-enum-option', async function () {
-        const nextValue = String($(this).data('value') || '').trim();
-        if (!nextValue) return;
-        try {
-          await saveInventoryFieldValue(rowIndex, fieldKey, nextValue);
-          dialog.remove();
-        } catch (e) {
-          console.error(`[DICE] 保存物品${fieldLabel}失败:`, e);
-          if (window.toastr) {
-            showActionableErrorToast(`保存${fieldLabel}失败`, {
-              title: `保存${fieldLabel}失败`,
-              developerHint: true,
-            });
-          }
-        }
-      });
-      return;
-    }
-
-    if (fieldKey === 'acquiredAtLocation' || fieldKey === 'acquiredAt') {
-      const currentRecord = getInventoryMetadataForItem(context.rawData, context.item) || {
-        acquiredAt: '',
-        acquiredAtLocation: '',
-      };
-      const currentValue =
-        fieldKey === 'acquiredAtLocation' ? currentRecord.acquiredAtLocation : currentRecord.acquiredAt;
-      showEditDialog(
-        currentValue,
-        async newVal => {
-          try {
-            await saveInventoryFieldValue(rowIndex, fieldKey, String(newVal || ''));
-          } catch (e) {
-            console.error(`[DICE] 保存物品${fieldLabel}失败:`, e);
-            if (window.toastr) {
-              showActionableErrorToast(`保存${fieldLabel}失败`, {
-                title: `保存${fieldLabel}失败`,
-                developerHint: true,
-              });
-            }
-          }
-        },
-        {
-          title: `编辑${fieldLabel}`,
-          overlayClass: 'acu-inventory-edit-overlay',
-        },
-      );
-      return;
-    }
-
-    const colIdx = getInventoryFieldColumnIndex(context.colMap, fieldKey);
-    if (colIdx < 0) {
-      warnTableTemplateIssue(`未找到“${fieldLabel}”列`);
-      return;
-    }
-
-    const currentValue = String(context.row[colIdx] ?? '');
-    showEditDialog(
-      currentValue,
-      async newVal => {
-        try {
-          await saveInventoryFieldValue(rowIndex, fieldKey, String(newVal || ''));
-        } catch (e) {
-          console.error(`[DICE] 保存物品${fieldLabel}失败:`, e);
-          if (window.toastr) {
-            showActionableErrorToast(`保存${fieldLabel}失败`, {
-              title: `保存${fieldLabel}失败`,
-              developerHint: true,
-            });
-          }
-        }
-      },
-      {
-        title: `编辑${fieldLabel}`,
-        overlayClass: 'acu-inventory-edit-overlay',
-      },
-    );
-  };
+  const showInventoryFieldEditDialog = createShowInventoryFieldEditDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
+    getInventoryEnumOptions: (...a: any[]) => getInventoryEnumOptions(...a),
+    getInventoryFieldColumnIndex: (...a: any[]) => getInventoryFieldColumnIndex(...a),
+    getInventoryFieldLabel: (...a: any[]) => getInventoryFieldLabel(...a),
+    getInventoryMetadataForItem: (...a: any[]) => getInventoryMetadataForItem(...a),
+    saveInventoryFieldValue: (...a: any[]) => saveInventoryFieldValue(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showEditDialog: (...a: any[]) => showEditDialog(...a),
+    warnTableTemplateIssue: (...a: any[]) => warnTableTemplateIssue(...a),
+  });
 
   const showInventoryMetaEditDialog = rowIndex => {
     const { $ } = getCore();
@@ -46974,276 +46475,45 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     });
   };
 
-  const showInventoryItemDetail = rowIndex => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const rawData = cachedRawData || getTableData();
-    const item = findInventoryItemByRow(rowIndex);
-    if (!item) {
-      if (window.toastr) window.toastr.warning('未找到该物品');
-      return;
-    }
-    const icon = getElementEmoji(item.name, null);
-    const iconContext = createCustomTableNameIconContext('item', item.tableName, 'item', item.name);
-    const metaRecord = getInventoryMetadataForItem(rawData, item);
-    const detailContext = getInventoryDetailContext(rowIndex);
-    const quickActions = detailContext
-      ? getInteractOptionsForRow(item.tableName, detailContext.headers, detailContext.row)
-      : [];
-    const canDismantle = isGachaRarity(String(item.quality || '').trim() as GachaRarity);
-    const detail = $(`
-      <div class="acu-inventory-detail-overlay acu-theme-${config.theme}">
-        <div class="acu-inventory-detail" data-row-index="${item.rowIndex}">
-          <div class="acu-inventory-detail-header">
-            <div class="acu-inventory-detail-head-main">
-              <div class="acu-inventory-detail-icon">${renderCustomTableNameIconContent(renderThemeIconContent(icon), iconContext)}</div>
-              <div class="acu-inventory-detail-summary">
-                <div class="acu-inventory-detail-title-row">
-                  <button class="acu-inventory-detail-title acu-inventory-detail-menu-target" type="button" data-menu-scope="card">${escapeHtml(item.name)}</button>
-                  <button class="acu-inventory-detail-inline-action acu-inventory-detail-gift" type="button" title="赠与" aria-label="赠与">
-                    <i class="fa-solid fa-gift"></i>
-                  </button>
-                </div>
-                <button class="acu-inventory-detail-sub acu-inventory-detail-menu-target" type="button" data-menu-scope="summary">${escapeHtml(item.type)} · ${escapeHtml(item.quality)} · 数量 ${escapeHtml(item.quantityText)}</button>
-              </div>
-            </div>
-            <div class="acu-inventory-detail-header-actions">
-              ${
-                item.tableKey
-                  ? '<button class="acu-view-btn acu-inventory-detail-jump" type="button" title="跳转表格" aria-label="跳转表格"><i class="fa-solid fa-table"></i></button>'
-                  : ''
-              }
-              <button class="acu-view-btn acu-inventory-detail-dismantle" type="button" title="拆解为碎片" aria-label="拆解为碎片"><i class="fa-solid fa-hammer"></i></button>
-              ${getTutorialButtonHtml('inventoryDetail', '查看物品详情教程')}
-              <button class="acu-preview-close" type="button" title="关闭" aria-label="关闭物品详情"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-inventory-detail-meta-wrap">
-            ${renderInventoryMetadataHtml(metaRecord)}
-          </div>
-          <button class="acu-inventory-detail-desc acu-inventory-detail-menu-target" type="button" data-menu-scope="field" data-field-key="description">
-            ${escapeHtml(item.description || '暂无描述')}
-          </button>
-          ${
-            canDismantle || quickActions.length > 0
-              ? `<div class="acu-inventory-detail-actions">
-            ${
-              canDismantle
-                ? '<button class="acu-action-item acu-inventory-detail-dismantle-action" type="button"><i class="fa-solid fa-hammer"></i> 分解碎片</button>'
-                : ''
-            }
-            ${quickActions
-              .map((action, actionIdx) => {
-                const iconClass = String(action.icon || ACTION_ICON_MAP[action.label] || 'fa-play').trim();
-                return `<button class="acu-action-item acu-inventory-detail-quick-action" type="button" data-action-idx="${actionIdx}"><i class="fa-solid ${escapeHtml(iconClass)}"></i> ${escapeHtml(action.label)}</button>`;
-              })
-              .join('')}
-          </div>`
-              : ''
-          }
-        </div>
-      </div>
-    `);
-    $('.acu-inventory-detail-overlay').remove();
-    $('body').append(detail);
-    hydrateCustomTableNameIconsIn(detail);
-    const detailEl = detail[0] as HTMLElement | undefined;
-    if (detailEl) {
-      detailEl.style.setProperty('position', 'fixed', 'important');
-      detailEl.style.setProperty('top', '0', 'important');
-      detailEl.style.setProperty('left', '0', 'important');
-      detailEl.style.setProperty('right', '0', 'important');
-      detailEl.style.setProperty('bottom', '0', 'important');
-      detailEl.style.setProperty('width', '100vw', 'important');
-      detailEl.style.setProperty('height', '100dvh', 'important');
-      detailEl.style.setProperty('display', 'flex', 'important');
-      detailEl.style.setProperty('justify-content', 'center', 'important');
-      detailEl.style.setProperty('align-items', 'center', 'important');
-      detailEl.style.setProperty('z-index', '31250', 'important');
-    }
-    setupOverlayClose(detail, 'acu-inventory-detail-overlay', () => detail.remove());
-    detail.on('click', '.acu-preview-close', () => detail.remove());
-    detail.on('click', '.acu-inventory-detail-gift', () => {
-      detail.remove();
-      void showInventoryGiftDialog(rowIndex);
-    });
-    detail.on('click', '.acu-inventory-detail-jump', () => {
-      handleInventoryAction(rowIndex, 'jump');
-    });
-    detail.on('click', '.acu-inventory-detail-dismantle', () => {
-      detail.remove();
-      void dismantleInventoryItem(rowIndex);
-    });
-    detail.on('click', '.acu-inventory-detail-dismantle-action', e => {
-      e.stopPropagation();
-      e.preventDefault();
-      detail.remove();
-      void dismantleInventoryItem(rowIndex);
-    });
-    detail.on('click', '.acu-inventory-detail-quick-action', function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      const actionIdx = Number.parseInt(String($(this).data('action-idx') || ''), 10);
-      if (Number.isNaN(actionIdx)) return;
-      const freshContext = getInventoryDetailContext(rowIndex);
-      if (!freshContext) return;
-      const actions = getInteractOptionsForRow(freshContext.item.tableName, freshContext.headers, freshContext.row);
-      const action = actions[actionIdx];
-      const executed = executeTableInteractionAction(action, freshContext.headers, freshContext.row);
-      if (executed) detail.remove();
-    });
-  };
+  const showInventoryItemDetail = createShowInventoryItemDetail({
+    createCustomTableNameIconContext: (...a: any[]) => createCustomTableNameIconContext(...a),
+    dismantleInventoryItem: (...a: any[]) => dismantleInventoryItem(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    executeTableInteractionAction: (...a: any[]) => executeTableInteractionAction(...a),
+    findInventoryItemByRow: (...a: any[]) => findInventoryItemByRow(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getElementEmoji: (...a: any[]) => getElementEmoji(...a),
+    getInteractOptionsForRow: (...a: any[]) => getInteractOptionsForRow(...a),
+    getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
+    getInventoryMetadataForItem: (...a: any[]) => getInventoryMetadataForItem(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    handleInventoryAction: (...a: any[]) => handleInventoryAction(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    isGachaRarity: (...a: any[]) => isGachaRarity(...a),
+    renderCustomTableNameIconContent: (...a: any[]) => renderCustomTableNameIconContent(...a),
+    renderInventoryMetadataHtml: (...a: any[]) => renderInventoryMetadataHtml(...a),
+    renderThemeIconContent: (...a: any[]) => renderThemeIconContent(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showInventoryGiftDialog: (...a: any[]) => showInventoryGiftDialog(...a),
+    ACTION_ICON_MAP: ACTION_ICON_MAP,
+    getCachedRawData: () => cachedRawData,
+  });
 
-  const showInventoryGiftDialog = async rowIndex => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const rawData = cachedRawData || getTableData();
-    const item = findInventoryItemByRow(rowIndex);
-    if (!item) {
-      if (window.toastr) window.toastr.warning('未找到可赠与的物品');
-      return;
-    }
-
-    const characters = getInventoryCharacters(rawData);
-    const charactersWithAvatar = await Promise.all(
-      characters.map(async character => {
-        const avatarUrl = await AvatarManager.getAsync(character.name);
-        return {
-          ...character,
-          avatarUrl: avatarUrl || '',
-          avatarOffsetX: AvatarManager.getOffsetX(character.name),
-          avatarOffsetY: AvatarManager.getOffsetY(character.name),
-          avatarScale: AvatarManager.getScale(character.name),
-          isPresent: character.presence === '在场',
-        };
-      }),
-    );
-
-    const renderGiftOptions = (onlyPresent: boolean) => {
-      const filteredCharacters = onlyPresent
-        ? charactersWithAvatar.filter(character => character.isPresent)
-        : charactersWithAvatar;
-      if (filteredCharacters.length === 0) {
-        return `<div class="acu-inventory-empty compact"><i class="fa-solid fa-user-slash"></i><span>${onlyPresent ? '当前没有在场角色' : '未找到可赠与的角色'}</span></div>`;
-      }
-
-      return filteredCharacters
-        .map(character => {
-          const fallbackChar = character.displayName.charAt(0) || '?';
-          return `
-            <button
-              class="acu-inventory-gift-target ${character.isPresent ? 'is-present' : 'is-away'}"
-              data-name="${escapeHtml(character.displayName)}"
-              data-is-present="${character.isPresent ? 'true' : 'false'}"
-            >
-              <span
-                class="acu-inventory-gift-avatar acu-avatar-preview ${character.avatarUrl ? 'has-image' : ''} ${character.isPresent ? 'is-present' : 'is-away'}"
-                data-avatar-url="${escapeHtml(character.avatarUrl)}"
-                data-avatar-x="${character.avatarOffsetX}"
-                data-avatar-y="${character.avatarOffsetY}"
-                data-avatar-scale="${character.avatarScale}"
-                aria-hidden="true"
-              >
-                ${!character.avatarUrl ? `<span>${escapeHtml(fallbackChar)}</span>` : ''}
-                ${character.isPresent ? '<span class="acu-inventory-gift-avatar-indicator"></span>' : ''}
-              </span>
-              <span class="acu-inventory-gift-name ${character.isPresent ? 'is-present' : 'is-away'}" title="${escapeHtml(character.displayName)}">${escapeHtml(character.displayName)}</span>
-              <span class="acu-inventory-presence ${character.isPresent ? 'is-present' : 'is-away'}">${escapeHtml(character.presence)}</span>
-            </button>
-          `;
-        })
-        .join('');
-    };
-
-    const dialog = $(`
-      <div class="acu-edit-overlay acu-inventory-gift-overlay">
-        <div class="acu-edit-dialog acu-theme-${config.theme} acu-inventory-gift-dialog">
-          <div class="acu-edit-title acu-inventory-gift-title">
-            <span><i class="fa-solid fa-gift"></i> 赠与 ${escapeHtml(item.name)}</span>
-            <span class="acu-inventory-gift-title-actions">
-              <button
-                type="button"
-                class="acu-inventory-gift-filter-toggle"
-                data-only-present="false"
-                title="切换仅显示在场角色"
-                aria-pressed="false"
-              >
-                <i class="fa-solid fa-map-marker-alt"></i>
-              </button>
-              <button
-                type="button"
-                class="acu-inventory-gift-close"
-                title="关闭"
-                aria-label="关闭"
-              >
-                <i class="fa-solid fa-times"></i>
-              </button>
-            </span>
-          </div>
-          <div class="acu-inventory-gift-list">${renderGiftOptions(false)}</div>
-          <div class="acu-dialog-btns">
-            <button class="acu-dialog-btn acu-inventory-gift-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-          </div>
-        </div>
-      </div>
-    `);
-
-    const applyGiftAvatarStyles = ($root: JQuery<HTMLElement>) => {
-      $root.find('.acu-inventory-gift-avatar').each(function () {
-        const $preview = $(this);
-        const url = String($preview.attr('data-avatar-url') || '').trim();
-        const offsetX = Number($preview.attr('data-avatar-x') || 50);
-        const offsetY = Number($preview.attr('data-avatar-y') || 50);
-        const scale = Number($preview.attr('data-avatar-scale') || 150);
-        const cssImageUrl = formatCssImageUrl(url, { allowInternalObjectUrl: true });
-
-        if (!cssImageUrl) {
-          $preview.removeClass('has-image').css({
-            '--acu-avatar-image': '',
-            '--acu-avatar-x': '',
-            '--acu-avatar-y': '',
-            '--acu-avatar-scale': '',
-          });
-          return;
-        }
-
-        $preview.addClass('has-image').css({
-          '--acu-avatar-image': cssImageUrl,
-          '--acu-avatar-x': `${offsetX}%`,
-          '--acu-avatar-y': `${offsetY}%`,
-          '--acu-avatar-scale': `${scale}%`,
-        });
-      });
-    };
-
-    const refreshGiftList = (onlyPresent: boolean) => {
-      dialog.find('.acu-inventory-gift-list').html(renderGiftOptions(onlyPresent));
-      applyGiftAvatarStyles(dialog);
-    };
-
-    $('body').append(dialog);
-    applyGiftAvatarStyles(dialog);
-    setupOverlayClose(dialog, 'acu-edit-overlay', () => dialog.remove());
-    dialog.on('click', '.acu-inventory-gift-close', () => dialog.remove());
-    dialog.on('click', '.acu-inventory-gift-cancel', () => dialog.remove());
-    dialog.on('click', '.acu-inventory-gift-filter-toggle', function () {
-      const $button = $(this);
-      const nextOnlyPresent = String($button.attr('data-only-present') || 'false') !== 'true';
-      $button
-        .attr('data-only-present', nextOnlyPresent ? 'true' : 'false')
-        .attr('aria-pressed', nextOnlyPresent ? 'true' : 'false')
-        .toggleClass('active', nextOnlyPresent);
-      refreshGiftList(nextOnlyPresent);
-    });
-    dialog.on('click', '.acu-inventory-gift-target', function () {
-      const targetName = String($(this).data('name') || '').trim();
-      if (!targetName) return;
-      smartInsertToTextarea(`<user>将${item.name}赠与${targetName}。`, 'action');
-      $('#send_textarea').focus();
-      dialog.remove();
-      $('.acu-inventory-detail-overlay').remove();
-    });
-  };
+  const showInventoryGiftDialog = createShowInventoryGiftDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    findInventoryItemByRow: (...a: any[]) => findInventoryItemByRow(...a),
+    formatCssImageUrl: (...a: any[]) => formatCssImageUrl(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getInventoryCharacters: (...a: any[]) => getInventoryCharacters(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    AvatarManager: AvatarManager,
+    smartInsertToTextarea: smartInsertToTextarea,
+    getCachedRawData: () => cachedRawData,
+  });
   const handleInventoryAction = (rowIndex, action) => {
     const { $ } = getCore();
     const item = findInventoryItemByRow(rowIndex);
@@ -49882,122 +49152,18 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
   };
 
   let selectedSwapSource = null;
-  const toggleOrderEditMode = () => {
-    const { $ } = getCore();
-    isEditingOrder = !isEditingOrder;
-
-    const $root = $(DICE_ROOT_SELECTOR).last();
-    const $container = $root.find('#acu-nav-bar');
-    const $hint = $root.find('#acu-order-hint');
-    const $pool = $root.find('#acu-action-pool');
-
-    // 检查必要元素是否存在
-    if (!$container.length) {
-      console.error('[DICE]ACU 找不到导航栏容器');
-      isEditingOrder = false;
-      return;
-    }
-
-    selectedSwapSource = null;
-    $root.find('.acu-swap-selected').removeClass('acu-swap-selected');
-
-    if (isEditingOrder) {
-      // 进入编辑模式
-      $container.addClass('editing-order');
-      if ($pool.length) $pool.addClass('visible');
-
-      if ($hint.length) {
-        $hint
-          .html(
-            `
-                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:200px;">
-                            <span><i class="fa-solid fa-layer-group"></i> 布局编辑</span>
-                            <span style="font-size:11px; opacity:0.9; font-weight:normal;">拖动或点击交换位置</span>
-                        </div>
-                        <button id="acu-btn-finish-sort" class="acu-btn-finish-sort">
-                            <i class="fa-solid fa-check"></i> 完成保存
-                        </button>
-                    </div>
-                `,
-          )
-          .addClass('visible')
-          .css('display', 'flex');
-
-        $root.find('#acu-btn-finish-sort').hover(
-          function () {
-            $(this).addClass('hover');
-          },
-          function () {
-            $(this).removeClass('hover');
-          },
-        );
-
-        $root
-          .find('#acu-btn-finish-sort')
-          .off('click')
-          .on('click', function (e) {
-            e.stopPropagation();
-            e.preventDefault();
-            toggleOrderEditMode();
-          });
-      }
-
-      // 关闭数据面板
-      $root.find('#acu-data-area').removeClass('visible');
-      syncHostRegenerateButtonVisibility($root);
-
-      // 设置可拖拽属性（排除投骰按钮，避免影响快捷投骰入口）
-      $container.find('.acu-nav-btn').not('#acu-btn-dice-nav').attr('draggable', 'true');
-      $container.find('.acu-action-btn').attr('draggable', 'true');
-
-      // 初始化拖拽
-      initSortable($root);
-    } else {
-      // 退出编辑模式
-      $container.removeClass('editing-order');
-      if ($hint.length) $hint.removeClass('visible').hide();
-      if ($pool.length) $pool.removeClass('visible');
-
-      // 移除拖拽属性和事件
-      $container.find('.acu-nav-btn, .acu-action-btn').attr('draggable', 'false');
-      $root.find('.acu-nav-btn, .acu-action-btn').off('.sort');
-      $root.find('#acu-action-pool, #acu-active-actions').off('.sort');
-
-      // 保存导航盘入口顺序
-      const newTableOrder = [];
-      $container.find('.acu-nav-btn[data-nav-key], .acu-nav-btn[data-table]').each(function () {
-        const navKey = $(this).data('nav-key');
-        const tableName = $(this).data('table');
-        const orderKey = navKey || tableName;
-        if (orderKey) {
-          newTableOrder.push(String(orderKey));
-        }
-      });
-      if (newTableOrder.length > 0) {
-        saveTableOrder(newTableOrder);
-      }
-
-      // 保存功能按钮顺序
-      const newActionOrder = [];
-      $root.find('#acu-active-actions .acu-action-btn').each(function () {
-        const btnId = $(this).attr('id');
-        if (btnId) {
-          newActionOrder.push(btnId);
-        }
-      });
-
-      // 保护设置按钮
-      if (!newActionOrder.includes('acu-btn-settings')) {
-        newActionOrder.push('acu-btn-settings');
-      }
-
-      Store.set(STORAGE_KEY_ACTION_ORDER, newActionOrder);
-
-      // 重绘界面
-      renderInterface();
-    }
-  };
+  const toggleOrderEditMode = createToggleOrderEditMode({
+    getCore: (...a: any[]) => getCore(...a),
+    initSortable: (...a: any[]) => initSortable(...a),
+    renderInterface: (...a: any[]) => renderInterface(...a),
+    saveTableOrder: (...a: any[]) => saveTableOrder(...a),
+    syncHostRegenerateButtonVisibility: (...a: any[]) => syncHostRegenerateButtonVisibility(...a),
+    STORAGE_KEY_ACTION_ORDER: STORAGE_KEY_ACTION_ORDER,
+    getSelectedSwapSource: () => selectedSwapSource,
+    setSelectedSwapSource: (v: any) => { selectedSwapSource = v; },
+      getIsEditingOrder: () => isEditingOrder,
+    setIsEditingOrder: (v: any) => { isEditingOrder = v; },
+});
 
   const initSortable = createInitSortable({
     getCore: (...a: any[]) => getCore(...a),
