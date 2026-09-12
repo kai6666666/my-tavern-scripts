@@ -40,7 +40,7 @@ export const PRIMARY_KEYS = {
 // 预设格式版本号（全局共享，用于数据验证规则、管理属性规则等）
 export const PRESET_FORMAT_VERSION = '1.8.4';
 // 脚本版本号
-export const SCRIPT_VERSION = 'v7.0.0-fsd-s30';
+export const SCRIPT_VERSION = 'v7.0.0-fsd-s31';
 
 // ========================================
 // 纯逻辑工具（无副作用）
