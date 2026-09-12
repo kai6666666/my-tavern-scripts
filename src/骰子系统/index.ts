@@ -85,6 +85,14 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createShowDiceSettingsPanel } from './features/dice/dice-settings-panel';
+import { createShowAddRegexRuleModal } from './features/regex/add-regex-rule-dialog';
+import { createShowAvatarCropModal } from './features/avatar/avatar-crop-modal';
+import { createShowImportConfirmDialog } from './features/table/import-confirm-dialog';
+import { createUpdateViewportWrapperBounds } from './features/layout/viewport-wrapper-bounds';
+import { createUpdateFixedWrapperBounds } from './features/layout/fixed-wrapper-bounds';
+import { createExecuteAdvancedCheckSuggestion } from './features/checks/execute-advanced-check-suggestion';
+import { createExecuteContestCheckSuggestion } from './features/checks/execute-contest-check-suggestion';
 import { createShowInventoryGiftDialog } from './features/table/inventory-gift-dialog';
 import { createRenderInventoryVisualization } from './features/table/inventory-visualization';
 import { createShowInventoryItemDetail } from './features/table/inventory-item-detail';
@@ -14064,259 +14072,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   /**
    * @deprecated 请使用 showAdvancedPresetManager() 替代。此函数仅保留函数体以供回退。
    */
-  const showDiceSettingsPanel = (isDND = false) => {
-    const { $ } = getCore();
-    $('.acu-dice-config-overlay').remove();
-
-    const config = getConfig();
-    const diceCfg = getDiceConfig();
-
-    const ruleTitle = isDND ? 'DND 规则设置' : 'COC 规则设置';
-    const resetText = isDND ? '恢复 DND 默认' : '恢复 COC 默认';
-
-    // 默认值定义
-    const defaults = isDND
-      ? { critSuccess: 20, critFail: 1 }
-      : { critSuccess: 5, critFail: 96, hardDiv: 2, extremeDiv: 5 };
-
-    // 当前值：只有用户明确设置过才显示，否则留空用 placeholder
-    const currentCritSuccess = isDND
-      ? diceCfg.dndCritSuccess !== undefined && diceCfg.dndCritSuccess !== defaults.critSuccess
-        ? diceCfg.dndCritSuccess
-        : ''
-      : diceCfg.critSuccessMax !== undefined && diceCfg.critSuccessMax !== defaults.critSuccess
-        ? diceCfg.critSuccessMax
-        : '';
-    const currentCritFail = isDND
-      ? diceCfg.dndCritFail !== undefined && diceCfg.dndCritFail !== defaults.critFail
-        ? diceCfg.dndCritFail
-        : ''
-      : diceCfg.critFailMin !== undefined && diceCfg.critFailMin !== defaults.critFail
-        ? diceCfg.critFailMin
-        : '';
-    const currentHardDiv =
-      !isDND && diceCfg.difficultSuccessDiv !== undefined && diceCfg.difficultSuccessDiv !== defaults.hardDiv
-        ? diceCfg.difficultSuccessDiv
-        : '';
-    const currentExtremeDiv =
-      !isDND && diceCfg.hardSuccessDiv !== undefined && diceCfg.hardSuccessDiv !== defaults.extremeDiv
-        ? diceCfg.hardSuccessDiv
-        : '';
-
-    const tieRule = diceCfg.contestTieRule || 'initiator_lose';
-    const hideDiceResultFromUser =
-      diceCfg.hideDiceResultFromUser !== undefined ? diceCfg.hideDiceResultFromUser : false;
-    const hideDiceResultInChat = diceCfg.hideDiceResultInChat !== undefined ? diceCfg.hideDiceResultInChat : false;
-    const overwriteLastDiceResult = diceCfg.overwriteLastDiceResult !== false;
-
-    const cocExtraHtml = isDND
-      ? ''
-      : `
-            <div class="acu-dice-cfg-row">
-                <div class="acu-dice-cfg-item">
-                    <label>困难 (÷)</label>
-                    <div class="acu-stepper" data-id="cfg-hard-div" data-min="2" data-max="5" data-step="1">
-                        <button class="acu-stepper-btn acu-stepper-dec"><i class="fa-solid fa-minus"></i></button>
-                        <span class="acu-stepper-value">${currentHardDiv || defaults.hardDiv}</span>
-                        <button class="acu-stepper-btn acu-stepper-inc"><i class="fa-solid fa-plus"></i></button>
-                    </div>
-                </div>
-                <div class="acu-dice-cfg-item">
-                    <label>极难 (÷)</label>
-                    <div class="acu-stepper" data-id="cfg-extreme-div" data-min="3" data-max="10" data-step="1">
-                        <button class="acu-stepper-btn acu-stepper-dec"><i class="fa-solid fa-minus"></i></button>
-                        <span class="acu-stepper-value">${currentExtremeDiv || defaults.extremeDiv}</span>
-                        <button class="acu-stepper-btn acu-stepper-inc"><i class="fa-solid fa-plus"></i></button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    const panelHtml = `
-            <div class="acu-dice-config-overlay">
-                <div class="acu-dice-config-dialog acu-theme-${config.theme}">
-                    <div class="acu-dice-cfg-header">
-                        <span><i class="fa-solid fa-cog"></i> ${ruleTitle}</span>
-                        <button class="acu-config-close"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                    <div class="acu-dice-cfg-body">
-                        <div class="acu-dice-cfg-row">
-                            <div class="acu-dice-cfg-item">
-                                <label>大成功阈值</label>
-                                <div class="acu-stepper" data-id="cfg-crit-success" data-min="1" data-max="100" data-step="1">
-                                    <button class="acu-stepper-btn acu-stepper-dec"><i class="fa-solid fa-minus"></i></button>
-                                    <span class="acu-stepper-value">${currentCritSuccess || defaults.critSuccess}</span>
-                                    <button class="acu-stepper-btn acu-stepper-inc"><i class="fa-solid fa-plus"></i></button>
-                                </div>
-                            </div>
-                            <div class="acu-dice-cfg-item">
-                                <label>大失败阈值</label>
-                                <div class="acu-stepper" data-id="cfg-crit-fail" data-min="1" data-max="100" data-step="1">
-                                    <button class="acu-stepper-btn acu-stepper-dec"><i class="fa-solid fa-minus"></i></button>
-                                    <span class="acu-stepper-value">${currentCritFail || defaults.critFail}</span>
-                                    <button class="acu-stepper-btn acu-stepper-inc"><i class="fa-solid fa-plus"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                        ${cocExtraHtml}
-                        <div class="acu-dice-cfg-row acu-cfg-full-row">
-                            <div class="acu-dice-cfg-item">
-                                <label>对抗平手规则</label>
-                                <select id="cfg-tie-rule">
-                                    <option value="initiator_lose" ${tieRule === 'initiator_lose' ? 'selected' : ''}>发起方判负 (默认)</option>
-                                    <option value="tie" ${tieRule === 'tie' ? 'selected' : ''}>双方平手</option>
-                                    <option value="initiator_win" ${tieRule === 'initiator_win' ? 'selected' : ''}>发起方判胜</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="acu-dice-cfg-row acu-cfg-full-row">
-                            <div class="acu-dice-cfg-item acu-cfg-toggle-item">
-                                <label>隐藏输入栏中的检定结果</label>
-                                <label class="acu-toggle">
-                                    <input type="checkbox" id="cfg-hide-dice-result" ${hideDiceResultFromUser ? 'checked' : ''}>
-                                    <span class="acu-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="acu-dice-cfg-row acu-cfg-full-row">
-                            <div class="acu-dice-cfg-item acu-cfg-toggle-item">
-                                <label>覆盖上一次检定结果</label>
-                                <label class="acu-toggle">
-                                    <input type="checkbox" id="cfg-overwrite-last-dice-result" ${overwriteLastDiceResult ? 'checked' : ''}>
-                                    <span class="acu-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="acu-dice-cfg-row acu-cfg-full-row">
-                            <div class="acu-dice-cfg-item acu-cfg-toggle-item">
-                                <label>隐藏聊天记录中的检定结果</label>
-                                <label class="acu-toggle">
-                                    <input type="checkbox" id="cfg-hide-dice-result-chat" ${hideDiceResultInChat ? 'checked' : ''}>
-                                    <span class="acu-toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="acu-dice-cfg-actions">
-                            <button type="button" id="cfg-reset-dice">${resetText}</button>
-                            <button type="button" id="cfg-save-dice">保存</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    const $panel = $(panelHtml);
-    $('body').append($panel);
-
-    $panel.css({
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      right: '0',
-      bottom: '0',
-      width: '100vw',
-      height: '100vh',
-      background: 'rgba(0,0,0,0.6)',
-      'z-index': '31300',
-      display: 'flex',
-      'align-items': 'center',
-      'justify-content': 'center',
-      padding: '20px',
-      'box-sizing': 'border-box',
-    });
-
-    const closePanel = () => $panel.remove();
-    $panel.find('.acu-config-close').click(closePanel);
-    setupOverlayClose($panel, 'acu-dice-config-overlay', closePanel);
-
-    // === Stepper 步进器事件 ===
-    $panel.find('.acu-stepper').each(function () {
-      const $stepper = $(this);
-      const id = $stepper.data('id');
-      const min = parseInt($stepper.data('min'));
-      const max = parseInt($stepper.data('max'));
-      const step = parseInt($stepper.data('step'));
-      const $value = $stepper.find('.acu-stepper-value');
-
-      const updateValue = newVal => {
-        newVal = Math.max(min, Math.min(max, newVal));
-        $value.text(newVal);
-      };
-
-      const getCurrentValue = () => {
-        const text = $value.text().replace(/[^\d]/g, '');
-        return parseInt(text) || min;
-      };
-
-      $stepper.find('.acu-stepper-dec').on('click', function () {
-        updateValue(getCurrentValue() - step);
-      });
-
-      $stepper.find('.acu-stepper-inc').on('click', function () {
-        updateValue(getCurrentValue() + step);
-      });
-    });
-
-    $panel.find('#cfg-save-dice').click(function () {
-      const newCfg = { contestTieRule: $('#cfg-tie-rule').val() };
-
-      // 从stepper读取值
-      const getStepperValue = id => {
-        const $stepper = $panel.find(`.acu-stepper[data-id="${id}"]`);
-        if ($stepper.length) {
-          const text = $stepper.find('.acu-stepper-value').text().replace(/[^\d]/g, '');
-          return text !== '' ? parseInt(text, 10) : null;
-        }
-        return null;
-      };
-
-      const critSuccessVal = getStepperValue('cfg-crit-success');
-      const critFailVal = getStepperValue('cfg-crit-fail');
-
-      if (isDND) {
-        newCfg.dndCritSuccess = critSuccessVal !== null ? critSuccessVal : defaults.critSuccess;
-        newCfg.dndCritFail = critFailVal !== null ? critFailVal : defaults.critFail;
-      } else {
-        newCfg.critSuccessMax = critSuccessVal !== null ? critSuccessVal : defaults.critSuccess;
-        newCfg.critFailMin = critFailVal !== null ? critFailVal : defaults.critFail;
-
-        const hardDivVal = getStepperValue('cfg-hard-div');
-        const extremeDivVal = getStepperValue('cfg-extreme-div');
-        newCfg.difficultSuccessDiv = hardDivVal !== null ? hardDivVal : defaults.hardDiv;
-        newCfg.hardSuccessDiv = extremeDivVal !== null ? extremeDivVal : defaults.extremeDiv;
-      }
-
-      // 保存"隐藏输入栏中的检定结果"设置
-      newCfg.hideDiceResultFromUser = $('#cfg-hide-dice-result').is(':checked');
-      // 保存"覆盖上一次检定结果"设置
-      newCfg.overwriteLastDiceResult = $('#cfg-overwrite-last-dice-result').is(':checked');
-      // 保存"隐藏聊天记录中的检定结果"设置
-      newCfg.hideDiceResultInChat = $('#cfg-hide-dice-result-chat').is(':checked');
-
-      saveDiceConfig(newCfg);
-      // 保存后立即应用隐藏逻辑
-      console.info('[DICE]应用投骰结果隐藏/显示设置...');
-      hideDiceResultsInUserMessages();
-      closePanel();
-    });
-
-    $panel.find('#cfg-reset-dice').click(function () {
-      // 重置stepper到默认值
-      const resetStepper = (id, defaultValue) => {
-        const $stepper = $panel.find(`.acu-stepper[data-id="${id}"]`);
-        if ($stepper.length) {
-          $stepper.find('.acu-stepper-value').text(defaultValue);
-        }
-      };
-
-      resetStepper('cfg-crit-success', defaults.critSuccess);
-      resetStepper('cfg-crit-fail', defaults.critFail);
-      if (!isDND) {
-        resetStepper('cfg-hard-div', defaults.hardDiv);
-        resetStepper('cfg-extreme-div', defaults.extremeDiv);
-      }
-    });
-  };
+  const showDiceSettingsPanel = createShowDiceSettingsPanel({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getDiceConfig: (...a: any[]) => getDiceConfig(...a),
+    saveDiceConfig: (...a: any[]) => saveDiceConfig(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    hideDiceResultsInUserMessages: hideDiceResultsInUserMessages,
+  });
   // [新增] 显示掷骰面板
   const showDicePanel = (options = {}) => {
     const { $ } = getCore();
@@ -23211,249 +22974,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   // 头像裁剪弹窗 - 统一PC/移动端体验
   // ========================================
 
-  const showAvatarCropModal = (imageSource, characterName, onSave) => {
-    const { $ } = getCore();
-    $('.acu-crop-modal-overlay').remove();
-
-    const config = getConfig();
-
-    // 初始参数
-    let scale = 150;
-    let offsetX = 50;
-    let offsetY = 50;
-
-    // 尝试读取已有配置
-    const existing = AvatarManager.getAll()[characterName];
-    if (existing) {
-      scale = existing.scale ?? 150;
-      offsetX = existing.offsetX ?? 50;
-      offsetY = existing.offsetY ?? 50;
-    }
-    const initialCropImageUrl = formatCssImageUrl(imageSource, { allowInternalObjectUrl: true }) || 'none';
-
-    const modalHtml = `
-            <div class="acu-crop-modal-overlay acu-theme-${config.theme}">
-                <div class="acu-crop-modal" role="dialog" aria-modal="true" aria-labelledby="acu-crop-modal-title">
-                    <div class="acu-crop-header">
-                        <span id="acu-crop-modal-title"><i class="fa-solid fa-crop-simple"></i> 调整头像 - ${escapeHtml(characterName)}</span>
-                        <button class="acu-crop-close" type="button" title="关闭" aria-label="关闭头像裁剪"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                    <div class="acu-crop-body">
-                        <div class="acu-crop-container">
-                            <div class="acu-crop-image" style="
-                                background-image: ${escapeHtml(initialCropImageUrl)};
-                                background-size: ${scale}%;
-                                background-position: ${offsetX}% ${offsetY}%;
-                            "></div>
-                            <div class="acu-crop-mask"></div>
-                        </div>
-                        <div class="acu-crop-hint">拖拽移动 · 滚轮/双指缩放</div>
-                    </div>
-                    <div class="acu-crop-footer">
-                        <label class="acu-crop-btn acu-crop-reupload" title="重新上传" role="button" tabindex="0" aria-label="重新上传头像">
-                            <i class="fa-solid fa-camera"></i>
-                            <input type="file" accept="image/*" class="acu-crop-file-input" />
-                        </label>
-                        <button class="acu-crop-btn acu-crop-cancel" type="button">取消</button>
-                        <button class="acu-crop-btn acu-crop-confirm" type="button"><i class="fa-solid fa-check"></i> 确定</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    const $modal = $(modalHtml);
-    $('body').append($modal);
-
-    const $image = $modal.find('.acu-crop-image');
-    const $container = $modal.find('.acu-crop-container');
-    const containerEl = $container[0];
-    const imageEl = $image[0];
-
-    // 更新图片样式
-    const updateImageStyle = () => {
-      imageEl.style.backgroundSize = `${scale}%`;
-      imageEl.style.backgroundPosition = `${offsetX}% ${offsetY}%`;
-    };
-
-    // === 拖拽逻辑（使用 Pointer Events 统一处理） ===
-    let isDragging = false;
-    let startX = 0,
-      startY = 0;
-    let startOffsetX = 0,
-      startOffsetY = 0;
-    let activePointerId = null;
-
-    imageEl.addEventListener('pointerdown', e => {
-      // 忽略多点触控的额外手指
-      if (activePointerId !== null) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      isDragging = true;
-      activePointerId = e.pointerId;
-      startX = e.clientX;
-      startY = e.clientY;
-      startOffsetX = offsetX;
-      startOffsetY = offsetY;
-
-      imageEl.setPointerCapture(e.pointerId);
-      imageEl.style.cursor = 'grabbing';
-    });
-
-    imageEl.addEventListener('pointermove', e => {
-      if (!isDragging || e.pointerId !== activePointerId) return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
-
-      // 灵敏度根据缩放调整
-      const sensitivity = 100 / scale;
-      offsetX = Math.max(0, Math.min(100, startOffsetX - deltaX * sensitivity));
-      offsetY = Math.max(0, Math.min(100, startOffsetY - deltaY * sensitivity));
-      updateImageStyle();
-    });
-
-    imageEl.addEventListener('pointerup', e => {
-      if (e.pointerId !== activePointerId) return;
-
-      isDragging = false;
-      activePointerId = null;
-      imageEl.releasePointerCapture(e.pointerId);
-      imageEl.style.cursor = 'grab';
-    });
-
-    imageEl.addEventListener('pointercancel', e => {
-      if (e.pointerId !== activePointerId) return;
-
-      isDragging = false;
-      activePointerId = null;
-      imageEl.style.cursor = 'grab';
-    });
-
-    // === 缩放逻辑 ===
-    // 滚轮缩放
-    containerEl.addEventListener(
-      'wheel',
-      e => {
-        e.preventDefault();
-        e.stopPropagation();
-        const delta = e.deltaY > 0 ? -10 : 10;
-        scale = Math.max(100, Math.min(300, scale + delta));
-        updateImageStyle();
-      },
-      { passive: false },
-    );
-
-    // 双指缩放
-    let lastPinchDist = 0;
-    let pinchStartScale = scale;
-
-    containerEl.addEventListener(
-      'touchstart',
-      e => {
-        if (e.touches.length === 2) {
-          e.preventDefault();
-          lastPinchDist = Math.hypot(
-            e.touches[1].clientX - e.touches[0].clientX,
-            e.touches[1].clientY - e.touches[0].clientY,
-          );
-          pinchStartScale = scale;
-        }
-      },
-      { passive: false },
-    );
-
-    containerEl.addEventListener(
-      'touchmove',
-      e => {
-        if (e.touches.length === 2) {
-          e.preventDefault();
-          const newDist = Math.hypot(
-            e.touches[1].clientX - e.touches[0].clientX,
-            e.touches[1].clientY - e.touches[0].clientY,
-          );
-          if (lastPinchDist > 0) {
-            const pinchRatio = newDist / lastPinchDist;
-            scale = Math.max(100, Math.min(300, pinchStartScale * pinchRatio));
-            updateImageStyle();
-          }
-        }
-      },
-      { passive: false },
-    );
-
-    containerEl.addEventListener('touchend', e => {
-      if (e.touches.length < 2) {
-        lastPinchDist = 0;
-        pinchStartScale = scale;
-      }
-    });
-
-    // === 按钮事件 ===
-    $modal.on('keydown', '.acu-crop-reupload', function (e: JQuery.KeyDownEvent) {
-      if (e.key !== 'Enter' && e.key !== ' ') return;
-      e.preventDefault();
-      $(this).find('.acu-crop-file-input').trigger('click');
-    });
-
-    // 重新上传
-    $modal.find('.acu-crop-file-input').on('change', async function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      if (!file.type.startsWith('image/')) {
-        if (window.toastr) window.toastr.warning('请选择图片文件');
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        if (window.toastr) window.toastr.warning('图片大小不能超过 5MB');
-        return;
-      }
-
-      try {
-        // 保存新图片
-        const success = await AvatarManager.saveLocalAvatar(characterName, file);
-        if (success) {
-          // 获取新 URL 并更新预览
-          const newUrl = await LocalAvatarDB.get(characterName);
-          imageSource = newUrl;
-
-          // 重置裁剪参数
-          scale = 150;
-          offsetX = 50;
-          offsetY = 50;
-
-          // 更新显示
-          $image.css('background-image', formatCssImageUrl(newUrl, { allowInternalObjectUrl: true }) || 'none');
-          updateImageStyle();
-        }
-      } catch (err) {
-        console.error('[DICE]ACU 重新上传失败:', err);
-        if (window.toastr)
-          showActionableErrorToast('头像图片上传失败，未能保存新的本地头像。', { suggestion: 'image' });
-      }
-
-      $(this).val('');
-    });
-    $modal.find('.acu-crop-close, .acu-crop-cancel').on('click', () => {
-      $modal.remove();
-    });
-
-    $modal.find('.acu-crop-confirm').on('click', () => {
-      onSave({ scale, offsetX, offsetY, imageSource });
-      $modal.remove();
-    });
-
-    // 点击遮罩关闭
-    setupOverlayClose($modal, 'acu-crop-modal-overlay', () => {
-      $modal.remove();
-    });
-  };
+  const showAvatarCropModal = createShowAvatarCropModal({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    formatCssImageUrl: (...a: any[]) => formatCssImageUrl(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    AvatarManager: AvatarManager,
+  });
 
   const refreshAutoImageColorForAvatar = async (
     name: string,
@@ -24830,119 +24358,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   // 导入确认弹窗
-  const showImportConfirmDialog = (jsonData, analysis, onComplete) => {
-    const { $ } = getCore();
-    $('.acu-import-confirm-overlay').remove();
-
-    const config = getConfig();
-
-    const hasConflicts = analysis.conflicts.length > 0;
-    const conflictListHtml =
-      analysis.conflicts.length > 0
-        ? `<div style="max-height:80px;overflow-y:auto;background:rgba(0,0,0,0.1);border-radius:4px;padding:6px 8px;margin-top:6px;font-size:11px;color:var(--acu-text-sub);">${analysis.conflicts.map(n => escapeHtml(n)).join(', ')}</div>`
-        : '';
-
-    const dialogHtml = `
-            <div class="acu-import-confirm-overlay acu-theme-${config.theme}">
-                <div class="acu-import-confirm-dialog">
-                    <div class="acu-import-confirm-header">
-                        <span class="acu-import-confirm-title"><i class="fa-solid fa-file-import"></i> 导入头像配置</span>
-                        <button class="acu-import-close-btn" title="关闭"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                    <div class="acu-import-confirm-body">
-                        <div class="acu-import-stats">
-                            <div class="acu-import-stat">
-                                <span class="acu-stat-num">${analysis.total}</span>
-                                <span class="acu-stat-label">总计</span>
-                            </div>
-                            <div class="acu-import-stat acu-stat-new">
-                                <span class="acu-stat-num">${analysis.newItems.length}</span>
-                                <span class="acu-stat-label">新增</span>
-                            </div>
-                            <div class="acu-import-stat acu-stat-conflict">
-                                <span class="acu-stat-num">${analysis.conflicts.length}</span>
-                                <span class="acu-stat-label">冲突</span>
-                            </div>
-                        </div>
-
-                        ${
-                          hasConflicts
-                            ? `
-                            <div class="acu-import-conflict-section">
-                                <div class="acu-import-warning">
-                                    <i class="fa-solid fa-exclamation-triangle"></i> 以下角色已存在：
-                                </div>
-                                ${conflictListHtml}
-                                <div class="acu-import-conflict-options">
-                                    <label class="acu-import-radio">
-                                        <input type="radio" name="conflict-mode" value="overwrite" checked />
-                                        <span>用导入的覆盖本地</span>
-                                    </label>
-                                    <label class="acu-import-radio">
-                                        <input type="radio" name="conflict-mode" value="skip" />
-                                        <span>保留本地的不变</span>
-                                    </label>
-                                </div>
-                            </div>
-                        `
-                            : `
-                            <div class="acu-import-success">
-                                <i class="fa-solid fa-check-circle"></i> 无冲突，可直接导入
-                            </div>
-                        `
-                        }
-                    </div>
-                    <div class="acu-import-confirm-footer">
-                        <button class="acu-import-cancel-btn">取消</button>
-                        <button class="acu-import-confirm-btn">确认导入</button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-    const $dialog = $(dialogHtml);
-    $('body').append($dialog);
-
-    // 强制样式
-    const overlayEl = $dialog[0];
-    overlayEl.style.cssText = `
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            right: 0 !important;
-            bottom: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            background: rgba(0,0,0,0.6) !important;
-            z-index: 31300 !important;
-            display: flex;
-            justify-content: center !important;
-            align-items: center !important;
-            padding: 16px;
-            box-sizing: border-box !important;
-        `;
-
-    const closeDialog = () => $dialog.remove();
-
-    $dialog.find('.acu-import-cancel-btn').click(closeDialog);
-    $dialog.find('.acu-import-close-btn').click(closeDialog);
-    setupOverlayClose($dialog, 'acu-import-confirm-overlay', closeDialog);
-
-    $dialog.find('.acu-import-confirm-btn').click(function () {
-      const overwrite = $dialog.find('input[name="conflict-mode"]:checked').val() !== 'skip';
-      try {
-        const stats = AvatarManager.importData(jsonData, overwrite);
-        closeDialog();
-        onComplete && onComplete();
-      } catch (err) {
-        console.error('[DICE]ACU 导入失败:', err);
-        if (window.toastr)
-          showActionableErrorToast('头像配置导入失败：' + (err instanceof Error ? err.message : String(err)), {
-            suggestion: '请确认导入内容仍符合头像配置格式；如果确认无误，请打开控制台复制 [DICE]ACU 导入失败日志联系开发者。',
-          });
-      }
-    });
-  };
+  const showImportConfirmDialog = createShowImportConfirmDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    AvatarManager: AvatarManager,
+  });
   // [新增] 整体编辑模态框 (已修复自动高度与样式复用)
   const showCardEditModal = (
     row,
@@ -31833,238 +31255,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   // ========================================
   // showAddRegexRuleModal - 新建/编辑表格正则规则弹窗 (Phase 4.2)
   // ========================================
-  const showAddRegexRuleModal = (editRuleId?: string) => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const currentThemeClass = `acu-theme-${config.theme}`;
-
-    // 获取要编辑的规则(如果有)
-    const editRule = editRuleId ? RegexTransformationManager.getRule(editRuleId) : null;
-
-    // 获取所有表格名
-    const tableData = cachedRawData || getTableData();
-    const tableNames = Object.keys(tableData || {})
-      .filter(k => k.startsWith('sheet_'))
-      .map(k => tableData[k]?.name || k)
-      .sort();
-
-    const dialog = $(`
-      <div class="acu-edit-overlay acu-validation-modal-overlay">
-        <div class="acu-edit-dialog acu-validation-modal acu-validation-rule-editor-dialog ${currentThemeClass}">
-          <div class="acu-advanced-preset-header">
-            <h3>
-              <i class="fa-solid fa-table-list"></i> ${editRule ? '编辑验证规则' : '新建验证规则'}
-            </h3>
-            <div class="acu-advanced-preset-header-actions">
-              <button type="button" class="acu-close-btn" id="acu-close-regex-rule" aria-label="关闭验证规则编辑器" title="关闭"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-validation-modal-body">
-            <div class="acu-setting-row">
-              <div class="acu-setting-info"><span class="acu-setting-label">规则名称 *</span></div>
-              <input type="text" id="rule-name" class="acu-panel-input" value="${editRule ? escapeHtml(editRule.name) : ''}" placeholder="例如: 清理多余空格" style="flex:1;" required>
-            </div>
-            <div class="acu-setting-row">
-              <div class="acu-setting-info"><span class="acu-setting-label">规则描述</span></div>
-              <textarea id="rule-description" class="acu-panel-input" placeholder="输入规则介绍" style="flex:1; resize: none; overflow-wrap: break-word; overflow-y: hidden; min-height: 34px; height: 34px; line-height: 1.4;">${editRule ? escapeHtml(editRule.description || '') : ''}</textarea>
-            </div>
-            <div class="acu-setting-row">
-              <div class="acu-setting-info"><span class="acu-setting-label">匹配模式 *</span></div>
-              <input type="text" id="rule-pattern" class="acu-panel-input" value="${editRule ? escapeHtml(editRule.pattern) : ''}" placeholder="例如: \\s+ 或 /test/g" style="flex:1; font-family: monospace;" required>
-            </div>
-            <div class="acu-setting-row">
-              <div class="acu-setting-info"><span class="acu-setting-label">替换内容</span></div>
-              <input type="text" id="rule-replacement" class="acu-panel-input" value="${editRule ? escapeHtml(editRule.replacement || '') : ''}" placeholder="留空表示删除,或使用 $1, $2 等捕获组" style="flex:1; font-family: monospace;">
-            </div>
-            <div class="acu-setting-row">
-              <div class="acu-setting-info"><span class="acu-setting-label">作用范围 *</span></div>
-              <select id="rule-scope-type" class="acu-setting-select" style="width:120px;">
-                <option value="global" ${editRule?.scope?.type === 'global' ? 'selected' : ''}>全局</option>
-                <option value="table" ${editRule?.scope?.type === 'table' ? 'selected' : ''}>表级</option>
-                <option value="column" ${editRule?.scope?.type === 'column' ? 'selected' : ''}>列级</option>
-              </select>
-            </div>
-            <div class="acu-setting-row" id="field-table-names" style="display: ${editRule?.scope?.type === 'global' ? 'none' : 'flex'};">
-              <div class="acu-setting-info"><span class="acu-setting-label">表格名 (多个用逗号分隔)</span></div>
-              <input type="text" id="rule-table-names" class="acu-panel-input" value="${editRule?.scope?.tableNames?.join(',') || ''}" placeholder="例如: 物品表,装备表" style="flex:1;">
-            </div>
-            <div class="acu-setting-row" id="field-column-names" style="display: ${editRule?.scope?.type === 'column' ? 'flex' : 'none'};">
-              <div class="acu-setting-info"><span class="acu-setting-label">列名 (多个用逗号分隔)</span></div>
-              <input type="text" id="rule-column-names" class="acu-panel-input" value="${editRule?.scope?.columnNames?.join(',') || ''}" placeholder="例如: 品质,描述" style="flex:1;">
-            </div>
-            <div class="acu-setting-row">
-              <div class="acu-setting-info"><span class="acu-setting-label">优先级</span></div>
-              <input type="number" id="rule-priority" class="acu-panel-input" value="${editRule?.priority || 50}" min="1" max="100" style="width:80px;">
-            </div>
-
-          </div>
-          <div class="acu-advanced-preset-editor-footer acu-validation-modal-footer">
-            <div class="acu-advanced-preset-editor-actions">
-              <button id="acu-regex-rule-confirm" type="button" class="acu-dialog-btn acu-btn-confirm acu-advanced-preset-editor-save">
-                <i class="fa-solid fa-check"></i> 保存
-              </button>
-              <button id="acu-regex-rule-cancel" type="button" class="acu-dialog-btn">
-                <i class="fa-solid fa-times"></i> 取消
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `);
-
-    // 作用域类型变化时显示/隐藏字段
-    const updateScopeFields = () => {
-      const scopeType = dialog.find('#rule-scope-type').val();
-      if (scopeType === 'global') {
-        dialog.find('#field-table-names, #field-column-names').hide();
-      } else if (scopeType === 'table') {
-        dialog.find('#field-table-names').css('display', 'flex').show();
-        dialog.find('#field-column-names').hide();
-      } else if (scopeType === 'column') {
-        dialog.find('#field-table-names, #field-column-names').css('display', 'flex').show();
-      }
-    };
-
-    dialog.find('#rule-scope-type').on('change', updateScopeFields);
-
-    // Textarea自动调节高度
-    const $textarea = dialog.find('#rule-description');
-    const autoResizeTextarea = () => {
-      // 重置高度以获取正确的scrollHeight
-      $textarea.css('height', '34px');
-      // 设置为内容高度,最小1行
-      const scrollHeight = $textarea[0].scrollHeight;
-      $textarea.css('height', Math.max(34, scrollHeight) + 'px');
-    };
-    // 监听输入事件
-    $textarea.on('input', autoResizeTextarea);
-
-    // 保存按钮(原立即替换按钮)
-    dialog.find('#acu-regex-rule-confirm').on('click', async function () {
-      const name = dialog.find('#rule-name').val();
-      const pattern = dialog.find('#rule-pattern').val();
-      const scopeType = dialog.find('#rule-scope-type').val();
-
-      if (!name || !pattern) {
-        showActionableErrorToast('请填写规则名称和匹配模式');
-        return;
-      }
-
-      // 构建 scope 配置
-      const scope: RegexScopeConfig = { type: scopeType as RegexScopeType };
-      if (scopeType !== 'global') {
-        const tableNames = dialog.find('#rule-table-names').val();
-        if (tableNames)
-          scope.tableNames = String(tableNames)
-            .split(',')
-            .map(s => s.trim())
-            .filter(s => s);
-      }
-      if (scopeType === 'column') {
-        const columnNames = dialog.find('#rule-column-names').val();
-        if (columnNames)
-          scope.columnNames = String(columnNames)
-            .split(',')
-            .map(s => s.trim())
-            .filter(s => s);
-      }
-
-      // 从 pattern 中提取内联 flags（如果存在）
-      const patternStr = String(pattern);
-      const { flags: extractedFlags, patternWithoutFlags } = RegexTransformationEngine._extractFlags(patternStr);
-
-      // 校验正则表达式合法性
-      try {
-        new RegExp(patternWithoutFlags);
-      } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : String(e);
-        showActionableErrorToast(`正则表达式无效: ${errorMsg}`, { title: '保存失败' });
-        return;
-      }
-
-      // 获取 UI 中的 flags（如果复选框存在）
-      const $flagGlobal = dialog.find('#flag-global');
-      const $flagIgnoreCase = dialog.find('#flag-ignorecase');
-      const $flagMultiline = dialog.find('#flag-multiline');
-
-      const uiFlags = {
-        global: $flagGlobal.length > 0 ? $flagGlobal.is(':checked') : false,
-        caseInsensitive: $flagIgnoreCase.length > 0 ? $flagIgnoreCase.is(':checked') : false,
-        multiline: $flagMultiline.length > 0 ? $flagMultiline.is(':checked') : false,
-      };
-
-      // 如果 pattern 包含内联 flags，使用提取后的 pattern 和合并后的 flags
-      const finalPattern = patternWithoutFlags !== patternStr ? patternWithoutFlags : patternStr;
-      const finalFlags =
-        patternWithoutFlags !== patternStr
-          ? { ...uiFlags, ...extractedFlags } // 内联 flags 覆盖 UI flags
-          : uiFlags; // 没有内联 flags，使用 UI flags
-
-      const ruleData = {
-        name: String(name),
-        description: dialog.find('#rule-description').val(),
-        operation: 'replace', // 固定为替换操作
-        pattern: finalPattern, // 使用提取后的 pattern（去除内联 flags）
-        flags: finalFlags, // 使用合并后的 flags
-        replacement: dialog.find('#rule-replacement').val(),
-        scope,
-        enabled: true, // 默认启用
-        priority: parseInt(dialog.find('#rule-priority').val(), 10),
-        executeMode: 'auto', // 所有规则默认自动执行
-      };
-
-      // 保存规则
-      if (editRuleId) {
-        // 更新现有规则
-        RegexTransformationManager.updateRule(editRuleId, ruleData);
-      } else {
-        // 添加新规则
-        const newRule = RegexTransformationManager.addCustomRule(ruleData);
-        if (newRule) {
-          editRuleId = newRule.id;
-        }
-      }
-
-      // [修复] 关闭当前对话框并刷新规则列表
-      dialog.remove();
-      $(document).off('keydown.regex-rule-modal'); // 移除ESC键监听
-      refreshRegexRulesList(); // 刷新规则列表而不是重渲染整个界面
-    });
-
-    // 关闭弹窗的统一函数（注意：不重置 isSettingsOpen，因为设置面板仍在后面打开）
-    const closeDialog = () => {
-      dialog.remove();
-      $(document).off('keydown.regex-rule-modal'); // 移除ESC键监听
-    };
-
-    // 取消和关闭按钮（阻止事件冒泡，防止触发设置面板的关闭事件）
-    dialog.find('#acu-regex-rule-cancel, #acu-close-regex-rule').on('click', function (e) {
-      e.stopPropagation();
-      closeDialog();
-    });
-
-    // 点击遮罩层关闭
-    setupOverlayClose(dialog, 'acu-edit-overlay', closeDialog);
-
-    // ESC 键关闭
-    $(document).on('keydown.regex-rule-modal', function (e) {
-      if (e.key === 'Escape' && dialog.length && dialog.is(':visible')) {
-        e.preventDefault();
-        closeDialog();
-        $(document).off('keydown.regex-rule-modal'); // 移除事件监听
-      }
-    });
-
-    $('body').append(dialog);
-
-    // 在DOM完全渲染后调整textarea高度
-    requestAnimationFrame(() => {
-      const $textarea = dialog.find('#rule-description');
-      if ($textarea.length && $textarea[0].scrollHeight > 34) {
-        $textarea.css('height', $textarea[0].scrollHeight + 'px');
-      }
-    });
-  };
+  const showAddRegexRuleModal = createShowAddRegexRuleModal({
+    getTableData: (...a: any[]) => getTableData(...a),
+    refreshRegexRulesList: (...a: any[]) => refreshRegexRulesList(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    RegexTransformationEngine: RegexTransformationEngine,
+    RegexTransformationManager: RegexTransformationManager,
+    getCachedRawData: () => cachedRawData,
+      getCore: (...a: any[]) => getCore(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+});
 
   // 暴露到全局
   window.showAddRegexRuleModal = showAddRegexRuleModal;
@@ -33015,102 +32216,23 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return winner;
   };
 
-  const executeAdvancedCheckSuggestion = (command: Extract<CheckSuggestionParsedCommand, { kind: 'check' }>) => {
-    refreshNameAliasesForCheckSuggestion();
-    const presetId = command.rawParams.preset || null;
-    const preset = getCheckSuggestionPresetById(presetId);
-    if (!preset) throw new Error('未找到可用检定预设');
-    const params = normalizeCheckSuggestionParams(command.rawParams, preset);
-    const characterName = resolveCheckSuggestionCharacterName(command.characterName);
-    const side = buildCheckSuggestionPresetSide(preset, {
-      characterName,
-      attributeName: command.attributeName,
-      params,
-      targetValue: command.targetValue,
-      diceExpression: command.hasExplicitDice ? command.diceType : undefined,
-    });
-    const outcomeText = side.outcome.name || '判定完成';
-    const outcomeTextRaw = side.outcome.outputText || '';
-    const attrModStr = side.attrMod >= 0 ? `+${side.attrMod}` : String(side.attrMod);
-    const skillModStr = side.skillMod >= 0 ? `+${side.skillMod}` : String(side.skillMod);
-    const skillModText = side.skillMod !== 0 ? `+技能加值${skillModStr}` : '';
-    const modText = side.mod !== 0 ? `+额外加值${side.mod >= 0 ? '+' + side.mod : side.mod}` : '';
-    const attrModText = side.attrMod !== 0 ? `(调整值${attrModStr})` : '';
-    const effectVars = computePendingEffectVariables(side.outcome.effects);
-    const checkValueText = buildCheckValueText({
-      preset,
-      characterName,
-      actionName: command.attributeName,
-      attrValue: side.attrValue,
-      attrMod: side.attrMod,
-      skillMod: side.skillMod,
-      mode: 'normal',
-      attrNameOverride: getNamedCheckParamText(params.attr),
-      skillNameOverride: getNamedCheckParamText(params.skillMod),
-    });
-    const outputContext: Record<string, string | number | undefined> = {
-      initiator: characterName,
-      attrName: `【${command.attributeName}】`,
-      attrValue: side.attrValue,
-      attrMod: attrModStr,
-      displayValue: side.displayValue,
-      skillMod: skillModStr,
-      skillModText,
-      modText,
-      attrModText,
-      checkValueText,
-      formula: side.diceExpression,
-      roll: side.rollTotal,
-      'roll.total': side.rollTotal,
-      dc: side.dc,
-      mod: side.mod,
-      attr: side.attrValue,
-      conditionExpr: side.conditionExpr,
-      judgeResult: side.judgeResultText,
-      outcomeName: outcomeText,
-      outcomeText: outcomeTextRaw,
-      ...(side.outputVars as Record<string, string | number>),
-      ...(effectVars as Record<string, string | number>),
-    };
-    outputContext.outcomeText = formatOutputTemplate(String(outputContext.outcomeText || ''), outputContext);
-    const template = preset.outputTemplate || DEFAULT_OUTPUT_TEMPLATE;
-    const diceResultText = formatOutputTemplate(template, outputContext);
-    smartInsertToTextarea(diceResultText, 'dice');
-
-    const isSuccess = isCheckSuggestionOutcomeSuccess(side.outcome);
-    const checkResult: AcuDice.CheckResult = {
-      success: isSuccess,
-      total: side.rollTotal,
-      target: side.dc || side.attrValue,
-      outcomeText,
-      attrName: command.attributeName,
-      criteria: 'advanced',
-      isAutoTarget: command.targetValue === null && params.attr === undefined,
-      formula: side.diceExpression,
-    };
-    const detailId = `check_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const checkResultWithTimestamp = {
-      ...checkResult,
-      timestamp: Date.now(),
-      detailId,
-      initiatorName: characterName,
-      historyType: 'check' as const,
-      detailLines: [
-        `发起者: ${replaceUserPlaceholders(characterName)}`,
-        `属性: ${command.attributeName} (值=${side.attrValue})`,
-        `预设: ${preset.name}`,
-        `公式: ${side.diceExpression}`,
-        `掷骰: ${side.rollTotal}`,
-        `目标: ${side.dc || side.attrValue}`,
-        `修正: attrMod=${attrModStr}, skillMod=${skillModStr}, mod=${side.mod >= 0 ? '+' + side.mod : side.mod}`,
-        `判定: ${side.conditionExpr}`,
-        `结果: ${outcomeText}`,
-      ],
-    };
-    checkHistory.push(checkResultWithTimestamp);
-    if (checkHistory.length > MAX_HISTORY) checkHistory.shift();
-    emitEvent('check', checkResultWithTimestamp);
-  };
+  const executeAdvancedCheckSuggestion = createExecuteAdvancedCheckSuggestion({
+    buildCheckSuggestionPresetSide: (...a: any[]) => buildCheckSuggestionPresetSide(...a),
+    buildCheckValueText: (...a: any[]) => buildCheckValueText(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    formatOutputTemplate: (...a: any[]) => formatOutputTemplate(...a),
+    getCheckSuggestionPresetById: (...a: any[]) => getCheckSuggestionPresetById(...a),
+    getNamedCheckParamText: (...a: any[]) => getNamedCheckParamText(...a),
+    isCheckSuggestionOutcomeSuccess: (...a: any[]) => isCheckSuggestionOutcomeSuccess(...a),
+    normalizeCheckSuggestionParams: (...a: any[]) => normalizeCheckSuggestionParams(...a),
+    refreshNameAliasesForCheckSuggestion: (...a: any[]) => refreshNameAliasesForCheckSuggestion(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    resolveCheckSuggestionCharacterName: (...a: any[]) => resolveCheckSuggestionCharacterName(...a),
+    DEFAULT_OUTPUT_TEMPLATE: DEFAULT_OUTPUT_TEMPLATE,
+    MAX_HISTORY: MAX_HISTORY,
+    checkHistory: checkHistory,
+    smartInsertToTextarea: smartInsertToTextarea,
+  });
 
   const executeAdvancedContestCheckSuggestion = (
     command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>,
@@ -33337,91 +32459,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     emitEvent('check', checkResultWithTimestamp);
   };
 
-  const executeContestCheckSuggestion = (command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>) => {
-    refreshNameAliasesForCheckSuggestion();
-    const leftName = resolveCheckSuggestionCharacterName(command.leftName);
-    const rightName = resolveCheckSuggestionCharacterName(command.rightName);
-    const leftTarget = getAttributeValue(leftName, command.leftAttribute);
-    const rightTarget = getAttributeValue(rightName, command.rightAttribute);
-    if (leftTarget === null) {
-      throw new Error(`未找到 ${replaceUserPlaceholders(leftName)} 的属性「${command.leftAttribute}」`);
-    }
-    if (rightTarget === null) {
-      throw new Error(`未找到 ${replaceUserPlaceholders(rightName)} 的属性「${command.rightAttribute}」`);
-    }
-
-    const leftRoll = rollComplexDiceExpression(command.diceType).total;
-    const rightRoll = rollComplexDiceExpression(command.diceType).total;
-    if (Number.isNaN(leftRoll) || Number.isNaN(rightRoll)) {
-      throw new Error(`无效的骰子公式：${command.diceType}`);
-    }
-
-    const sides = getCheckSuggestionDiceSides(command.diceType);
-    const leftLevel = getSuccessLevel(leftRoll, leftTarget, sides);
-    const rightLevel = getSuccessLevel(rightRoll, rightTarget, sides);
-    let winner: 'left' | 'right' | 'tie';
-
-    if (leftLevel.level > rightLevel.level) {
-      winner = 'left';
-    } else if (leftLevel.level < rightLevel.level) {
-      winner = 'right';
-    } else if (command.tieRule === 'initiator_win') {
-      winner = 'left';
-    } else if (command.tieRule === 'tie') {
-      winner = 'tie';
-    } else {
-      winner = 'right';
-    }
-
-    const leftDisplayName = replaceUserPlaceholders(leftName);
-    const rightDisplayName = replaceUserPlaceholders(rightName);
-    const winnerText =
-      winner === 'left' ? `${leftDisplayName}胜出` : winner === 'right' ? `${rightDisplayName}胜出` : '双方平局';
-    const message = `${winnerText}（${leftLevel.name} vs ${rightLevel.name}）`;
-    const metaContent = `元叙事：${leftDisplayName}以【${command.leftAttribute}】对抗${rightDisplayName}的【${command.rightAttribute}】，${command.diceType}=${leftRoll}/${rightRoll}，目标=${leftTarget}/${rightTarget}，结果：${message}。`;
-    smartInsertToTextarea(buildCheckSuggestionMetaBlock(metaContent), 'dice');
-
-    const contestResult: AcuDice.ContestResult = {
-      left: {
-        name: leftName,
-        attribute: command.leftAttribute,
-        roll: leftRoll,
-        target: leftTarget,
-        successLevel: leftLevel.level,
-      },
-      right: {
-        name: rightName,
-        attribute: command.rightAttribute,
-        roll: rightRoll,
-        target: rightTarget,
-        successLevel: rightLevel.level,
-      },
-      winner,
-      message,
-    };
-    const timestamp = Date.now();
-    const contestResultWithTimestamp = {
-      ...contestResult,
-      timestamp,
-      detailId: `contest_${timestamp}_${Math.random().toString(36).slice(2, 8)}`,
-      historyType: 'contest' as const,
-      detailLines: [
-        `发起方: ${leftDisplayName} / 对抗方: ${rightDisplayName}`,
-        `属性: ${command.leftAttribute} vs ${command.rightAttribute}`,
-        `公式: ${command.diceType}`,
-        `掷骰: ${leftRoll} vs ${rightRoll}`,
-        `目标: ${leftTarget} vs ${rightTarget}`,
-        `成功等级: ${leftLevel.name} vs ${rightLevel.name}`,
-        `平手规则: ${command.tieRule}`,
-        `结果: ${message}`,
-      ],
-    };
-    contestHistory.push(contestResultWithTimestamp);
-    if (contestHistory.length > MAX_HISTORY) {
-      contestHistory.shift();
-    }
-    emitEvent('contest', contestResultWithTimestamp);
-  };
+  const executeContestCheckSuggestion = createExecuteContestCheckSuggestion({
+    buildCheckSuggestionMetaBlock: (...a: any[]) => buildCheckSuggestionMetaBlock(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    getAttributeValue: (...a: any[]) => getAttributeValue(...a),
+    getCheckSuggestionDiceSides: (...a: any[]) => getCheckSuggestionDiceSides(...a),
+    getSuccessLevel: (...a: any[]) => getSuccessLevel(...a),
+    refreshNameAliasesForCheckSuggestion: (...a: any[]) => refreshNameAliasesForCheckSuggestion(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    resolveCheckSuggestionCharacterName: (...a: any[]) => resolveCheckSuggestionCharacterName(...a),
+    MAX_HISTORY: MAX_HISTORY,
+    contestHistory: contestHistory,
+    smartInsertToTextarea: smartInsertToTextarea,
+  });
 
   const executeCheckSuggestionCommand = (displayText: string, commandText: string): boolean => {
     const parsed = parseCheckSuggestionCommand(commandText);
@@ -37285,196 +36335,28 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Math.min(maxOffset, Math.max(12, Math.round(offset)));
   };
 
-  const updateViewportWrapperBounds = () => {
-    const config = getConfig();
-    if (isFloatingCollapseActive(config)) {
-      updateFloatingCollapseBounds();
-      return;
-    }
-    if (config.positionMode !== 'viewport') return;
+  const updateViewportWrapperBounds = createUpdateViewportWrapperBounds({
+    getCollapsedState: (...a: any[]) => getCollapsedState(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    getViewportAnchorRect: (...a: any[]) => getViewportAnchorRect(...a),
+    getViewportBottomOffset: (...a: any[]) => getViewportBottomOffset(...a),
+    isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
+    normalizeCollapseStyle: (...a: any[]) => normalizeCollapseStyle(...a),
+    updateFloatingCollapseBounds: (...a: any[]) => updateFloatingCollapseBounds(...a),
+  });
 
-    const targetWindow = getTavernHostWindow();
-    const targetDocument = getTavernHostDocument();
-    const wrapper =
-      targetDocument.querySelector<HTMLElement>(`${DICE_ROOT_SELECTOR}.acu-mode-viewport`) ||
-      document.querySelector<HTMLElement>(`${DICE_ROOT_SELECTOR}.acu-mode-viewport`);
-    if (!wrapper) return;
-
-    if (wrapper.ownerDocument !== targetDocument || wrapper.parentElement !== targetDocument.body) {
-      targetDocument.body.appendChild(wrapper);
-    }
-
-    wrapper.style.setProperty('position', 'fixed', 'important');
-    wrapper.style.setProperty('display', 'flex', 'important');
-    wrapper.style.setProperty('flex-direction', 'column-reverse', 'important');
-    wrapper.style.setProperty('visibility', 'visible', 'important');
-    wrapper.style.setProperty('opacity', '1', 'important');
-    const isCompactCollapsed = getCollapsedState() && normalizeCollapseStyle(config.collapseStyle) === 'pill';
-    wrapper.style.setProperty('pointer-events', isCompactCollapsed ? 'none' : 'auto', 'important');
-    wrapper.style.setProperty('top', 'auto', 'important');
-    wrapper.style.setProperty('margin', '0', 'important');
-    wrapper.style.setProperty('box-sizing', 'border-box', 'important');
-    wrapper.style.setProperty('z-index', '1000', 'important');
-
-    const navContainer = wrapper.querySelector<HTMLElement>('.acu-nav-container');
-    if (navContainer) {
-      navContainer.style.setProperty('visibility', 'visible', 'important');
-      navContainer.style.setProperty('opacity', '1', 'important');
-      navContainer.style.setProperty('pointer-events', 'auto', 'important');
-    }
-
-    const expandTrigger = wrapper.querySelector<HTMLElement>('.acu-expand-trigger');
-    if (expandTrigger) {
-      expandTrigger.style.setProperty('display', 'flex', 'important');
-      expandTrigger.style.setProperty('visibility', 'visible', 'important');
-      expandTrigger.style.setProperty('opacity', '1', 'important');
-      expandTrigger.style.setProperty('pointer-events', 'auto', 'important');
-    }
-
-    const visualViewport = targetWindow.visualViewport;
-    const getViewportHeight = () =>
-      visualViewport?.height || targetWindow.innerHeight || targetDocument.documentElement.clientHeight || 0;
-    const updateViewportNavigationSafety = (navigationAnchor: HTMLElement, bottomOffset: number) => {
-      const viewportTop = visualViewport?.offsetTop || 0;
-      const viewportHeight = getViewportHeight();
-      const navigationRect = navigationAnchor.getBoundingClientRect();
-      const navigationHeight = Math.max(0, Math.ceil(navigationRect.height || navigationAnchor.offsetHeight || 0));
-      if (viewportHeight > 0) {
-        const panelMaxHeight = Math.max(180, Math.floor(viewportHeight - bottomOffset - navigationHeight - 24));
-        wrapper.style.setProperty('--acu-viewport-panel-max-height', `${panelMaxHeight}px`);
-        wrapper.style.setProperty('--acu-viewport-nav-height', `${navigationHeight}px`);
-      }
-
-      // SillyTavern 移动/平板布局可能会移动宿主滚动根，fixed 子元素要按导航盘实际位置校正。
-      const rawRect = navigationAnchor.getBoundingClientRect();
-      if (viewportHeight > 0 && rawRect.height > 0) {
-        const desiredBottom = viewportTop + viewportHeight - bottomOffset;
-        const correctionY = desiredBottom - rawRect.bottom;
-        if (Number.isFinite(correctionY) && Math.abs(correctionY) > 1) {
-          wrapper.style.setProperty('transform', `translate3d(0, ${Math.round(correctionY)}px, 0)`, 'important');
-        }
-      }
-    };
-    const viewportWidth =
-      visualViewport?.width ||
-      targetWindow.innerWidth ||
-      targetDocument.documentElement.clientWidth ||
-      window.innerWidth ||
-      0;
-    if (viewportWidth > 0 && viewportWidth <= 768) {
-      const left = visualViewport?.offsetLeft || 0;
-      const bottomOffset = getViewportBottomOffset();
-      const navigationAnchor = navContainer || expandTrigger || wrapper;
-      wrapper.style.setProperty('left', `${left}px`, 'important');
-      wrapper.style.setProperty('right', 'auto', 'important');
-      wrapper.style.setProperty('width', `${Math.max(280, Math.round(viewportWidth))}px`, 'important');
-      wrapper.style.setProperty('max-width', `${Math.max(280, Math.round(viewportWidth))}px`, 'important');
-      wrapper.style.setProperty('transform', 'none', 'important');
-      wrapper.style.setProperty('bottom', `${bottomOffset}px`, 'important');
-      updateViewportNavigationSafety(navigationAnchor, bottomOffset);
-      return;
-    }
-
-    const rect = getViewportAnchorRect();
-    if (!rect) return;
-    if (rect.width <= 0) return;
-
-    const left = Math.max(0, rect.left);
-    const right = Math.min(viewportWidth, rect.right);
-    const width = Math.max(280, right - left);
-    const bottomOffset = getViewportBottomOffset();
-
-    wrapper.style.setProperty('left', `${left}px`, 'important');
-    wrapper.style.setProperty('right', 'auto', 'important');
-    wrapper.style.setProperty('width', `${width}px`, 'important');
-    wrapper.style.setProperty('max-width', `${width}px`, 'important');
-    wrapper.style.setProperty('transform', 'none', 'important');
-    wrapper.style.setProperty('bottom', `${bottomOffset}px`, 'important');
-    updateViewportNavigationSafety(navContainer || expandTrigger || wrapper, bottomOffset);
-  };
-
-  const updateFixedWrapperBounds = () => {
-    const config = getConfig();
-    if (isFloatingCollapseActive(config)) {
-      updateFloatingCollapseBounds();
-      return;
-    }
-    if (config.positionMode !== 'fixed') return;
-
-    const targetWindow = getTavernHostWindow();
-    const targetDocument = getTavernHostDocument();
-    const wrapper =
-      targetDocument.querySelector<HTMLElement>(`${DICE_ROOT_SELECTOR}.acu-mode-fixed`) ||
-      document.querySelector<HTMLElement>(`${DICE_ROOT_SELECTOR}.acu-mode-fixed`);
-    if (!wrapper) return;
-
-    const chat = targetDocument.querySelector<HTMLElement>('#chat');
-    if (chat && wrapper.ownerDocument === targetDocument && wrapper.parentElement !== chat) {
-      chat.appendChild(wrapper);
-    }
-    if (chat && wrapper.parentElement === chat && chat.lastElementChild !== wrapper) {
-      chat.appendChild(wrapper);
-    }
-
-    const visualViewport = targetWindow.visualViewport;
-    const viewportLeft = visualViewport?.offsetLeft || 0;
-    const viewportWidth =
-      visualViewport?.width ||
-      targetWindow.innerWidth ||
-      targetDocument.documentElement.clientWidth ||
-      window.innerWidth ||
-      0;
-    const layoutViewportWidth =
-      targetWindow.innerWidth || targetDocument.documentElement.clientWidth || window.innerWidth || viewportWidth;
-
-    const parent = wrapper.parentElement;
-    const parentMetrics = getFixedWrapperParentMetrics(
-      parent,
-      targetWindow,
-      viewportWidth || targetDocument.documentElement.clientWidth || layoutViewportWidth,
-      viewportLeft,
-    );
-    if (!parentMetrics) return;
-    const parentWidth = parentMetrics.contentWidth;
-    const parentLeft = parentMetrics.contentLeft;
-    if (parentWidth <= 0) return;
-
-    const applyFixedWrapperLayout = (width: number, marginLeft: number) => {
-      wrapper.style.setProperty('box-sizing', 'border-box');
-      wrapper.style.setProperty('width', `${width}px`);
-      wrapper.style.setProperty('max-width', `${width}px`);
-      wrapper.style.setProperty('margin-left', `${marginLeft}px`);
-      wrapper.style.setProperty('margin-top', 'auto');
-      wrapper.style.setProperty('margin-right', '0');
-      wrapper.style.removeProperty('left');
-      wrapper.style.removeProperty('right');
-      wrapper.style.removeProperty('bottom');
-      wrapper.style.removeProperty('transform');
-      wrapper.style.removeProperty('--acu-viewport-panel-max-height');
-      wrapper.style.removeProperty('--acu-viewport-nav-height');
-    };
-
-    if (layoutViewportWidth > 0 && layoutViewportWidth <= TABLET_FIXED_NAV_FULL_WIDTH_MAX) {
-      applyFixedWrapperLayout(Math.round(parentWidth), 0);
-      return;
-    }
-
-    const anchorRect = getFixedModeAnchorRect();
-    if (!anchorRect || anchorRect.width <= 0) return;
-
-    const viewportRight = viewportWidth > 0 ? viewportLeft + viewportWidth : anchorRect.right;
-    const visibleAnchorLeft = Math.max(viewportLeft, anchorRect.left);
-    const visibleAnchorRight = Math.min(viewportRight, anchorRect.right);
-    const rawAnchorWidth = Math.max(0, visibleAnchorRight - visibleAnchorLeft);
-
-    const preferredWidth = Math.max(280, Math.round(rawAnchorWidth || anchorRect.width));
-    const maxMarginLeft = Math.max(0, parentWidth - Math.min(preferredWidth, parentWidth));
-    const marginLeft = Math.min(maxMarginLeft, Math.max(0, Math.round(visibleAnchorLeft - parentLeft)));
-    const width = Math.max(0, Math.min(preferredWidth, parentWidth - marginLeft));
-    if (width <= 0) return;
-
-    applyFixedWrapperLayout(width, marginLeft);
-  };
+  const updateFixedWrapperBounds = createUpdateFixedWrapperBounds({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getFixedModeAnchorRect: (...a: any[]) => getFixedModeAnchorRect(...a),
+    getFixedWrapperParentMetrics: (...a: any[]) => getFixedWrapperParentMetrics(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
+    updateFloatingCollapseBounds: (...a: any[]) => updateFloatingCollapseBounds(...a),
+    TABLET_FIXED_NAV_FULL_WIDTH_MAX: TABLET_FIXED_NAV_FULL_WIDTH_MAX,
+  });
 
   const scheduleFixedWrapperBoundsRefresh = () => {
     const config = getConfig();
