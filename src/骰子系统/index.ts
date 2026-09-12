@@ -71,6 +71,12 @@ import { createShowFavoritesPanel } from './features/favorites/favorites-panel';
 import { createBindFavoritesEvents } from './features/favorites/favorites-events';
 import { createBuildMapViewModel } from './features/map/map-view-model';
 import { createShowMapVisualization } from './features/map/map-visualization';
+import { createShowGachaCatalogClearDialog } from './features/gacha/gacha-catalog-clear-dialog';
+import { createShowGachaPickupItemDetail } from './features/gacha/gacha-pickup-item-detail';
+import { createShowGachaPoolNameDialog } from './features/gacha/gacha-pool-name-dialog';
+import { createShowGachaConfirmDialog } from './features/gacha/gacha-confirm-dialog';
+import { createShowGachaSettingsDialog } from './features/gacha/gacha-settings-dialog';
+import { createShowGachaItemEditorDialog } from './features/gacha/gacha-item-editor-dialog';
 import { DEFAULT_GM_CONFIG, DEFAULT_CONFIG, DEFAULT_DICE_CONFIG, DEFAULT_VIRTUAL_PRESET, DEFAULT_CRAZY_MODE_CONFIG, DEFAULT_SPECIAL_ATTR_TEMPLATE, RULE_TYPE_INFO, INVENTORY_QUALITY_ORDER } from './shared/defaults-config';
 import { computeEffectVariables, computePendingEffectVariables, parseEffectValueInput, buildEffectMetaLines, buildEffectTraceLines } from './shared/effect-math';
 import { alignAndFixPairedTables, isValueInRelationTable, getRelationOptions, getColumnExamples, getRowKey, getNearestValidNumber, extractCodesFromTable, buildCodeMapping } from './shared/table-utils';
@@ -43711,48 +43717,17 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     });
   };
 
-  const showGachaCatalogClearDialog = async () => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const rawData = getRuntimeGachaRawData();
-    await ensureGachaCatalogLoaded(rawData);
-    const count = getCustomGachaItemDefinitions(rawData).length;
-    $('.acu-import-confirm-overlay').remove();
-    const dialog = $(`
-      <div class="acu-import-confirm-overlay acu-gacha-catalog-dialog-overlay acu-theme-${config.theme}">
-        <div class="acu-import-confirm-dialog">
-          <div class="acu-import-confirm-header">
-            <span class="acu-import-confirm-title"><i class="fa-solid fa-broom"></i> 清空自定义物品</span>
-            <button class="acu-import-close-btn acu-gacha-catalog-clear-close" type="button" title="关闭" aria-label="关闭">
-              <i class="fa-solid fa-times"></i>
-            </button>
-          </div>
-          <div class="acu-import-confirm-body">
-            <div class="acu-import-warning-container">
-              <i class="fa-solid fa-broom acu-import-warning-icon acu-gacha-catalog-import-icon"></i>
-              <div class="acu-import-warning-title">全局目录有 ${escapeHtml(String(count))} 个自定义物品</div>
-              <div class="acu-import-warning-message">清空后会影响所有聊天可见的自定义物品；不会影响内置卡池，也不会删除已经写入目标表的奖励。</div>
-            </div>
-          </div>
-          <div class="acu-import-confirm-footer acu-gacha-catalog-clear-footer">
-            <button class="acu-import-cancel-btn acu-gacha-catalog-clear-close" type="button">取消</button>
-            <button class="acu-import-confirm-btn acu-gacha-catalog-clear-global" type="button">清空全局目录</button>
-          </div>
-        </div>
-      </div>
-    `);
-    $('body').append(dialog);
-    const closeDialog = () => dialog.remove();
-    setupOverlayClose(dialog, 'acu-import-confirm-overlay', closeDialog);
-    dialog.on('click', '.acu-gacha-catalog-clear-close', closeDialog);
-    dialog.on('click', '.acu-gacha-catalog-clear-global', () => {
-      closeDialog();
-      void clearGlobalGachaCatalog().catch(error => {
-        console.error('[DICE][GACHA]清空全局自定义物品失败:', error);
-        if (window.toastr) showActionableErrorToast(`清空失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-      });
-    });
-  };
+  const showGachaCatalogClearDialog = createShowGachaCatalogClearDialog({
+    clearGlobalGachaCatalog: (...a: any[]) => clearGlobalGachaCatalog(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getJsonLikeErrorMessage: (...a: any[]) => getJsonLikeErrorMessage(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
   const buildGachaCatalogTemplateJsonc = (): string => `{
   // 骰子商店自定义物品与卡池导入模板。
@@ -45119,84 +45094,24 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     `;
   };
 
-  const showGachaPickupItemDetail = (itemId: string): boolean => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const item = findGachaDefinitionByItemId(itemId);
-    if (!item) return false;
-
-    const targetLabel = item.rewardTarget === 'equipment' ? '装备' : '物品';
-    const destinationLabel = formatGachaRewardDestinationLabel(cachedRawData || getTableData(), item);
-    const stackableLabel = item.stackable ? '可堆叠' : '不可堆叠';
-    const uniqueLabel = item.unique ? '唯一' : '可重复';
-    const customIconContext = getGachaItemCustomTableNameIconContext(item);
-    const detail = $(`
-      <div class="acu-inventory-detail-overlay acu-theme-${config.theme} acu-gacha-pickup-detail-overlay">
-        <div class="acu-inventory-detail acu-gacha-pickup-detail">
-          <div class="acu-inventory-detail-header">
-            <div class="acu-inventory-detail-head-main">
-              <div class="acu-inventory-detail-icon">${renderGachaItemIconContent(item, customIconContext)}</div>
-              <div class="acu-inventory-detail-summary">
-                <div class="acu-inventory-detail-title-row">
-                  <div class="acu-inventory-detail-title">${escapeHtml(item.name)}</div>
-                </div>
-                <div class="acu-inventory-detail-sub">${escapeHtml(formatGachaItemCardMeta(item))}</div>
-              </div>
-            </div>
-            <div class="acu-inventory-detail-header-actions">
-              <button class="acu-preview-close" type="button" title="关闭" aria-label="关闭物品详情"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-inventory-detail-meta-wrap">
-            <div class="acu-inventory-detail-meta">
-              <div class="acu-inventory-detail-field-row acu-gacha-static-field-row">
-                <span class="acu-inventory-detail-field-label">适用卡池</span>
-                <span class="acu-inventory-detail-field-value">${escapeHtml(formatGachaPoolTags(item.poolTags))}</span>
-              </div>
-              <div class="acu-inventory-detail-field-row acu-gacha-static-field-row">
-                <span class="acu-inventory-detail-field-label">发放目标</span>
-                <span class="acu-inventory-detail-field-value">${escapeHtml(targetLabel)}</span>
-              </div>
-              <div class="acu-inventory-detail-field-row acu-gacha-static-field-row">
-                <span class="acu-inventory-detail-field-label">${item.targetTable ? '固定写入' : '默认写入'}</span>
-                <span class="acu-inventory-detail-field-value">${escapeHtml(destinationLabel)}</span>
-              </div>
-              <div class="acu-inventory-detail-field-row acu-gacha-static-field-row">
-                <span class="acu-inventory-detail-field-label">规则</span>
-                <span class="acu-inventory-detail-field-value">${escapeHtml(`${stackableLabel} · ${uniqueLabel}`)}</span>
-              </div>
-            </div>
-          </div>
-          <div class="acu-gacha-detail-text-block">
-            <div class="acu-gacha-detail-text-row"><strong>效果</strong><span>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span></div>
-            <div class="acu-gacha-detail-text-row"><strong>描述</strong><span>${escapeHtml(getGachaItemDescriptionText(item) || '暂无描述')}</span></div>
-          </div>
-          ${renderGachaCustomFieldsDetailsHtml(item, { openThreshold: 4 })}
-        </div>
-      </div>
-    `);
-
-    $('.acu-gacha-pickup-detail-overlay').remove();
-    $('body').append(detail);
-    hydrateCustomTableNameIconsIn(detail);
-    const detailEl = detail[0] as HTMLElement | undefined;
-    if (detailEl) {
-      detailEl.style.setProperty('position', 'fixed', 'important');
-      detailEl.style.setProperty('top', '0', 'important');
-      detailEl.style.setProperty('left', '0', 'important');
-      detailEl.style.setProperty('right', '0', 'important');
-      detailEl.style.setProperty('bottom', '0', 'important');
-      detailEl.style.setProperty('width', '100vw', 'important');
-      detailEl.style.setProperty('height', '100dvh', 'important');
-      detailEl.style.setProperty('display', 'flex', 'important');
-      detailEl.style.setProperty('justify-content', 'center', 'important');
-      detailEl.style.setProperty('align-items', 'center', 'important');
-      detailEl.style.setProperty('z-index', '31365', 'important');
-    }
-    setupOverlayClose(detail, 'acu-inventory-detail-overlay', () => detail.remove());
-    detail.on('click', '.acu-preview-close', () => detail.remove());
-    return true;
-  };
+  const showGachaPickupItemDetail = createShowGachaPickupItemDetail({
+    findGachaDefinitionByItemId: (...a: any[]) => findGachaDefinitionByItemId(...a),
+    formatGachaItemCardMeta: (...a: any[]) => formatGachaItemCardMeta(...a),
+    formatGachaPoolTags: (...a: any[]) => formatGachaPoolTags(...a),
+    formatGachaRewardDestinationLabel: (...a: any[]) => formatGachaRewardDestinationLabel(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getGachaItemCustomTableNameIconContext: (...a: any[]) => getGachaItemCustomTableNameIconContext(...a),
+    getGachaItemDescriptionText: (...a: any[]) => getGachaItemDescriptionText(...a),
+    getGachaItemEffectText: (...a: any[]) => getGachaItemEffectText(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    renderGachaCustomFieldsDetailsHtml: (...a: any[]) => renderGachaCustomFieldsDetailsHtml(...a),
+    renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   const showGachaRecentRewardDetail = (itemId: string, itemName: string, itemQuality: string): void => {
     if (itemId && showGachaPickupItemDetail(itemId)) return;
@@ -45655,108 +45570,19 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     if (!Store.set(STORAGE_KEY_GACHA_SETTINGS_POOL_TAG, normalizedPoolId)) throw new Error('商城设置页卡池保存失败');
   };
 
-  const showGachaPoolNameDialog = (options: {
-    title: string;
-    label: string;
-    initialValue?: string;
-    confirmText?: string;
-  }): Promise<string | null> => {
-    const { $ } = getCore();
-    const config = getConfig();
-    return new Promise(resolve => {
-      $('.acu-gacha-name-dialog-overlay').remove();
-      const overlay = $(`
-        <div class="acu-edit-overlay acu-gacha-name-dialog-overlay acu-theme-${config.theme}">
-          <form class="acu-edit-dialog acu-gacha-name-dialog">
-            <div class="acu-gacha-settings-header">
-              <div class="acu-gacha-settings-title"><i class="fa-solid fa-tags"></i> ${escapeHtml(options.title)}</div>
-              <button class="acu-close-btn acu-gacha-name-cancel" type="button" title="关闭" aria-label="关闭卡池命名弹窗"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <label class="acu-gacha-name-field">
-              <span>${escapeHtml(options.label)}</span>
-              <input class="acu-gacha-name-input" type="text" value="${escapeHtml(options.initialValue || '')}" maxlength="40" autocomplete="off" />
-            </label>
-            <div class="acu-gacha-settings-footer acu-gacha-name-dialog-footer">
-              <button class="acu-dialog-btn acu-gacha-name-cancel" type="button">取消</button>
-              <button class="acu-dialog-btn acu-btn-confirm" type="submit">${escapeHtml(options.confirmText || '确定')}</button>
-            </div>
-          </form>
-        </div>
-      `);
-      let settled = false;
-      const finish = (value: string | null) => {
-        if (settled) return;
-        settled = true;
-        overlay.remove();
-        resolve(value);
-      };
-      $('body').append(overlay);
-      setupOverlayClose(overlay, 'acu-gacha-name-dialog-overlay', () => finish(null));
-      overlay.on('click', '.acu-gacha-name-cancel', () => finish(null));
-      overlay.on('submit', '.acu-gacha-name-dialog', event => {
-        event.preventDefault();
-        finish(String(overlay.find('.acu-gacha-name-input').val() || '').trim());
-      });
-      window.setTimeout(() => {
-        const input = overlay.find('.acu-gacha-name-input')[0] as HTMLInputElement | undefined;
-        input?.focus();
-        input?.select();
-      }, 0);
-    });
-  };
+  const showGachaPoolNameDialog = createShowGachaPoolNameDialog({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
-  const showGachaConfirmDialog = (options: {
-    title: string;
-    message: string;
-    detail?: string;
-    iconClass?: string;
-    confirmText?: string;
-    cancelText?: string;
-    danger?: boolean;
-  }): Promise<boolean> => {
-    const { $ } = getCore();
-    const config = getConfig();
-    return new Promise(resolve => {
-      $('.acu-gacha-confirm-overlay').remove();
-      const overlay = $(`
-        <div class="acu-import-confirm-overlay acu-gacha-confirm-overlay acu-theme-${config.theme}">
-          <div class="acu-import-confirm-dialog acu-gacha-confirm-dialog">
-            <div class="acu-import-confirm-header">
-              <span class="acu-import-confirm-title">
-                <i class="fa-solid ${escapeHtml(options.iconClass || 'fa-triangle-exclamation')}"></i>
-                ${escapeHtml(options.title)}
-              </span>
-              <button class="acu-import-close-btn acu-gacha-confirm-cancel" type="button" title="关闭" aria-label="关闭">
-                <i class="fa-solid fa-times"></i>
-              </button>
-            </div>
-            <div class="acu-import-confirm-body">
-              <div class="acu-import-warning-container">
-                <i class="fa-solid ${escapeHtml(options.iconClass || 'fa-triangle-exclamation')} acu-import-warning-icon ${options.danger ? 'danger' : ''}"></i>
-                <div class="acu-import-warning-title">${escapeHtml(options.message)}</div>
-                ${options.detail ? `<div class="acu-import-warning-message">${escapeHtml(options.detail)}</div>` : ''}
-              </div>
-            </div>
-            <div class="acu-import-confirm-footer">
-              <button class="acu-import-cancel-btn acu-gacha-confirm-cancel" type="button">${escapeHtml(options.cancelText || '取消')}</button>
-              <button class="acu-import-confirm-btn acu-gacha-confirm-ok ${options.danger ? 'danger' : ''}" type="button">${escapeHtml(options.confirmText || '确认')}</button>
-            </div>
-          </div>
-        </div>
-      `);
-      let settled = false;
-      const finish = (confirmed: boolean) => {
-        if (settled) return;
-        settled = true;
-        overlay.remove();
-        resolve(confirmed);
-      };
-      $('body').append(overlay);
-      setupOverlayClose(overlay, 'acu-gacha-confirm-overlay', () => finish(false));
-      overlay.on('click', '.acu-gacha-confirm-cancel', () => finish(false));
-      overlay.on('click', '.acu-gacha-confirm-ok', () => finish(true));
-    });
-  };
+  const showGachaConfirmDialog = createShowGachaConfirmDialog({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
   const getGachaSettingsPoolItems = (rawData, poolId: GachaPoolTag): GachaItemDefinition[] =>
     getGachaCatalogItemsForExport(rawData, poolId);
@@ -46024,1266 +45850,133 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     `;
   };
 
-  const showGachaSettingsDialog = async () => {
-    const { $ } = getCore();
-    const rawData = cachedRawData || getTableData();
-    await ensureGachaCatalogLoaded(rawData);
-    $('.acu-gacha-settings-overlay').remove();
+  const showGachaSettingsDialog = createShowGachaSettingsDialog({
+    bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
+    buildGachaCatalogAgentPrompt: (...a: any[]) => buildGachaCatalogAgentPrompt(...a),
+    buildGachaCatalogAgentPromptFilename: (...a: any[]) => buildGachaCatalogAgentPromptFilename(...a),
+    canDeleteGachaPoolDefinition: (...a: any[]) => canDeleteGachaPoolDefinition(...a),
+    cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
+    collectGachaLocalStorageSnapshot: (...a: any[]) => collectGachaLocalStorageSnapshot(...a),
+    deleteGachaItemSetting: (...a: any[]) => deleteGachaItemSetting(...a),
+    deleteGachaPoolConfig: (...a: any[]) => deleteGachaPoolConfig(...a),
+    downloadAiPromptFile: (...a: any[]) => downloadAiPromptFile(...a),
+    downloadGachaCatalogJson: (...a: any[]) => downloadGachaCatalogJson(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    ensureGachaPoolsForTags: (...a: any[]) => ensureGachaPoolsForTags(...a),
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getGachaPoolDisplayName: (...a: any[]) => getGachaPoolDisplayName(...a),
+    getGachaSettingsFilterLabel: (...a: any[]) => getGachaSettingsFilterLabel(...a),
+    getJsonLikeErrorMessage: (...a: any[]) => getJsonLikeErrorMessage(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    getStoredGachaItemSettings: (...a: any[]) => getStoredGachaItemSettings(...a),
+    getStoredGachaSettingsPoolTag: (...a: any[]) => getStoredGachaSettingsPoolTag(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    getVisibleGachaPoolConfigDefinitions: (...a: any[]) => getVisibleGachaPoolConfigDefinitions(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    importGachaCatalogJsonFromFile: (...a: any[]) => importGachaCatalogJsonFromFile(...a),
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    renderGachaPoolSettingsListHtml: (...a: any[]) => renderGachaPoolSettingsListHtml(...a),
+    renderGachaSettingsPoolViewerHtml: (...a: any[]) => renderGachaSettingsPoolViewerHtml(...a),
+    restoreGachaLocalStorageSnapshot: (...a: any[]) => restoreGachaLocalStorageSnapshot(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    saveStoredGachaCatalog: (...a: any[]) => saveStoredGachaCatalog(...a),
+    saveStoredGachaSettingsPoolTag: (...a: any[]) => saveStoredGachaSettingsPoolTag(...a),
+    setGachaItemOrder: (...a: any[]) => setGachaItemOrder(...a),
+    setGachaPoolOrder: (...a: any[]) => setGachaPoolOrder(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showGachaCatalogClearDialog: (...a: any[]) => showGachaCatalogClearDialog(...a),
+    showGachaConfirmDialog: (...a: any[]) => showGachaConfirmDialog(...a),
+    showGachaItemEditorDialog: (...a: any[]) => showGachaItemEditorDialog(...a),
+    showGachaPickupItemDetail: (...a: any[]) => showGachaPickupItemDetail(...a),
+    showGachaPoolNameDialog: (...a: any[]) => showGachaPoolNameDialog(...a),
+    updateGachaItemSetting: (...a: any[]) => updateGachaItemSetting(...a),
+    updateGachaPoolConfig: (...a: any[]) => updateGachaPoolConfig(...a),
+    DEFAULT_GACHA_SETTINGS_ITEM_FILTERS: DEFAULT_GACHA_SETTINGS_ITEM_FILTERS,
+    STORAGE_KEY_GACHA_ITEM_SETTINGS: STORAGE_KEY_GACHA_ITEM_SETTINGS,
+    createSortableList: createSortableList,
+    getCachedRawData: () => cachedRawData,
+    getGachaCatalogCache: () => gachaCatalogCache,
+    setGachaCatalogCache: (v: any) => { gachaCatalogCache = v; },
+    getGachaCatalogLoadTask: () => gachaCatalogLoadTask,
+    setGachaCatalogLoadTask: (v: any) => { gachaCatalogLoadTask = v; },
+  });
 
-    const config = getConfig();
-    const selectedSettingsPoolId = getStoredGachaSettingsPoolTag(rawData);
-    const overlay = $(`
-      <div class="acu-edit-overlay acu-gacha-settings-overlay acu-theme-${config.theme} ${config.showHorizontalScrollbar === true ? 'acu-show-horizontal-scrollbar' : ''}">
-        <div class="acu-edit-dialog acu-gacha-settings-dialog">
-          <div class="acu-gacha-settings-header">
-            <div class="acu-gacha-settings-title"><i class="fa-solid fa-sliders"></i> 骰子商城设置</div>
-            <div class="acu-gacha-settings-header-actions">
-              ${getTutorialButtonHtml('gachaSettings', '查看骰子商城设置教程', 'acu-help-btn')}
-              <button class="acu-close-btn acu-gacha-settings-close" type="button" title="关闭"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-gacha-settings-body">
-            <section class="acu-gacha-settings-section">
-              <div class="acu-gacha-settings-section-head">
-                <div>
-                  <strong>卡池管理</strong>
-                </div>
-              </div>
-              <div class="acu-gacha-settings-pool-list" id="acu-gacha-settings-pool-list">
-                ${renderGachaPoolSettingsListHtml(rawData)}
-              </div>
-            </section>
-            ${renderGachaSettingsPoolViewerHtml(rawData, selectedSettingsPoolId)}
-          </div>
-          <div class="acu-gacha-settings-footer">
-            <button class="acu-dialog-btn acu-btn-confirm acu-gacha-pool-new" type="button"><i class="fa-solid fa-plus"></i> 新建卡池</button>
-            <button class="acu-dialog-btn acu-gacha-item-new" type="button"><i class="fa-solid fa-plus"></i> 新建物品</button>
-            <button class="acu-dialog-btn acu-gacha-settings-prompt" type="button" title="下载给 AI 生成骰子商店物品 JSON 的提示词"><i class="fa-solid fa-file-arrow-down"></i> 下载 AI 提示词</button>
-            <button class="acu-dialog-btn acu-gacha-settings-import" type="button"><i class="fa-solid fa-file-import"></i> 导入 JSON</button>
-            <button class="acu-dialog-btn acu-gacha-settings-export" type="button"><i class="fa-solid fa-file-export"></i> 导出 JSON</button>
-            <button class="acu-dialog-btn acu-gacha-settings-clear danger" type="button"><i class="fa-solid fa-broom"></i> 清空自定义</button>
-          </div>
-        </div>
-      </div>
-    `);
-
-    $('body').append(overlay);
-    hydrateCustomTableNameIconsIn(overlay);
-    bindTutorialButtonsIn(overlay);
-
-    const closeSettings = () => {
-      overlay.remove();
-      refreshGachaVisualization(rawData);
-      refreshGachaShardShop();
-    };
-    const settingsItemFilters: GachaSettingsItemFilterState = { ...DEFAULT_GACHA_SETTINGS_ITEM_FILTERS };
-    const getCurrentSettingsItemFiltersActive = () =>
-      Boolean(
-        settingsItemFilters.search ||
-        settingsItemFilters.source !== 'all' ||
-        settingsItemFilters.status !== 'all' ||
-        settingsItemFilters.sort !== 'default',
-      );
-    const toSettingsSourceFilter = (value: unknown): GachaSettingsItemSourceFilter => {
-      const text = String(value || '');
-      return text === 'custom' || text === 'builtin' ? text : 'all';
-    };
-    const toSettingsStatusFilter = (value: unknown): GachaSettingsItemStatusFilter => {
-      const text = String(value || '');
-      return text === 'enabled' || text === 'disabled' ? text : 'all';
-    };
-    const toSettingsSortMode = (value: unknown): GachaSettingsItemSortMode => {
-      const text = String(value || '');
-      return text === 'nameAsc' ||
-        text === 'nameDesc' ||
-        text === 'createdDesc' ||
-        text === 'createdAsc' ||
-        text === 'qualityDesc' ||
-        text === 'weightDesc'
-        ? text
-        : 'default';
-    };
-    const readNumberDataset = (element: HTMLElement, key: string): number => {
-      const value = Number(element.dataset[key] || 0);
-      return Number.isFinite(value) ? value : 0;
-    };
-    const filterInputSelectors: Record<GachaSettingsFilterField, string> = {
-      source: '.acu-gacha-settings-source-filter',
-      status: '.acu-gacha-settings-status-filter',
-      sort: '.acu-gacha-settings-sort-filter',
-    };
-    const normalizeGachaSettingsFilterField = (value: unknown): GachaSettingsFilterField | null => {
-      const text = String(value || '');
-      return text === 'source' || text === 'status' || text === 'sort' ? text : null;
-    };
-    const closeSettingsFilterMenus = (except?: HTMLElement) => {
-      overlay.find('.acu-gacha-settings-filter-menu.is-open').each(function () {
-        if (except && this === except) return;
-        this.classList.remove('is-open');
-        $(this).find('.acu-gacha-settings-filter-trigger').attr('aria-expanded', 'false');
-      });
-    };
-    const syncSettingsFilterMenuLabels = ($section: JQuery<HTMLElement>) => {
-      const syncMenu = (field: GachaSettingsFilterField, value: string, defaultValue: string) => {
-        const $menu = $section.find(`.acu-gacha-settings-filter-menu[data-filter-field="${field}"]`);
-        if (!$menu.length) return;
-        $menu.toggleClass('is-active', value !== defaultValue);
-        $menu.find('.acu-gacha-settings-filter-menu-label').text(getGachaSettingsFilterLabel(field, value));
-        $menu.find('.acu-gacha-settings-filter-option').each(function () {
-          const active = String($(this).data('filter-value') || '') === value;
-          $(this)
-            .toggleClass('active', active)
-            .attr('aria-checked', active ? 'true' : 'false');
-        });
-      };
-      syncMenu('source', settingsItemFilters.source, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.source);
-      syncMenu('status', settingsItemFilters.status, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.status);
-      syncMenu('sort', settingsItemFilters.sort, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.sort);
-    };
-    const syncSettingsItemFilterControls = () => {
-      const $section = overlay.find('.acu-gacha-settings-items-section').first();
-      if (!$section.length) return;
-      $section.find('.acu-gacha-settings-item-search').val(settingsItemFilters.search);
-      $section.find('.acu-gacha-settings-source-filter').val(settingsItemFilters.source);
-      $section.find('.acu-gacha-settings-status-filter').val(settingsItemFilters.status);
-      $section.find('.acu-gacha-settings-sort-filter').val(settingsItemFilters.sort);
-      syncSettingsFilterMenuLabels($section as JQuery<HTMLElement>);
-    };
-    const applySettingsItemFilters = () => {
-      const $section = overlay.find('.acu-gacha-settings-items-section').first();
-      if (!$section.length) return;
-      settingsItemFilters.search = String($section.find('.acu-gacha-settings-item-search').val() || '')
-        .trim()
-        .toLowerCase();
-      settingsItemFilters.source = toSettingsSourceFilter($section.find('.acu-gacha-settings-source-filter').val());
-      settingsItemFilters.status = toSettingsStatusFilter($section.find('.acu-gacha-settings-status-filter').val());
-      settingsItemFilters.sort = toSettingsSortMode($section.find('.acu-gacha-settings-sort-filter').val());
-
-      const items = $section.find('.acu-gacha-settings-item').toArray() as HTMLElement[];
-      let visibleCount = 0;
-      items.forEach(item => {
-        const searchMatched =
-          !settingsItemFilters.search || String(item.dataset.search || '').includes(settingsItemFilters.search);
-        const sourceMatched =
-          settingsItemFilters.source === 'all' || String(item.dataset.source || '') === settingsItemFilters.source;
-        const statusMatched =
-          settingsItemFilters.status === 'all' ||
-          (settingsItemFilters.status === 'enabled' && item.dataset.enabled === 'true') ||
-          (settingsItemFilters.status === 'disabled' && item.dataset.enabled === 'false');
-        const matched = searchMatched && sourceMatched && statusMatched;
-        item.style.display = matched ? '' : 'none';
-        item.classList.toggle('is-filtered-out', !matched);
-        if (matched) visibleCount += 1;
-      });
-
-      const sortedItems = [...items].sort((left, right) => {
-        if (settingsItemFilters.sort === 'nameAsc') {
-          return String(left.dataset.name || '').localeCompare(String(right.dataset.name || ''), 'zh-CN');
-        }
-        if (settingsItemFilters.sort === 'nameDesc') {
-          return String(right.dataset.name || '').localeCompare(String(left.dataset.name || ''), 'zh-CN');
-        }
-        if (settingsItemFilters.sort === 'createdDesc') {
-          return readNumberDataset(right, 'createdAt') - readNumberDataset(left, 'createdAt');
-        }
-        if (settingsItemFilters.sort === 'createdAsc') {
-          return readNumberDataset(left, 'createdAt') - readNumberDataset(right, 'createdAt');
-        }
-        if (settingsItemFilters.sort === 'qualityDesc') {
-          return readNumberDataset(right, 'qualityRank') - readNumberDataset(left, 'qualityRank');
-        }
-        if (settingsItemFilters.sort === 'weightDesc') {
-          return readNumberDataset(right, 'weight') - readNumberDataset(left, 'weight');
-        }
-        return readNumberDataset(left, 'defaultIndex') - readNumberDataset(right, 'defaultIndex');
-      });
-
-      const list = $section.find('.acu-gacha-settings-item-list')[0];
-      if (list) sortedItems.forEach(item => list.appendChild(item));
-      $section.find('.acu-gacha-settings-count').text(`当前 ${visibleCount} / ${items.length} 个`);
-      $section.find('.acu-gacha-settings-filter-empty').prop('hidden', !(visibleCount === 0 && items.length > 0));
-      $section.toggleClass('is-searching', getCurrentSettingsItemFiltersActive());
-      syncSettingsFilterMenuLabels($section as JQuery<HTMLElement>);
-    };
-    const bindSettingsItemSortable = () => {
-      const $list = overlay.find('.acu-gacha-settings-item-list').first();
-      if (!$list.length) return;
-      createSortableList({
-        container: $list,
-        itemSelector: '.acu-gacha-settings-item',
-        handleSelector: '.acu-gacha-item-handle',
-        cancelSelector: 'button, input, textarea, select, label, summary, .acu-gacha-settings-more',
-        canStartDrag: () => {
-          if (!getCurrentSettingsItemFiltersActive()) return true;
-          if (window.toastr) window.toastr.info('筛选或排序时暂不允许拖拽排序，请恢复默认条件后再调整顺序');
-          return false;
-        },
-        getItemId: item => {
-          const id = item.dataset.itemId;
-          return id ? String(id) : null;
-        },
-        onOrderChange: newOrderIds => {
-          void runInSaveQueue(async () => {
-            newOrderIds.forEach((id, index) => setGachaItemOrder(id, (index + 1) * 10));
-          })
-            .then(() => {
-              const currentPoolId = normalizeGachaPoolId(overlay.find('.acu-gacha-settings-items-section').data('pool-id'));
-              refreshSettingsPoolViewer(currentPoolId || GACHA_ALL_POOL_TAG);
-              refreshGachaVisualization(rawData);
-              refreshGachaShardShop();
-            })
-            .catch(error => {
-              if (window.toastr) showActionableErrorToast(`物品排序保存失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-            });
-        },
-      });
-    };
-    const refreshSettingsPoolViewer = (poolId: GachaPoolTag) => {
-      const normalizedPoolId = normalizeGachaPoolId(poolId);
-      const safePoolId = getVisibleGachaPoolConfigDefinitions(rawData).some(pool => pool.id === normalizedPoolId)
-        ? normalizedPoolId
-        : GACHA_ALL_POOL_TAG;
-      saveStoredGachaSettingsPoolTag(safePoolId);
-      overlay
-        .find('.acu-gacha-settings-items-section')
-        .replaceWith(renderGachaSettingsPoolViewerHtml(rawData, safePoolId));
-      hydrateCustomTableNameIconsIn(overlay);
-      syncSettingsItemFilterControls();
-      applySettingsItemFilters();
-      bindSettingsItemSortable();
-    };
-
-    overlay.on('click', '.acu-gacha-settings-close', closeSettings);
-    setupOverlayClose(overlay, 'acu-gacha-settings-overlay', closeSettings);
-
-    overlay.on('click', '.acu-gacha-pool-new', () => {
-      void (async () => {
-        const name = await showGachaPoolNameDialog({
-          title: '新建卡池',
-          label: '卡池显示名',
-          initialValue: '新卡池',
-          confirmText: '创建',
-        });
-        const poolId = normalizeGachaPoolId(name);
-        if (!poolId) return;
-        await runInSaveQueue(async () => {
-          if (getConfiguredGachaPoolDefinitions().some(pool => pool.id === poolId)) {
-            if (window.toastr) window.toastr.warning('这个卡池已经存在');
-            return;
-          }
-          ensureGachaPoolsForTags([poolId]);
-          saveStoredGachaSettingsPoolTag(poolId);
-        });
-        void showGachaSettingsDialog();
-      })().catch(error => {
-        if (window.toastr) showActionableErrorToast(`卡池创建失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-      });
-    });
-
-    overlay.on('click', '.acu-gacha-settings-pool-tab', function () {
-      const poolId = normalizeGachaPoolId($(this).data('pool-id'));
-      if (!poolId) return;
-      refreshSettingsPoolViewer(poolId);
-    });
-
-    overlay.on('change', '.acu-gacha-pool-all-check', function () {
-      const poolId = normalizeGachaPoolId($(this).closest('.acu-gacha-settings-pool-item').data('pool-id'));
-      void runInSaveQueue(async () => {
-        const pool = getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === poolId);
-        if (!pool || pool.id === GACHA_ALL_POOL_TAG) return;
-        const enabled = pool.includeInAll !== true;
-        updateGachaPoolConfig(poolId, { includeInAll: enabled, visibleInTabs: enabled });
-      })
-        .then(() => showGachaSettingsDialog())
-        .catch(error => {
-          if (window.toastr) showActionableErrorToast(`卡池设置保存失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-        });
-    });
-
-    overlay.on('click', '.acu-gacha-pool-rename', function () {
-      void (async () => {
-        const poolId = normalizeGachaPoolId($(this).closest('.acu-gacha-settings-pool-item').data('pool-id'));
-        const pool = getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === poolId);
-        if (!pool || pool.id === GACHA_ALL_POOL_TAG) return;
-        const name = await showGachaPoolNameDialog({
-          title: '重命名卡池',
-          label: '卡池显示名',
-          initialValue: pool.name,
-          confirmText: '保存',
-        });
-        if (name === null) return;
-        await runInSaveQueue(async () => {
-          const latestPool = getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === poolId);
-          if (!latestPool || latestPool.id === GACHA_ALL_POOL_TAG) return;
-          updateGachaPoolConfig(poolId, { name });
-        });
-        void showGachaSettingsDialog();
-      })().catch(error => {
-        if (window.toastr) showActionableErrorToast(`卡池重命名失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-      });
-    });
-
-    overlay.on('click', '.acu-gacha-pool-export', function () {
-      const poolId = normalizeGachaPoolId($(this).closest('.acu-gacha-settings-pool-item').data('pool-id'));
-      if (!poolId) return;
-      void downloadGachaCatalogJson(poolId);
-    });
-
-    overlay.on('click', '.acu-gacha-pool-delete', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const poolId = normalizeGachaPoolId($(this).closest('.acu-gacha-settings-pool-item').data('pool-id'));
-      const pool = getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === poolId);
-      if (!pool || !canDeleteGachaPoolDefinition(pool)) return;
-      void (async () => {
-        const confirmed = await showGachaConfirmDialog({
-          title: '删除卡池',
-          message: `确定删除卡池「${pool.name}」吗？`,
-          detail:
-            pool.id === GACHA_CUSTOM_ONLY_POOL_TAG
-              ? '仅属于该卡池的自定义物品会一并删除；已经写入目标表的奖励不会被删除。'
-              : '仅属于该卡池的自定义物品会转入“自定义”卡池；已经写入目标表的奖励不会被删除。',
-          iconClass: 'fa-trash',
-          confirmText: '删除',
-          danger: true,
-        });
-        if (!confirmed) return;
-        const deleted = await runInSaveQueue(() => deleteGachaPoolConfig(poolId, rawData));
-        if (!deleted) throw new Error('卡池删除失败');
-        void showGachaSettingsDialog();
-      })().catch(error => {
-        console.error('[DICE][GACHA]删除卡池失败:', error);
-        if (window.toastr) showActionableErrorToast(`删除卡池失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-      });
-    });
-
-    overlay.on('click', '.acu-gacha-settings-filter-trigger', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const menu = $(this).closest('.acu-gacha-settings-filter-menu')[0] as HTMLElement | undefined;
-      if (!menu) return;
-      const nextOpen = !menu.classList.contains('is-open');
-      closeSettingsFilterMenus(menu);
-      menu.classList.toggle('is-open', nextOpen);
-      $(this).attr('aria-expanded', nextOpen ? 'true' : 'false');
-    });
-
-    overlay.on('click', '.acu-gacha-settings-filter-option', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const $menu = $(this).closest('.acu-gacha-settings-filter-menu');
-      const field = normalizeGachaSettingsFilterField($menu.data('filter-field'));
-      if (!field) return;
-      const value = String($(this).data('filter-value') || '');
-      const $section = $(this).closest('.acu-gacha-settings-items-section');
-      $section.find(filterInputSelectors[field]).val(value);
-      closeSettingsFilterMenus();
-      applySettingsItemFilters();
-    });
-
-    overlay.on('click', function (event) {
-      const target = event.target;
-      if (target instanceof Element && target.closest('.acu-gacha-settings-filter-menu')) return;
-      closeSettingsFilterMenus();
-    });
-
-    overlay.on('input', '.acu-gacha-settings-item-search', function () {
-      applySettingsItemFilters();
-    });
-
-    overlay.on(
-      'change',
-      '.acu-gacha-settings-source-filter, .acu-gacha-settings-status-filter, .acu-gacha-settings-sort-filter',
-      function () {
-        applySettingsItemFilters();
-      },
-    );
-
-    overlay.on('keydown', '.acu-gacha-settings-item-search', function (event) {
-      const key = event.originalEvent?.key || '';
-      if (key !== 'Escape') return;
-      $(this).val('');
-      applySettingsItemFilters();
-    });
-
-    const shouldIgnoreGachaSettingsItemRowClick = (target: EventTarget | null): boolean => {
-      if (!(target instanceof Element)) return false;
-      return Boolean(
-        target.closest(
-          '.acu-gacha-settings-actions, .acu-gacha-settings-more, .acu-gacha-settings-filter-menu, .acu-gacha-item-handle, button, input, label, select, textarea, a, summary',
-        ),
-      );
-    };
-
-    const showSettingsItemDetailFromRow = (row: HTMLElement) => {
-      const itemId = String($(row).data('item-id') || '').trim();
-      if (itemId) showGachaPickupItemDetail(itemId);
-    };
-
-    overlay.on('click', '.acu-gacha-settings-item', function (event) {
-      if (shouldIgnoreGachaSettingsItemRowClick(event.target)) return;
-      showSettingsItemDetailFromRow(this);
-    });
-
-    overlay.on('keydown', '.acu-gacha-settings-item', function (event) {
-      const key = event.originalEvent?.key || '';
-      if (key !== 'Enter' && key !== ' ') return;
-      if (shouldIgnoreGachaSettingsItemRowClick(event.target)) return;
-      event.preventDefault();
-      showSettingsItemDetailFromRow(this);
-    });
-
-    overlay.on('change', '.acu-gacha-item-enabled-check', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      const itemId = String($(this).closest('.acu-gacha-settings-item').data('item-id') || '').trim();
-      if (!itemId) return;
-      const currentPoolId = normalizeGachaPoolId($(this).closest('.acu-gacha-settings-items-section').data('pool-id'));
-      const nextEnabled = $(this).prop('checked') === true;
-      void runInSaveQueue(async () => {
-        updateGachaItemSetting(itemId, { enabled: nextEnabled });
-      })
-        .then(() => {
-          refreshSettingsPoolViewer(currentPoolId || GACHA_ALL_POOL_TAG);
-          refreshGachaVisualization(rawData);
-          refreshGachaShardShop();
-        })
-        .catch(error => {
-          if (window.toastr) showActionableErrorToast(`物品启用状态保存失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-          refreshSettingsPoolViewer(currentPoolId || GACHA_ALL_POOL_TAG);
-        });
-    });
-
-    overlay.on('click', '.acu-gacha-item-toggle-menu', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const $row = $(this).closest('.acu-gacha-settings-item');
-      const itemId = String($row.data('item-id') || '').trim();
-      if (!itemId) return;
-      const currentPoolId = normalizeGachaPoolId($(this).closest('.acu-gacha-settings-items-section').data('pool-id'));
-      void runInSaveQueue(async () => {
-        const latestItem = getAllGachaItemDefinitions(rawData).find(candidate => candidate.id === itemId);
-        const storedItem = getStoredGachaItemSettings().items[itemId];
-        let currentEnabled = String($row.attr('data-enabled') || '') === 'true';
-        if (latestItem) currentEnabled = isGachaItemEnabled(latestItem);
-        if (storedItem) currentEnabled = storedItem.enabled;
-        const nextEnabled = !currentEnabled;
-        updateGachaItemSetting(itemId, { enabled: nextEnabled });
-      })
-        .then(() => {
-          refreshSettingsPoolViewer(currentPoolId || GACHA_ALL_POOL_TAG);
-          refreshGachaVisualization(rawData);
-          refreshGachaShardShop();
-        })
-        .catch(error => {
-          if (window.toastr) showActionableErrorToast(`物品启用状态保存失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-          refreshSettingsPoolViewer(currentPoolId || GACHA_ALL_POOL_TAG);
-        });
-    });
-
-    overlay.on('click', '.acu-gacha-item-new', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      const $itemSection = $(this).closest('.acu-gacha-settings-items-section').length
-        ? $(this).closest('.acu-gacha-settings-items-section')
-        : overlay.find('.acu-gacha-settings-items-section').first();
-      const selectedPoolId = normalizeGachaPoolId($itemSection.data('pool-id'));
-      const initialPoolId =
-        selectedPoolId && selectedPoolId !== GACHA_ALL_POOL_TAG ? selectedPoolId : GACHA_CUSTOM_ONLY_POOL_TAG;
-      void showGachaItemEditorDialog(null, initialPoolId);
-    });
-
-    overlay.on('click', '.acu-gacha-item-edit', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const itemId = String($(this).closest('.acu-gacha-settings-item').data('item-id') || '').trim();
-      if (itemId) void showGachaItemEditorDialog(itemId);
-    });
-
-    overlay.on('click', '.acu-gacha-item-delete', function (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      const itemId = String($(this).closest('.acu-gacha-settings-item').data('item-id') || '').trim();
-      if (!itemId) return;
-      const item = getCustomGachaItemDefinitions(rawData).find(candidate => candidate.id === itemId);
-      if (!item) return;
-      void (async () => {
-        const confirmed = await showGachaConfirmDialog({
-          title: '删除自定义物品',
-          message: `确定删除「${item.name}」吗？`,
-          detail: '只会从骰子商店自定义卡池中删除，不会删除已经写入目标表的奖励。',
-          iconClass: 'fa-trash',
-          confirmText: '删除',
-          danger: true,
-        });
-        if (!confirmed) return;
-        await runInSaveQueue(async () => {
-          gachaCatalogCache = null;
-          gachaCatalogLoadTask = null;
-          await ensureGachaCatalogLoaded(rawData);
-          const localStorageSnapshot = collectGachaLocalStorageSnapshot([STORAGE_KEY_GACHA_ITEM_SETTINGS]);
-          const latestCustomItems = getCustomGachaItemDefinitions(rawData);
-          const latestOriginalItems = cloneGachaCatalogItems(latestCustomItems);
-          const latestNextItems = latestCustomItems.filter(candidate => candidate.id !== itemId);
-          if (latestNextItems.length === latestCustomItems.length) throw new Error('这个自定义物品已被删除');
-          const savedCatalog = await saveStoredGachaCatalog(latestNextItems);
-          if (!savedCatalog) throw new Error('自定义物品删除失败');
-          try {
-            deleteGachaItemSetting(itemId);
-          } catch (error) {
-            const rolledBackCatalog = await saveStoredGachaCatalog(latestOriginalItems);
-            const rollbackWarnings = restoreGachaLocalStorageSnapshot(localStorageSnapshot);
-            const message = getRuntimeErrorMessage(error) || '删除自定义物品设置失败';
-            const rollbackMessage = [
-              !rolledBackCatalog ? '自定义物品目录回滚失败' : '',
-              ...rollbackWarnings,
-            ].filter(Boolean).join('；');
-            if (rollbackMessage) throw new Error(`${message}；${rollbackMessage}`);
-            throw error;
-          }
-        });
-        refreshGachaVisualization(rawData);
-        refreshGachaShardShop();
-        void showGachaSettingsDialog();
-      })().catch(error => {
-        console.error('[DICE][GACHA]删除自定义物品失败:', error);
-        if (window.toastr) showActionableErrorToast(`删除失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-      });
-    });
-
-    overlay.on('click', '.acu-gacha-settings-prompt', () => {
-      const selectedPoolId = normalizeGachaPoolId(overlay.find('.acu-gacha-settings-items-section').data('pool-id'));
-      const promptName = getGachaPoolDisplayName(selectedPoolId || GACHA_CUSTOM_ONLY_POOL_TAG, rawData);
-      downloadAiPromptFile(buildGachaCatalogAgentPrompt(), buildGachaCatalogAgentPromptFilename(promptName));
-      if (window.toastr) window.toastr.success('已下载 AI 提示词');
-    });
-    overlay.on('click', '.acu-gacha-settings-import', () => importGachaCatalogJsonFromFile());
-    overlay.on('click', '.acu-gacha-settings-export', () => void downloadGachaCatalogJson());
-    overlay.on('click', '.acu-gacha-settings-clear', () => void showGachaCatalogClearDialog());
-
-    createSortableList({
-      container: overlay.find('#acu-gacha-settings-pool-list'),
-      itemSelector: '.acu-gacha-settings-pool-item',
-      handleSelector: '.acu-gacha-pool-handle',
-      cancelSelector: 'button, input, textarea, select',
-      getItemId: item => {
-        const id = $(item).data('pool-id');
-        if (typeof id === 'string') return id;
-        if (id !== undefined && id !== null) return String(id);
-        return null;
-      },
-      onOrderChange: newOrderIds => {
-        void runInSaveQueue(async () => {
-          newOrderIds
-            .filter(id => id !== GACHA_ALL_POOL_TAG)
-            .forEach((id, index) => setGachaPoolOrder(id, (index + 1) * 10));
-        })
-          .then(() => showGachaSettingsDialog())
-          .catch(error => {
-            if (window.toastr) showActionableErrorToast(`卡池排序保存失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-          });
-      },
-    });
-    applySettingsItemFilters();
-    bindSettingsItemSortable();
-  };
-
-  const showGachaItemEditorDialog = async (itemId: string | null, initialPoolTag?: GachaPoolTag) => {
-    const { $ } = getCore();
-    const rawData = cachedRawData || getTableData();
-    await ensureGachaCatalogLoaded(rawData);
-    const customItems = getCustomGachaItemDefinitions(rawData);
-    const existingItem = itemId ? customItems.find(item => item.id === itemId) || null : null;
-    if (itemId && !existingItem) {
-      if (window.toastr) window.toastr.warning('内置物品不能编辑定义，只能调整启用状态和顺序');
-      return;
-    }
-    const existingResolvedItem = existingItem
-      ? getAllGachaItemDefinitions(rawData).find(item => item.id === existingItem.id) || existingItem
-      : null;
-    const storedPools = getAllGachaPoolConfigDefinitions(rawData).filter(pool => pool.id !== GACHA_ALL_POOL_TAG);
-    const normalizedInitialPoolTag = normalizeGachaPoolId(initialPoolTag);
-    const needsDefaultCustomPool =
-      !existingItem &&
-      (!normalizedInitialPoolTag ||
-        normalizedInitialPoolTag === GACHA_ALL_POOL_TAG ||
-        !storedPools.some(pool => pool.id === normalizedInitialPoolTag));
-    const pools =
-      needsDefaultCustomPool && !storedPools.some(pool => pool.id === GACHA_CUSTOM_ONLY_POOL_TAG)
-        ? [
-            ...storedPools,
-            buildDefaultGachaPoolDefinition(GACHA_CUSTOM_ONLY_POOL_TAG, {
-              name: GACHA_CUSTOM_ONLY_POOL_TAG,
-              builtin: false,
-              visibleInTabs: false,
-              includeInAll: false,
-              order: storedPools.reduce((max, pool) => Math.max(max, Number(pool.order) || 0), 0) + 10,
-            }),
-          ]
-        : storedPools;
-    const editorCreatablePoolIds = new Set<GachaPoolTag>(
-      !existingItem && needsDefaultCustomPool ? [GACHA_CUSTOM_ONLY_POOL_TAG] : [],
-    );
-    const initialPoolExists = pools.some(pool => pool.id === normalizedInitialPoolTag);
-    const baseItem: GachaItemDefinition = existingResolvedItem || {
-      id: '',
-      name: '',
-      type: '道具',
-      quality: '普通' as GachaRarity,
-      description: '',
-      poolTags: [initialPoolExists ? normalizedInitialPoolTag : GACHA_CUSTOM_ONLY_POOL_TAG],
-      enabled: true,
-      order: undefined,
-      weight: 1,
-      stackable: false,
-      unique: false,
-      grantQuantity: 1,
-      rewardTarget: 'inventory' as GachaRewardTarget,
-    };
-    const item: GachaItemDefinition =
-      baseItem.rewardTarget === 'equipment'
-        ? { ...baseItem, type: inferEquipmentTableTypeForGachaItem(baseItem) }
-        : baseItem;
-    const fieldLimits = getGachaRewardFieldLimits(item.rewardTarget);
-    const config = getConfig();
-    const poolOptionsHtml = pools
-      .map(pool => {
-        const checked = item.poolTags.includes(pool.id);
-        return `
-          <label class="acu-gacha-item-pool-option">
-            <input class="acu-gacha-item-pool-check" type="checkbox" value="${escapeHtml(pool.id)}" ${checked ? 'checked' : ''} />
-            <span>${escapeHtml(pool.name)}</span>
-          </label>
-        `;
-      })
-      .join('');
-    const rarityOptionsHtml = GACHA_RARITY_ORDER.map(
-      rarity =>
-        `<option value="${escapeHtml(rarity)}" ${item.quality === rarity ? 'selected' : ''}>${escapeHtml(rarity)}</option>`,
-    ).join('');
-    const targetOptionsHtml = GACHA_REWARD_TARGETS.map(
-      target =>
-        `<option value="${escapeHtml(target)}" ${item.rewardTarget === target ? 'selected' : ''}>${target === 'equipment' ? '装备' : '物品'}</option>`,
-    ).join('');
-    const targetTableValue = normalizeGachaTargetTable(item.targetTable) || '';
-    const targetColumns = normalizeGachaTargetColumns(item.targetColumns);
-    const renderTargetColumnInputHtml = (key: GachaRewardTargetColumnKey, placeholder: string) => `
-      <label class="acu-gacha-target-column-field" data-column-key="${escapeHtml(key)}">
-        <span>${escapeHtml(GACHA_TARGET_COLUMN_LABELS[key])}</span>
-        <input class="acu-gacha-target-column-input" type="text" data-column-key="${escapeHtml(key)}" value="${escapeHtml(targetColumns?.[key] || '')}" maxlength="${GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH}" placeholder="${escapeHtml(placeholder)}" />
-      </label>
-    `;
-    const targetColumnsHtml = [
-      renderTargetColumnInputHtml('name', '物品名称 / 装扮名称'),
-      renderTargetColumnInputHtml('type', '类型'),
-      renderTargetColumnInputHtml('quantity', '数量'),
-      renderTargetColumnInputHtml('quality', '品质'),
-      renderTargetColumnInputHtml('tags', '标签'),
-      renderTargetColumnInputHtml('effect', '效果'),
-      renderTargetColumnInputHtml('description', '描述 / 外观描述'),
-      renderTargetColumnInputHtml('part', '部位 / 适用场景'),
-      renderTargetColumnInputHtml('status', '状态 / 当前状态'),
-    ].join('');
-    const renderCustomFieldRowHtml = (key = '', value = '') => `
-      <div class="acu-gacha-custom-field-row">
-        <div class="acu-gacha-custom-field-key-line">
-          <label class="acu-gacha-custom-field-key-cell">
-            <input class="acu-gacha-custom-field-key" type="text" value="${escapeHtml(key)}" maxlength="${GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH}" placeholder="自定义字段名" />
-          </label>
-          <button class="acu-gacha-custom-field-remove" type="button" title="移除此字段" aria-label="移除此字段"><i class="fa-solid fa-minus"></i></button>
-        </div>
-        <label class="acu-gacha-custom-field-value-cell">
-          <textarea class="acu-gacha-custom-field-value" rows="2" maxlength="${GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH}" placeholder="对应值">${escapeHtml(value)}</textarea>
-        </label>
-      </div>
-    `;
-    const storedTags = String(item.tags || getGachaNamedCustomField(item, GACHA_TAG_FIELD_ALIASES) || '').trim();
-    const storedEffect = String(item.effect || getGachaNamedCustomField(item, GACHA_EFFECT_FIELD_ALIASES) || '').trim();
-    const customFieldEntries: [string, string][] = [
-      ...(storedTags ? ([['标签', storedTags]] as [string, string][]) : []),
-      ...(storedEffect ? ([['效果', storedEffect]] as [string, string][]) : []),
-      ...getGachaCustomFieldEntries(item).filter(
-        ([key]) =>
-          !isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES) &&
-          !isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES),
-      ),
-    ];
-    // 初始无任何自定义字段，只显示“新增字段➕”按钮
-    const customFieldRowsHtml = customFieldEntries
-      .map(([key, value]) => renderCustomFieldRowHtml(key, value))
-      .join('');
-    const openedItemFingerprint = existingItem ? getGachaItemDefinitionFingerprint(existingItem) : '';
-
-    $('.acu-gacha-item-editor-overlay').remove();
-    if (gachaShopUiRefreshTimer) {
-      clearInterval(gachaShopUiRefreshTimer);
-      gachaShopUiRefreshTimer = null;
-    }
-    const overlay = $(`
-      <div class="acu-edit-overlay acu-gacha-item-editor-overlay acu-theme-${config.theme}">
-        <form class="acu-edit-dialog acu-gacha-item-editor">
-          <div class="acu-gacha-settings-header">
-            <div class="acu-gacha-settings-title"><i class="fa-solid fa-box"></i> ${existingItem ? '编辑自定义物品' : '新建自定义物品'}</div>
-            <div class="acu-gacha-settings-header-actions">
-              ${getTutorialButtonHtml('gachaItemEditor', '查看自定义物品编辑教程', 'acu-help-btn')}
-              <button class="acu-close-btn acu-gacha-item-editor-close" type="button" title="关闭" aria-label="关闭自定义物品编辑器"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-gacha-item-editor-body">
-            <label class="wide acu-gacha-item-field acu-gacha-item-name-field"><span>名称</span><input class="acu-gacha-item-name" type="text" value="${escapeHtml(item.name)}" maxlength="${fieldLimits.name}" required /></label>
-            <div class="wide acu-gacha-item-labeled-field acu-gacha-item-type-block">
-              <div class="acu-gacha-item-label-line">
-                <span class="acu-gacha-item-field-label-text acu-gacha-item-type-label" data-label-value="${escapeHtml(targetColumns?.type || '类型')}">${escapeHtml(targetColumns?.type || '类型')}</span>
-                <button class="acu-preset-btn acu-gacha-item-label-edit" type="button" data-label-key="type" title="修改类型字段名" aria-label="修改类型字段名"><i class="fa-solid fa-pen"></i></button>
-              </div>
-              <label class="acu-gacha-item-field acu-gacha-item-type-field"><input class="acu-gacha-item-type" type="text" value="${escapeHtml(item.type)}" maxlength="40" placeholder="道具" /></label>
-            </div>
-            <div class="wide acu-gacha-item-labeled-field acu-gacha-item-quality-block">
-              <div class="acu-gacha-item-label-line">
-                <span class="acu-gacha-item-field-label-text acu-gacha-item-quality-label" data-label-value="${escapeHtml(targetColumns?.quality || '品质')}">${escapeHtml(targetColumns?.quality || '品质')}</span>
-                <button class="acu-preset-btn acu-gacha-item-label-edit" type="button" data-label-key="quality" title="修改品质字段名" aria-label="修改品质字段名"><i class="fa-solid fa-pen"></i></button>
-              </div>
-              <label class="acu-gacha-item-field"><select class="acu-gacha-item-quality">${rarityOptionsHtml}</select></label>
-            </div>
-            <div class="wide acu-gacha-item-custom-field-block">
-              <div class="acu-gacha-custom-field-rows">${customFieldRowsHtml}</div>
-              <button class="acu-dialog-btn acu-gacha-custom-field-add" type="button"><i class="fa-solid fa-plus"></i> 新增字段</button>
-              <div class="acu-gacha-custom-field-suggestions">
-                <span>目标表头建议</span>
-                <div class="acu-gacha-custom-field-suggestion-list" aria-live="polite"></div>
-              </div>
-            </div>
-            <div class="wide acu-gacha-item-labeled-field acu-gacha-item-description-block">
-              <div class="acu-gacha-item-label-line">
-                <span class="acu-gacha-item-field-label-text acu-gacha-item-description-label">描述</span>
-              </div>
-              <label class="acu-gacha-item-field acu-gacha-item-description-field"><textarea class="acu-gacha-item-description" rows="3" maxlength="${fieldLimits.description}" placeholder="描述内容">${escapeHtml(item.description || '')}</textarea></label>
-            </div>
-            <div class="wide acu-gacha-item-labeled-field acu-gacha-item-target-block">
-              <div class="acu-gacha-item-label-line">
-                <span class="acu-gacha-item-field-label-text acu-gacha-item-target-label">发放目标</span>
-              </div>
-              <label class="acu-gacha-item-field acu-gacha-item-target-field"><select class="acu-gacha-item-target">${targetOptionsHtml}</select></label>
-            </div>
-            <label class="acu-gacha-item-field acu-gacha-item-weight-field"><span>权重</span><input class="acu-gacha-item-weight" type="number" min="0.01" step="0.01" value="${escapeHtml(String(item.weight || 1))}" /></label>
-            <label class="acu-gacha-item-field acu-gacha-item-quantity-field"><span>发放数量</span><input class="acu-gacha-item-quantity" type="number" min="1" step="1" value="${escapeHtml(String(item.grantQuantity || 1))}" /></label>
-            <div class="wide acu-gacha-item-pools">
-              <span>所属卡池</span>
-              <div>${poolOptionsHtml}</div>
-            </div>
-            <div class="wide acu-gacha-icon-editor-card">
-              <div class="acu-gacha-icon-editor-preview">${renderGachaItemIconContent(item, getGachaItemCustomTableNameIconContext(item))}</div>
-              <div class="acu-gacha-icon-editor-fields">
-                <label class="acu-gacha-item-field acu-gacha-item-icon-field"><span>符号图标</span><input class="acu-gacha-item-icon" type="text" value="${escapeHtml(item.icon || '')}" placeholder="fa:coins / ti:wand / ✨" /></label>
-                <small class="acu-gacha-icon-editor-note">图片类图标请在“图标管理预设”中按物品/装备名称统一配置。</small>
-              </div>
-            </div>
-            <details class="wide acu-gacha-custom-fields acu-gacha-target-settings" ${targetTableValue || targetColumns ? 'open' : ''}>
-              <summary>
-                <span><i class="fa-solid fa-location-dot"></i> 写入目标</span>
-                <small>留空则跟随当前仪表盘预设</small>
-              </summary>
-              <div class="acu-gacha-custom-field-panel">
-                <label class="acu-gacha-item-field acu-gacha-target-table-field">
-                  <span>固定目标表</span>
-                  <input class="acu-gacha-item-target-table" type="text" value="${escapeHtml(targetTableValue)}" maxlength="${GACHA_TARGET_TABLE_MAX_LENGTH}" placeholder="例如：装扮表；留空使用仪表盘映射" />
-                </label>
-                <div class="acu-gacha-target-column-toolbar">
-                  <strong>基础字段列映射</strong>
-                  <small>只有默认关键词识别不到表头时填写；表头必须精确匹配。</small>
-                </div>
-                <div class="acu-gacha-target-column-grid">${targetColumnsHtml}</div>
-              </div>
-            </details>
-            <div class="wide acu-gacha-item-flags">
-              <label class="acu-gacha-item-checkbox acu-gacha-item-stackable-field"><input class="acu-gacha-item-stackable" type="checkbox" ${item.stackable ? 'checked' : ''} /> <span>可堆叠</span></label>
-            </div>
-          </div>
-          <div class="acu-gacha-settings-footer acu-gacha-item-editor-footer">
-            <button class="acu-dialog-btn acu-gacha-item-editor-close" type="button">取消</button>
-            <button class="acu-dialog-btn acu-btn-confirm" type="submit"><i class="fa-solid fa-check"></i> 保存</button>
-          </div>
-        </form>
-      </div>
-    `);
-    $('body').append(overlay);
-    hydrateCustomTableNameIconsIn(overlay);
-    bindTutorialButtonsIn(overlay);
-    let isSubmittingItemEditor = false;
-    const setItemEditorSubmitting = (submitting: boolean) => {
-      isSubmittingItemEditor = submitting;
-      overlay.toggleClass('is-saving', submitting);
-      overlay.find('.acu-gacha-item-editor .acu-btn-confirm').prop('disabled', submitting);
-    };
-
-    const refreshEditorIconPreview = () => {
-      const icon = String(overlay.find('.acu-gacha-item-icon').val() || '').trim();
-      const previewItem: Pick<GachaItemDefinition, 'name' | 'type' | 'icon'> = {
-        name: String(overlay.find('.acu-gacha-item-name').val() || item.name || '').trim(),
-        type: String(overlay.find('.acu-gacha-item-type').val() || item.type || '').trim(),
-        icon: icon || undefined,
-      };
-      const previewContextItem = {
-        ...item,
-        ...previewItem,
-        rewardTarget: getEditorRewardTarget(),
-        targetTable: getEditorTargetTable(),
-        targetColumns: collectEditorTargetColumns(),
-      };
-      const $preview = overlay.find('.acu-gacha-icon-editor-preview');
-      $preview.html(renderGachaItemIconContent(previewItem, getGachaItemCustomTableNameIconContext(previewContextItem)));
-      hydrateCustomTableNameIconsIn($preview);
-    };
-    const getEditorRewardTarget = (): GachaRewardTarget =>
-      normalizeGachaRewardTarget(overlay.find('.acu-gacha-item-target').val());
-    const getEditorTargetTable = (): string | undefined =>
-      normalizeGachaTargetTable(overlay.find('.acu-gacha-item-target-table').val());
-    const collectEditorTargetColumns = (): GachaRewardTargetColumns | undefined => {
-      const rawColumns: Record<string, string> = {};
-      overlay.find('.acu-gacha-target-column-input').each((_, element) => {
-        const key = String($(element).attr('data-column-key') || '').trim();
-        if (!GACHA_TARGET_COLUMN_KEYS.includes(key as GachaRewardTargetColumnKey)) return;
-        const value = String($(element).val() || '').trim();
-        if (value) rawColumns[key] = value;
-      });
-      // 类型 / 品质的字段名支持通过笔图标改名，改名后按列映射写入目标表
-      const typeLabelElement = overlay.find('.acu-gacha-item-type-label');
-      const qualityLabelElement = overlay.find('.acu-gacha-item-quality-label');
-      const typeLabel = String(typeLabelElement.attr('data-label-value') || typeLabelElement.text() || '').trim();
-      const qualityLabel = String(qualityLabelElement.attr('data-label-value') || qualityLabelElement.text() || '').trim();
-      if (typeLabel && typeLabel !== '类型') rawColumns.type = typeLabel;
-      if (qualityLabel && qualityLabel !== '品质') rawColumns.quality = qualityLabel;
-      return normalizeGachaTargetColumns(rawColumns);
-    };
-    const getEditorTargetOptions = (): GachaRewardParseOptions => ({
-      targetTable: getEditorTargetTable(),
-      targetColumns: collectEditorTargetColumns(),
-    });
-    const getEditorTargetTableContext = (target: GachaRewardTarget, options: GachaRewardParseOptions = {}) => {
-      const latestRawData = getTableData({ silent: true }) || rawData;
-      const parsed =
-        target === 'equipment' ? parseEquipmentItems(latestRawData, options) : parseInventoryItems(latestRawData, options);
-      const sheet = parsed.tableKey && latestRawData ? latestRawData[parsed.tableKey] : undefined;
-      return { parsed, sheet };
-    };
-    const updateCustomFieldRowControls = () => {
-      const rowCount = overlay.find('.acu-gacha-custom-field-row').length;
-      overlay.find('.acu-gacha-custom-field-add').prop('disabled', rowCount >= GACHA_CUSTOM_FIELD_MAX_COUNT);
-    };
-    const appendCustomFieldRow = (key = '', value = '') => {
-      if (overlay.find('.acu-gacha-custom-field-row').length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
-        if (window.toastr) window.toastr.warning(`自定义字段最多只能添加 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个`);
-        return null;
-      }
-      const row = $(renderCustomFieldRowHtml(key, value));
-      overlay.find('.acu-gacha-custom-field-rows').append(row);
-      updateCustomFieldRowControls();
-      return row;
-    };
-    const refreshCustomFieldHeaderSuggestions = () => {
-      const target = getEditorRewardTarget();
-      let parsed: GachaRewardParseResult;
-      let targetOptions: GachaRewardParseOptions;
-      try {
-        targetOptions = getEditorTargetOptions();
-        ({ parsed } = getEditorTargetTableContext(target, targetOptions));
-      } catch (error) {
-        const list = overlay.find('.acu-gacha-custom-field-suggestion-list').empty();
-        $('<em class="acu-gacha-custom-field-suggestion-empty"></em>')
-          .text(getRuntimeErrorMessage(error) || '当前目标表无法解析')
-          .appendTo(list);
-        return;
-      }
-      const reservedHeaders = getGachaReservedCustomFieldHeaders(target, targetOptions.targetColumns);
-      const headers = Array.from(buildGachaCustomFieldHeaderMap(parsed.headers).keys()).filter(headerName => {
-        const isEditableStandardField =
-          isGachaFieldAlias(headerName, GACHA_TAG_FIELD_ALIASES) ||
-          isGachaFieldAlias(headerName, GACHA_EFFECT_FIELD_ALIASES);
-        return (
-          isEditableStandardField ||
-          (!reservedHeaders.has(headerName) && !GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(headerName))
-        );
-      });
-      const list = overlay.find('.acu-gacha-custom-field-suggestion-list').empty();
-      if (!headers.length) {
-        $('<em class="acu-gacha-custom-field-suggestion-empty"></em>')
-          .text('当前目标表没有可写入的额外表头')
-          .appendTo(list);
-        return;
-      }
-      headers.forEach(headerName => {
-        $('<button class="acu-gacha-custom-field-suggestion" type="button"></button>')
-          .text(headerName)
-          .attr('data-header', headerName)
-          .appendTo(list);
-      });
-    };
-    type EditorCustomFieldCollectResult = {
-      tags?: string;
-      effect?: string;
-      customFields?: GachaCustomFields;
-      message?: string;
-    };
-    const collectEditorCustomFields = (
-      target: GachaRewardTarget,
-      targetColumns?: GachaRewardTargetColumns,
-    ): EditorCustomFieldCollectResult => {
-      const reservedHeaders = getGachaReservedCustomFieldHeaders(target, targetColumns);
-      const rawFields: Record<string, string> = {};
-      let tags = '';
-      let effect = '';
-      let message = '';
-
-      overlay.find('.acu-gacha-custom-field-row').each((_, element) => {
-        if (message) return;
-        const row = $(element);
-        const rawKey = String(row.find('.acu-gacha-custom-field-key').val() || '').trim();
-        const rawValue = String(row.find('.acu-gacha-custom-field-value').val() || '').trim();
-        if (!rawKey && !rawValue) return;
-        if (!rawKey || !rawValue) {
-          message = '自定义字段需要同时填写目标表头和值；如果不需要，请清空整行。';
-          return;
-        }
-        const key = truncateGachaText(rawKey, GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH);
-        const value = truncateGachaText(rawValue, GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH);
-        if (
-          (reservedHeaders.has(key) || GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(key)) &&
-          !isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES) &&
-          !isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES)
-        ) {
-          message = `“${key}” 是基础字段，不能作为自定义字段；请修改字段名，或使用编辑器上方对应的基础输入项。`;
-          return;
-        }
-        if (isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES)) {
-          if (tags) {
-            message = '标签字段重复，请合并为一行。';
-            return;
-          }
-          tags = value;
-          return;
-        }
-        if (isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES)) {
-          if (effect) {
-            message = '效果字段重复，请合并为一行。';
-            return;
-          }
-          effect = value;
-          return;
-        }
-        if (Object.prototype.hasOwnProperty.call(rawFields, key)) {
-          message = `自定义字段“${key}”重复，请合并为一行。`;
-          return;
-        }
-        if (Object.keys(rawFields).length >= GACHA_CUSTOM_FIELD_MAX_COUNT) {
-          message = `自定义字段最多只能保存 ${GACHA_CUSTOM_FIELD_MAX_COUNT} 个。`;
-          return;
-        }
-        rawFields[key] = value;
-      });
-
-      if (message) return { message };
-      return {
-        ...(tags ? { tags } : {}),
-        ...(effect ? { effect } : {}),
-        customFields: normalizeGachaCustomFields(rawFields),
-      };
-    };
-    const applyEditorFieldLimits = () => {
-      const limits = getGachaRewardFieldLimits(getEditorRewardTarget());
-      const $nameInput = overlay.find('.acu-gacha-item-name');
-      const $descriptionInput = overlay.find('.acu-gacha-item-description');
-      const clampField = ($field: JQuery, maxLength: number) => {
-        $field.attr('maxlength', String(maxLength));
-        const value = String($field.val() || '');
-        if (countUnicodeCharacters(value) > maxLength) {
-          $field.val(truncateGachaText(value, maxLength));
-        }
-      };
-      clampField($nameInput, limits.name);
-      clampField($descriptionInput, limits.description);
-    };
-    const closeEditor = () => {
-      overlay.remove();
-      if (getGachaShopProgressContainers().length > 0) startGachaShopUiRefresh();
-    };
-    overlay.on('click', '.acu-gacha-item-editor-close', closeEditor);
-    setupOverlayClose(overlay, 'acu-gacha-item-editor-overlay', closeEditor);
-    applyEditorFieldLimits();
-    refreshCustomFieldHeaderSuggestions();
-    updateCustomFieldRowControls();
-    overlay.on('click', '.acu-gacha-custom-field-add', () => {
-      const row = appendCustomFieldRow();
-      row?.find('.acu-gacha-custom-field-key').trigger('focus');
-    });
-    overlay.on('click', '.acu-gacha-custom-field-remove', event => {
-      $(event.currentTarget).closest('.acu-gacha-custom-field-row').remove();
-      updateCustomFieldRowControls();
-    });
-    overlay.on('click', '.acu-gacha-item-label-edit', function () {
-      void (async () => {
-        const labelKey = String($(this).attr('data-label-key') || '').trim();
-        if (labelKey !== 'type' && labelKey !== 'quality') return;
-        const $labelInput = overlay.find(
-          labelKey === 'type' ? '.acu-gacha-item-type-label' : '.acu-gacha-item-quality-label',
-        );
-        const fallbackLabel = labelKey === 'type' ? '类型' : '品质';
-        const nextLabel = await showGachaPoolNameDialog({
-          title: `修改${fallbackLabel}字段名`,
-          label: '字段名',
-          initialValue: String($labelInput.attr('data-label-value') || $labelInput.text() || fallbackLabel),
-          confirmText: '保存',
-        });
-        if (nextLabel === null) return;
-        const trimmed = nextLabel.trim() || fallbackLabel;
-        $labelInput.attr('data-label-value', trimmed).text(trimmed);
-        refreshCustomFieldHeaderSuggestions();
-        refreshEditorIconPreview();
-      })();
-    });
-    overlay.on('click', '.acu-gacha-custom-field-suggestion', event => {
-      const headerName = String($(event.currentTarget).attr('data-header') || '').trim();
-      if (!headerName) return;
-      let targetRow = overlay
-        .find('.acu-gacha-custom-field-row')
-        .filter((_, element) => !String($(element).find('.acu-gacha-custom-field-key').val() || '').trim())
-        .first();
-      if (!targetRow.length) {
-        targetRow = appendCustomFieldRow() || $();
-      }
-      if (!targetRow.length) return;
-      targetRow.find('.acu-gacha-custom-field-key').val(headerName);
-      targetRow.find('.acu-gacha-custom-field-value').trigger('focus');
-    });
-    overlay.on('input change', '.acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input', () => {
-      refreshCustomFieldHeaderSuggestions();
-    });
-    let editorPreviewRaf = 0;
-    const scheduleEditorPreviewRefresh = () => {
-      if (editorPreviewRaf) return;
-      editorPreviewRaf = window.requestAnimationFrame(() => {
-        editorPreviewRaf = 0;
-        if (!overlay.parent().length) return;
-        applyEditorFieldLimits();
-        refreshEditorIconPreview();
-      });
-    };
-    overlay.on(
-      'input change',
-      '.acu-gacha-item-name, .acu-gacha-item-type, .acu-gacha-item-target, .acu-gacha-item-target-table, .acu-gacha-target-column-input, .acu-gacha-item-description, .acu-gacha-item-icon',
-      () => {
-        scheduleEditorPreviewRefresh();
-      },
-    );
-
-    overlay.on('submit', '.acu-gacha-item-editor', function (event) {
-      event.preventDefault();
-      if (isSubmittingItemEditor) return;
-      setItemEditorSubmitting(true);
-      void (async () => {
-        try {
-          const name = String(overlay.find('.acu-gacha-item-name').val() || '').trim();
-          const quality = String(overlay.find('.acu-gacha-item-quality').val() || '普通') as GachaRarity;
-          const rewardTarget = String(overlay.find('.acu-gacha-item-target').val() || 'inventory') as GachaRewardTarget;
-          const targetTable = getEditorTargetTable();
-          const targetColumns = collectEditorTargetColumns();
-          const description = String(overlay.find('.acu-gacha-item-description').val() || '').trim();
-          const rawType = String(overlay.find('.acu-gacha-item-type').val() || '').trim();
-          const type =
-            rewardTarget === 'equipment'
-              ? inferEquipmentTableTypeForGachaItem({ id: existingItem?.id || '', name, type: rawType, description })
-              : rawType || '道具';
-          const icon = String(overlay.find('.acu-gacha-item-icon').val() || '').trim();
-          const weight = Number(overlay.find('.acu-gacha-item-weight').val());
-          const grantQuantity = Math.floor(Number(overlay.find('.acu-gacha-item-quantity').val()));
-          const stackable = overlay.find('.acu-gacha-item-stackable').prop('checked') === true;
-          // 唯一性由品质“唯一”派生，不再使用独立复选框
-          const unique = quality === GACHA_UNIQUE_RARITY;
-          const poolTags = overlay
-            .find('.acu-gacha-item-pool-check:checked')
-            .toArray()
-            .map(element => normalizeGachaPoolId((element as HTMLInputElement).value))
-            .filter(Boolean);
-          const submitFieldLimits = getGachaRewardFieldLimits(rewardTarget);
-
-        if (!name) {
-          if (window.toastr) window.toastr.warning('请输入物品名称');
-          return;
-        }
-        if (countUnicodeCharacters(name) > submitFieldLimits.name) {
-          if (window.toastr) window.toastr.warning(`名称不能超过 ${submitFieldLimits.name} 字`);
-          return;
-        }
-        if (countUnicodeCharacters(description) > submitFieldLimits.description) {
-          if (window.toastr) window.toastr.warning(`描述不能超过 ${submitFieldLimits.description} 字`);
-          return;
-        }
-        if (!GACHA_RARITY_ORDER.includes(quality)) {
-          if (window.toastr) window.toastr.warning('物品品质不合法');
-          return;
-        }
-        if (!GACHA_REWARD_TARGETS.includes(rewardTarget)) {
-          if (window.toastr) window.toastr.warning('发放目标不合法');
-          return;
-        }
-        if (!Number.isFinite(weight) || weight <= 0) {
-          if (window.toastr) window.toastr.warning('权重必须大于 0');
-          return;
-        }
-        if (!Number.isFinite(grantQuantity) || grantQuantity <= 0) {
-          if (window.toastr) window.toastr.warning('发放数量必须是正整数');
-          return;
-        }
-        if (poolTags.length === 0) {
-          if (window.toastr) window.toastr.warning('请至少选择一个卡池');
-          return;
-        }
-        const customFieldResult = collectEditorCustomFields(rewardTarget, targetColumns);
-        if (customFieldResult.message) {
-          if (window.toastr) window.toastr.warning(customFieldResult.message);
-          return;
-        }
-        const tags = customFieldResult.tags;
-        const effect = customFieldResult.effect;
-        const customFields = customFieldResult.customFields;
-        let targetContext: ReturnType<typeof getEditorTargetTableContext>;
-        try {
-          targetContext = getEditorTargetTableContext(rewardTarget, {
-            targetTable,
-            targetColumns,
-            requireNameColumn: true,
-          });
-        } catch (error) {
-          if (window.toastr) window.toastr.warning(getRuntimeErrorMessage(error) || '写入目标无法解析');
-          return;
-        }
-        const customFieldValidation = validateGachaCustomFieldsForTargetTable({
-          target: rewardTarget,
-          tableName: targetContext.parsed.tableName,
-          headers: targetContext.parsed.headers,
-          sheet: targetContext.sheet,
-          item: { name, tags, effect, description, customFields, targetColumns },
-          throwOnMissing: false,
-        });
-        if (customFieldValidation.message) {
-          if (window.toastr) window.toastr.warning(customFieldValidation.message);
-          return;
-        }
-
-        const draftSavedAt = Date.now();
-        const draftItem: GachaItemDefinition = {
-          id: existingItem?.id || buildStableGachaCustomItemId({ name, quality, type }),
-          name,
-          type,
-          quality,
-          ...(tags ? { tags } : {}),
-          ...(effect ? { effect } : {}),
-          description,
-          poolTags,
-          icon: icon || undefined,
-          enabled: isGachaItemEnabled(item),
-          order: item.order,
-          createdAt: existingItem?.createdAt || draftSavedAt,
-          updatedAt: draftSavedAt,
-          weight,
-          stackable,
-          unique,
-          grantQuantity,
-          rewardTarget,
-          ...(targetTable ? { targetTable } : {}),
-          ...(targetColumns ? { targetColumns } : {}),
-          ...(customFields ? { customFields } : {}),
-        };
-
-        const targetWarnings: string[] = [];
-        if (!validateGachaCatalogImportItemTarget(getTableData({ silent: true }) || rawData, draftItem, targetWarnings)) {
-          if (window.toastr) window.toastr.warning(targetWarnings[0] || '自定义物品写入目标无法通过校验');
-          return;
-        }
-
-        try {
-          await runInSaveQueue(async () => {
-            gachaCatalogCache = null;
-            gachaCatalogLoadTask = null;
-            await ensureGachaCatalogLoaded(rawData);
-            const latestCustomItems = getCustomGachaItemDefinitions(rawData);
-            const latestExistingItem = existingItem
-              ? latestCustomItems.find(candidate => candidate.id === existingItem.id) || null
-              : null;
-            if (existingItem && !latestExistingItem) {
-              throw new Error('这个自定义物品已被删除，请重新打开编辑器后再保存。');
-            }
-            if (
-              existingItem &&
-              latestExistingItem &&
-              getGachaItemDefinitionFingerprint(latestExistingItem) !== openedItemFingerprint
-            ) {
-              throw new Error('这个自定义物品已被其他操作更新，请重新打开编辑器后再保存。');
-            }
-            if (!existingItem) {
-              const currentPoolIds = new Set(getAllGachaPoolConfigDefinitions(rawData).map(pool => pool.id));
-              const stalePoolTags = poolTags.filter(
-                tag => tag !== GACHA_ALL_POOL_TAG && !currentPoolIds.has(tag) && !editorCreatablePoolIds.has(tag),
-              );
-              if (stalePoolTags.length > 0) {
-                throw new Error(`所选卡池已被删除或更新：${stalePoolTags.join('、')}。请重新打开编辑器后再保存。`);
-              }
-            }
-            const existingIds = new Set(getAllGachaItemDefinitions(rawData).map(candidate => candidate.id));
-            if (existingItem) existingIds.delete(existingItem.id);
-            const id = existingItem?.id || createUniqueGachaItemId(draftItem.id, existingIds);
-            const savedAt = Date.now();
-            const nextItem: GachaItemDefinition = {
-              ...draftItem,
-              id,
-              enabled: latestExistingItem ? isGachaItemEnabled(latestExistingItem) : isGachaItemEnabled(item),
-              order: latestExistingItem?.order ?? item.order,
-              createdAt: latestExistingItem?.createdAt || existingItem?.createdAt || savedAt,
-              updatedAt: savedAt,
-            };
-            const nextItems = latestExistingItem
-              ? latestCustomItems.map(candidate => (candidate.id === latestExistingItem.id ? nextItem : candidate))
-              : [...latestCustomItems, nextItem];
-            const localStorageSnapshot = collectGachaLocalStorageSnapshot([STORAGE_KEY_GACHA_POOL_SETTINGS]);
-            const savedCatalog = await saveStoredGachaCatalog(nextItems);
-            if (!savedCatalog) throw new Error('自定义物品保存失败');
-            try {
-              ensureGachaPoolsForTags(poolTags);
-            } catch (error) {
-              const rolledBackCatalog = await saveStoredGachaCatalog(latestCustomItems);
-              const rollbackWarnings = restoreGachaLocalStorageSnapshot(localStorageSnapshot);
-              const message = getRuntimeErrorMessage(error) || '写入卡池配置失败';
-              const rollbackMessage = [
-                !rolledBackCatalog ? '自定义物品目录回滚失败' : '',
-                ...rollbackWarnings,
-              ].filter(Boolean).join('；');
-              if (rollbackMessage) throw new Error(`${message}；${rollbackMessage}`);
-              throw error;
-            }
-          });
-        } catch (error) {
-          console.error('[DICE][GACHA]保存自定义物品失败:', error);
-          if (window.toastr)
-            showActionableErrorToast(`自定义物品保存失败: ${getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
-          return;
-        }
-        refreshGachaVisualization(rawData);
-        refreshGachaShardShop();
-        closeEditor();
-        if (window.toastr) window.toastr.success(existingItem ? '自定义物品已更新' : '自定义物品已创建');
-        void showGachaSettingsDialog();
-        } finally {
-          if (overlay.parent().length > 0) setItemEditorSubmitting(false);
-          else isSubmittingItemEditor = false;
-        }
-      })();
-    });
-  };
+  const showGachaItemEditorDialog = createShowGachaItemEditorDialog({
+    bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
+    buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
+    buildGachaCustomFieldHeaderMap: (...a: any[]) => buildGachaCustomFieldHeaderMap(...a),
+    buildStableGachaCustomItemId: (...a: any[]) => buildStableGachaCustomItemId(...a),
+    collectGachaLocalStorageSnapshot: (...a: any[]) => collectGachaLocalStorageSnapshot(...a),
+    countUnicodeCharacters: (...a: any[]) => countUnicodeCharacters(...a),
+    createUniqueGachaItemId: (...a: any[]) => createUniqueGachaItemId(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    ensureGachaPoolsForTags: (...a: any[]) => ensureGachaPoolsForTags(...a),
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getAllGachaPoolConfigDefinitions: (...a: any[]) => getAllGachaPoolConfigDefinitions(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getGachaCustomFieldEntries: (...a: any[]) => getGachaCustomFieldEntries(...a),
+    getGachaItemCustomTableNameIconContext: (...a: any[]) => getGachaItemCustomTableNameIconContext(...a),
+    getGachaItemDefinitionFingerprint: (...a: any[]) => getGachaItemDefinitionFingerprint(...a),
+    getGachaNamedCustomField: (...a: any[]) => getGachaNamedCustomField(...a),
+    getGachaReservedCustomFieldHeaders: (...a: any[]) => getGachaReservedCustomFieldHeaders(...a),
+    getGachaRewardFieldLimits: (...a: any[]) => getGachaRewardFieldLimits(...a),
+    getGachaShopProgressContainers: (...a: any[]) => getGachaShopProgressContainers(...a),
+    getJsonLikeErrorMessage: (...a: any[]) => getJsonLikeErrorMessage(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    inferEquipmentTableTypeForGachaItem: (...a: any[]) => inferEquipmentTableTypeForGachaItem(...a),
+    isGachaFieldAlias: (...a: any[]) => isGachaFieldAlias(...a),
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    normalizeGachaCustomFields: (...a: any[]) => normalizeGachaCustomFields(...a),
+    normalizeGachaRewardTarget: (...a: any[]) => normalizeGachaRewardTarget(...a),
+    normalizeGachaTargetColumns: (...a: any[]) => normalizeGachaTargetColumns(...a),
+    normalizeGachaTargetTable: (...a: any[]) => normalizeGachaTargetTable(...a),
+    parseEquipmentItems: (...a: any[]) => parseEquipmentItems(...a),
+    parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
+    restoreGachaLocalStorageSnapshot: (...a: any[]) => restoreGachaLocalStorageSnapshot(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    saveStoredGachaCatalog: (...a: any[]) => saveStoredGachaCatalog(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showGachaPoolNameDialog: (...a: any[]) => showGachaPoolNameDialog(...a),
+    showGachaSettingsDialog: (...a: any[]) => showGachaSettingsDialog(...a),
+    startGachaShopUiRefresh: (...a: any[]) => startGachaShopUiRefresh(...a),
+    truncateGachaText: (...a: any[]) => truncateGachaText(...a),
+    validateGachaCatalogImportItemTarget: (...a: any[]) => validateGachaCatalogImportItemTarget(...a),
+    validateGachaCustomFieldsForTargetTable: (...a: any[]) => validateGachaCustomFieldsForTargetTable(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH: GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH,
+    GACHA_CUSTOM_FIELD_MAX_COUNT: GACHA_CUSTOM_FIELD_MAX_COUNT,
+    GACHA_CUSTOM_FIELD_RESERVED_KEYS: GACHA_CUSTOM_FIELD_RESERVED_KEYS,
+    GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH: GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH,
+    GACHA_EFFECT_FIELD_ALIASES: GACHA_EFFECT_FIELD_ALIASES,
+    GACHA_TAG_FIELD_ALIASES: GACHA_TAG_FIELD_ALIASES,
+    GACHA_TARGET_COLUMN_KEYS: GACHA_TARGET_COLUMN_KEYS,
+    GACHA_TARGET_COLUMN_LABELS: GACHA_TARGET_COLUMN_LABELS,
+    GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH: GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH,
+    GACHA_TARGET_TABLE_MAX_LENGTH: GACHA_TARGET_TABLE_MAX_LENGTH,
+    STORAGE_KEY_GACHA_POOL_SETTINGS: STORAGE_KEY_GACHA_POOL_SETTINGS,
+    getCachedRawData: () => cachedRawData,
+    getGachaCatalogCache: () => gachaCatalogCache,
+    setGachaCatalogCache: (v: any) => { gachaCatalogCache = v; },
+    getGachaCatalogLoadTask: () => gachaCatalogLoadTask,
+    setGachaCatalogLoadTask: (v: any) => { gachaCatalogLoadTask = v; },
+      getGachaShopUiRefreshTimer: () => gachaShopUiRefreshTimer,
+    setGachaShopUiRefreshTimer: (v: any) => { gachaShopUiRefreshTimer = v; },
+});
 
   const dismantleInventoryItem = async (rowIndex: number) => {
     try {
