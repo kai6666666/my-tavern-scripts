@@ -85,6 +85,16 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createDismantleInventoryItem } from './features/table/dismantle-inventory-item';
+import { createParseEquipmentItems } from './features/table/parse-equipment-items';
+import { createParseInventoryItems } from './features/table/parse-inventory-items';
+import { createHandleInventoryAction } from './features/table/handle-inventory-action';
+import { createSaveInventoryFieldValue } from './features/table/save-inventory-field-value';
+import { createGetInteractOptionsForRow } from './features/table/get-interact-options-for-row';
+import { createExchangeGachaShardItem } from './features/gacha/exchange-gacha-shard-item';
+import { createShowInventoryMetaEditDialog } from './features/table/inventory-meta-edit-dialog';
+import { createExecuteNormalCheckSuggestion } from './features/checks/execute-normal-check-suggestion';
+import { createRefreshRegexRulesList } from './features/regex/refresh-regex-rules-list';
 import { createRenderGachaShardShopHtml } from './features/gacha/render-shard-shop-html';
 import { createRenderGachaPanelHtml } from './features/gacha/render-gacha-panel-html';
 import { createPerformGachaDraw } from './features/gacha/perform-gacha-draw';
@@ -9302,50 +9312,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * @param rowData 行数据数组
    * @returns 完整的动作列表（默认动作在前，自定义动作在后）
    */
-  const getInteractOptionsForRow = (tableName: string, headers: unknown[], rowData: unknown[]) => {
-    // 1. 获取基于表格类型的默认动作（返回副本避免变异）
-    const defaultActions = [...getActionsForTable(tableName)];
-
-    // 2. 查找"交互选项"列索引
-    const interactColIdx = headers.findIndex(h => h && String(h).includes('交互'));
-    if (interactColIdx < 0 || !rowData[interactColIdx]) {
-      return defaultActions;
-    }
-
-    // 3. 过滤无效值
-    const invalidValues = ['-', 'null', 'none', '无', '空', 'n/a', 'undefined', '/'];
-    const cellValue = String(rowData[interactColIdx]).trim();
-    if (!cellValue || invalidValues.includes(cellValue.toLowerCase())) {
-      return defaultActions;
-    }
-
-    // 4. 解析分隔的选项
-    const interactOptions = cellValue
-      .split(/[,，、;；]/)
-      .map(s => s.trim())
-      .filter(s => s && !invalidValues.includes(s.toLowerCase()));
-
-    if (interactOptions.length === 0) {
-      return defaultActions;
-    }
-
-    // 5. 获取默认动作的标签列表，用于去重
-    const existingLabels = defaultActions.map(a => a.label.toLowerCase());
-
-    // 6. 只追加不在默认动作中的自定义选项
-    const newActions = interactOptions
-      .filter(opt => !existingLabels.includes(opt.toLowerCase()))
-      .map(opt => ({
-        label: opt,
-        icon: ACTION_ICON_MAP[opt] || 'fa-hand-pointer',
-        type: 'prompt',
-        template: `<user>对{Name}执行互动:${opt}。`,
-        auto_send: true,
-      }));
-
-    // 7. 返回合并后的数组：默认动作 + 自定义动作
-    return [...defaultActions, ...newActions];
-  };
+  const getInteractOptionsForRow = createGetInteractOptionsForRow({
+    getActionsForTable: (...a: any[]) => getActionsForTable(...a),
+    getACTION_ICON_MAP: () => ACTION_ICON_MAP,
+  });
 
   interface GlobalInteractionAction {
     label: string;
@@ -30310,48 +30280,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   // ========================================
   // [新增] 正则规则列表局部刷新函数 - 避免全量重渲染
   // ========================================
-  const refreshRegexRulesList = () => {
-    const { $ } = getCore();
-    const dialog = $('.acu-settings-dialog');
-    if (!dialog.length) return;
-
-    const $rulesList = dialog.find('#regex-rules-list');
-    if (!$rulesList.length) return;
-
-    // 生成新的规则列表HTML
-    const rules = RegexTransformationManager.getAllRules();
-    const html = rules
-      .map(rule => {
-        const scopeIcon =
-          rule.scope.type === 'global' ? 'fa-globe' : rule.scope.type === 'table' ? 'fa-table' : 'fa-columns';
-        const scopeText =
-          rule.scope.type === 'global'
-            ? '全局'
-            : rule.scope.type === 'table'
-              ? rule.scope.tableNames?.join(',')
-              : `${rule.scope.tableNames?.join(',')}.${rule.scope.columnNames?.join(',')}`;
-        return `
-          <div class="acu-validation-rule-item ${rule.enabled ? '' : 'disabled'}" data-rule-id="${escapeHtml(rule.id)}">
-              <div class="acu-rule-type-icon" title="作用域: ${escapeHtml(rule.scope.type)}">
-                  <i class="fa-solid ${scopeIcon}"></i>
-              </div>
-              <div class="acu-rule-info">
-                  <div class="acu-rule-name">${escapeHtml(rule.name)}</div>
-                  <div class="acu-rule-target" style="font-size:10px;">${escapeHtml(scopeText)} | ${escapeHtml(rule.operation)}</div>
-              </div>
-              <button type="button" class="acu-rule-action acu-rule-edit" data-rule-id="${escapeHtml(rule.id)}" title="编辑此规则" aria-label="编辑此规则"><i class="fa-solid fa-pen"></i></button>
-              <div class="acu-rule-toggle ${rule.enabled ? 'active' : ''}" title="点击切换启用/禁用">
-                  <i class="fa-solid ${rule.enabled ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
-              </div>
-              <button type="button" class="acu-rule-action acu-rule-delete" data-rule-id="${escapeHtml(rule.id)}" title="删除此规则" aria-label="删除此规则"><i class="fa-solid fa-trash"></i></button>
-          </div>
-      `;
-      })
-      .join('');
-
-    // 局部替换HTML,不影响其他面板
-    $rulesList.html(html);
-  };
+  const refreshRegexRulesList = createRefreshRegexRulesList({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    RegexTransformationManager: RegexTransformationManager,
+  });
 
   // ========================================
   // 新建/编辑数据验证规则弹窗
@@ -32144,66 +32077,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     smartInsertToTextarea(buildCheckSuggestionMetaBlock(`元叙事：无需投骰，【${label}】。`), 'dice');
   };
 
-  const executeNormalCheckSuggestion = (command: Extract<CheckSuggestionParsedCommand, { kind: 'check' }>) => {
-    refreshNameAliasesForCheckSuggestion();
-    const characterName = resolveCheckSuggestionCharacterName(command.characterName);
-    const targetValue = command.targetValue ?? getAttributeValue(characterName, command.attributeName);
-    if (targetValue === null) {
-      throw new Error(`未找到 ${replaceUserPlaceholders(characterName)} 的属性「${command.attributeName}」`);
-    }
-
-    const rollResult = rollComplexDiceExpression(command.diceType);
-    if (Number.isNaN(rollResult.total)) {
-      throw new Error(`无效的骰子公式：${command.diceType}`);
-    }
-
-    const sides = getCheckSuggestionDiceSides(command.diceType);
-    const finalRoll = rollResult.total;
-    const successLevel = getSuccessLevel(finalRoll, targetValue, sides);
-    const success = command.criteria === 'gte' ? finalRoll >= targetValue : successLevel.level >= 0;
-    const outcomeText = command.criteria === 'gte' ? (success ? '成功' : '失败') : successLevel.name;
-    const judgeExpr = command.criteria === 'gte' ? `需≥${targetValue}` : `需≤${targetValue}`;
-    const displayName = replaceUserPlaceholders(characterName);
-    const metaContent = `元叙事：${displayName}发起了【${command.attributeName}】检定，${command.diceType}=${finalRoll}，${judgeExpr}，【${outcomeText}】。`;
-    smartInsertToTextarea(buildCheckSuggestionMetaBlock(metaContent), 'dice');
-
-    const timestamp = Date.now();
-    const detailId = `check_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
-    const checkResultWithTimestamp = {
-      success,
-      roll: finalRoll,
-      total: finalRoll,
-      target: targetValue,
-      margin: command.criteria === 'gte' ? finalRoll - targetValue : targetValue - finalRoll,
-      criticalSuccess: sides === 100 ? finalRoll <= 5 : finalRoll === sides,
-      criticalFailure: sides === 100 ? finalRoll >= 96 : finalRoll === 1,
-      message: outcomeText,
-      diceType: command.diceType,
-      rule: command.criteria === 'gte' ? ('dnd' as const) : ('coc' as const),
-      outcomeText,
-      attrName: command.attributeName,
-      formula: command.diceType,
-      criteria: command.criteria,
-      isAutoTarget: command.targetValue === null,
-      timestamp,
-      detailId,
-      initiatorName: characterName,
-      historyType: 'check' as const,
-      detailLines: [
-        `发起者: ${displayName}`,
-        `属性: ${command.attributeName} (值=${targetValue})`,
-        `公式: ${command.diceType}`,
-        `掷骰: ${finalRoll}`,
-        `判定: ${judgeExpr}`,
-        `结果: ${outcomeText}`,
-      ],
-    };
-    checkHistory.push(checkResultWithTimestamp);
-    if (checkHistory.length > MAX_HISTORY) {
-      checkHistory.shift();
-    }
-    emitEvent('check', checkResultWithTimestamp);
-  };
+  const executeNormalCheckSuggestion = createExecuteNormalCheckSuggestion({
+    buildCheckSuggestionMetaBlock: (...a: any[]) => buildCheckSuggestionMetaBlock(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    getAttributeValue: (...a: any[]) => getAttributeValue(...a),
+    getCheckSuggestionDiceSides: (...a: any[]) => getCheckSuggestionDiceSides(...a),
+    getSuccessLevel: (...a: any[]) => getSuccessLevel(...a),
+    refreshNameAliasesForCheckSuggestion: (...a: any[]) => refreshNameAliasesForCheckSuggestion(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    resolveCheckSuggestionCharacterName: (...a: any[]) => resolveCheckSuggestionCharacterName(...a),
+    MAX_HISTORY: MAX_HISTORY,
+    checkHistory: checkHistory,
+    smartInsertToTextarea: smartInsertToTextarea,
+  });
 
   const executeContestCheckSuggestion = createExecuteContestCheckSuggestion({
     buildCheckSuggestionMetaBlock: (...a: any[]) => buildCheckSuggestionMetaBlock(...a),
@@ -43373,77 +43259,22 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     setGachaShopUiRefreshTimer: (v: any) => { gachaShopUiRefreshTimer = v; },
 });
 
-  const dismantleInventoryItem = async (rowIndex: number) => {
-    try {
-      await runInSaveQueue(async () => {
-        const context = getInventoryDetailContext(rowIndex, { preferLatest: true });
-        if (!context) {
-          if (window.toastr) window.toastr.warning('未找到可拆解的物品');
-          return;
-        }
-
-        const rarity = String(context.item.quality || '').trim();
-        if (!isGachaRarity(rarity)) {
-          if (window.toastr) window.toastr.warning('当前物品品质不支持拆解');
-          return;
-        }
-
-        const quantityAvailable = Math.max(1, Number.parseInt(String(context.item.quantity || 1), 10) || 1);
-        const definition = findGachaDefinitionByInventoryItem(context.item, context.rawData);
-        const dismantleUnitSize = definition ? getGachaItemGrantQuantity(definition) : 1;
-        const maxDismantleUnits = Math.floor(quantityAvailable / dismantleUnitSize);
-        if (maxDismantleUnits <= 0) {
-          if (window.toastr)
-            window.toastr.warning(`至少需要 ${dismantleUnitSize} 个${context.item.name}才能拆解为碎片`);
-          return;
-        }
-
-        let dismantleUnits = 1;
-        if (maxDismantleUnits > 1) {
-          const unitLabel = dismantleUnitSize > 1 ? `组（每组 ${dismantleUnitSize} 个）` : '个';
-          const input = await showDiceSystemInputDialog({
-            title: '拆解数量',
-            message: `请输入要拆解的${unitLabel}数量（1-${maxDismantleUnits}）`,
-            iconClass: 'fa-cubes-stacked',
-            initialValue: String(maxDismantleUnits),
-            inputMode: 'numeric',
-            confirmText: '继续拆解',
-          });
-          if (input === null) return;
-          dismantleUnits = Number.parseInt(String(input || '').trim(), 10);
-          if (!Number.isFinite(dismantleUnits) || dismantleUnits <= 0 || dismantleUnits > maxDismantleUnits) {
-            if (window.toastr) window.toastr.warning('拆解数量不合法');
-            return;
-          }
-        }
-        const dismantleQuantity = dismantleUnits * dismantleUnitSize;
-
-        const state = touchGachaActivity(getGachaState(context.rawData, true));
-        if (!state) return;
-        const shardGain = addGachaShards(state, rarity, GACHA_SHARD_VALUES[rarity] * dismantleUnits);
-        const nextQuantity = quantityAvailable - dismantleQuantity;
-
-        if (nextQuantity <= 0) {
-          context.rawData[context.item.tableKey].content.splice(context.item.rowIndex + 1, 1);
-        } else if (context.colMap.quantity >= 0) {
-          context.row[context.colMap.quantity] = String(nextQuantity);
-        }
-
-        await persistRawDataWithGacha(context.rawData, [context.item.tableKey], state);
-        $('.acu-inventory-detail-overlay').remove();
-        refreshGachaVisualization();
-        refreshInventoryVisualization();
-        if (window.toastr) {
-          window.toastr.success(
-            `已拆解 ${context.item.name}${dismantleQuantity > 1 ? ` ×${dismantleQuantity}` : ''}，获得 ${shardGain}${getGachaShardLabel(rarity)}`,
-            '骰子商店',
-          );
-        }
-      });
-    } catch (error) {
-      showGachaSaveError(error, '拆解保存');
-    }
-  };
+  const dismantleInventoryItem = createDismantleInventoryItem({
+    addGachaShards: (...a: any[]) => addGachaShards(...a),
+    findGachaDefinitionByInventoryItem: (...a: any[]) => findGachaDefinitionByInventoryItem(...a),
+    getGachaItemGrantQuantity: (...a: any[]) => getGachaItemGrantQuantity(...a),
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
+    isGachaRarity: (...a: any[]) => isGachaRarity(...a),
+    persistRawDataWithGacha: (...a: any[]) => persistRawDataWithGacha(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    refreshInventoryVisualization: (...a: any[]) => refreshInventoryVisualization(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    showDiceSystemInputDialog: (...a: any[]) => showDiceSystemInputDialog(...a),
+    showGachaSaveError: (...a: any[]) => showGachaSaveError(...a),
+    touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
+  });
 
   const normalizeGachaMessageId = (messageId?: unknown): string => {
     if (typeof messageId === 'string' || typeof messageId === 'number') {
@@ -43893,56 +43724,13 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     );
   };
 
-  const parseInventoryItems = (rawData, options: GachaRewardParseOptions = {}) => {
-    const inventoryResult = getInventoryResult(rawData, options);
-    if (!inventoryResult?.data) {
-      return {
-        tableName: '物品表',
-        tableKey: '',
-        headers: [],
-        items: [] as InventoryParsedItem[],
-        colMap: getInventoryColumnMap(inventoryResult),
-      };
-    }
-
-    const headers = inventoryResult.data.headers || [];
-    const rows = inventoryResult.data.rows || [];
-    const colMap = getInventoryColumnMap(inventoryResult, options);
-    const tableName = inventoryResult.name || '物品表';
-    if (options.requireNameColumn) assertGachaRewardNameColumn(tableName, headers, colMap);
-
-    const items = rows
-      .map((row, rowIndex) => {
-        const name = String(row[colMap.name] ?? '').trim();
-        if (!name) return null;
-        const rawRowIndex = Number((row as Record<string, unknown>)[GACHA_CATALOG_RAW_ROW_INDEX_PROP]);
-        const rawQuantity = String(row[colMap.quantity] ?? '1').trim();
-        const quantity = Number.parseInt(rawQuantity, 10);
-        const rowNewKey = `${tableName}-row-${rowIndex}`;
-        const quantityChangedKey = `${tableName}-${rowIndex}-${colMap.quantity}`;
-        const isNew = currentDiffMap.has(rowNewKey);
-        const quantityChanged = colMap.quantity >= 0 && currentDiffMap.has(quantityChangedKey);
-        return {
-          name,
-          type: String(row[colMap.type] ?? '道具').trim() || '道具',
-          quantityText: rawQuantity || '1',
-          quantity: Number.isFinite(quantity) ? quantity : 1,
-          quality: String(row[colMap.quality] ?? '普通').trim() || '普通',
-          tags: typeof colMap.tags === 'number' && colMap.tags >= 0 ? String(row[colMap.tags] ?? '').trim() : '',
-          effect: typeof colMap.effect === 'number' && colMap.effect >= 0 ? String(row[colMap.effect] ?? '').trim() : '',
-          description: String(row[colMap.description] ?? '').trim(),
-          rowIndex: Number.isFinite(rawRowIndex) ? rawRowIndex : rowIndex,
-          tableName,
-          tableKey: inventoryResult.key || '',
-          isNew,
-          quantityChanged,
-          isChanged: isNew || quantityChanged,
-        };
-      })
-      .filter((item): item is InventoryParsedItem => Boolean(item));
-
-    return { tableName, tableKey: inventoryResult.key || '', headers, items, colMap };
-  };
+  const parseInventoryItems = createParseInventoryItems({
+    assertGachaRewardNameColumn: (...a: any[]) => assertGachaRewardNameColumn(...a),
+    getInventoryColumnMap: (...a: any[]) => getInventoryColumnMap(...a),
+    getInventoryResult: (...a: any[]) => getInventoryResult(...a),
+    GACHA_CATALOG_RAW_ROW_INDEX_PROP: GACHA_CATALOG_RAW_ROW_INDEX_PROP,
+    getCurrentDiffMap: () => currentDiffMap,
+  });
 
   const getEquipmentResult = (rawData, options: GachaRewardParseOptions = {}) => {
     const targetOverride = resolveGachaTargetTableOverride(rawData, 'equipment', options);
@@ -43974,59 +43762,13 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     );
   };
 
-  const parseEquipmentItems = (rawData, options: GachaRewardParseOptions = {}) => {
-    const equipmentResult = getEquipmentResult(rawData, options);
-    if (!equipmentResult?.data) {
-      return {
-        tableName: '装备表',
-        tableKey: '',
-        headers: [],
-        items: [] as InventoryParsedItem[],
-        colMap: getEquipmentColumnMap(equipmentResult),
-      };
-    }
-
-    const headers = equipmentResult.data.headers || [];
-    const rows = equipmentResult.data.rows || [];
-    const colMap = getEquipmentColumnMap(equipmentResult, options);
-    const tableName = equipmentResult.name || '装备表';
-    if (options.requireNameColumn) assertGachaRewardNameColumn(tableName, headers, colMap);
-
-    const items = rows
-      .map((row, rowIndex) => {
-        const name = String(row[colMap.name] ?? '').trim();
-        if (!name) return null;
-        const rawRowIndex = Number((row as Record<string, unknown>)[GACHA_CATALOG_RAW_ROW_INDEX_PROP]);
-        const rawQuantity = colMap.quantity >= 0 ? String(row[colMap.quantity] ?? '1').trim() : '1';
-        const quantity = Number.parseInt(rawQuantity, 10);
-        const rowNewKey = `${tableName}-row-${rowIndex}`;
-        const statusChangedKey =
-          typeof colMap.status === 'number' && colMap.status >= 0 ? `${tableName}-${rowIndex}-${colMap.status}` : '';
-        const isNew = currentDiffMap.has(rowNewKey);
-        const quantityChanged =
-          (colMap.quantity >= 0 && currentDiffMap.has(`${tableName}-${rowIndex}-${colMap.quantity}`)) ||
-          (statusChangedKey ? currentDiffMap.has(statusChangedKey) : false);
-        return {
-          name,
-          type: String(row[colMap.type] ?? '装备').trim() || '装备',
-          quantityText: rawQuantity || '1',
-          quantity: Number.isFinite(quantity) ? quantity : 1,
-          quality: String(row[colMap.quality] ?? '普通').trim() || '普通',
-          tags: typeof colMap.tags === 'number' && colMap.tags >= 0 ? String(row[colMap.tags] ?? '').trim() : '',
-          effect: typeof colMap.effect === 'number' && colMap.effect >= 0 ? String(row[colMap.effect] ?? '').trim() : '',
-          description: String(row[colMap.description] ?? '').trim(),
-          rowIndex: Number.isFinite(rawRowIndex) ? rawRowIndex : rowIndex,
-          tableName,
-          tableKey: equipmentResult.key || '',
-          isNew,
-          quantityChanged,
-          isChanged: isNew || quantityChanged,
-        };
-      })
-      .filter((item): item is InventoryParsedItem => Boolean(item));
-
-    return { tableName, tableKey: equipmentResult.key || '', headers, items, colMap };
-  };
+  const parseEquipmentItems = createParseEquipmentItems({
+    assertGachaRewardNameColumn: (...a: any[]) => assertGachaRewardNameColumn(...a),
+    getEquipmentColumnMap: (...a: any[]) => getEquipmentColumnMap(...a),
+    getEquipmentResult: (...a: any[]) => getEquipmentResult(...a),
+    GACHA_CATALOG_RAW_ROW_INDEX_PROP: GACHA_CATALOG_RAW_ROW_INDEX_PROP,
+    getCurrentDiffMap: () => currentDiffMap,
+  });
 
   const getStoredGachaShardShopRarity = (): GachaRarity => {
     const stored = String(Store.get(STORAGE_KEY_GACHA_SHARD_SHOP_RARITY, '普通') || '普通') as GachaRarity;
@@ -44119,62 +43861,28 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     getCachedRawData: () => cachedRawData,
   });
 
-  const exchangeGachaShardItem = async (itemId: string) => {
-    try {
-      await runInSaveQueue(async () => {
-        const rawData = getTableData({ silent: true }) || cachedRawData;
-        if (!rawData) return;
-        await ensureGachaCatalogLoaded(rawData);
-        const item = getAllGachaItemDefinitions(rawData).find(definition => definition.id === itemId);
-        if (!item) return;
-        if (!isGachaItemEnabled(item)) {
-          if (window.toastr) window.toastr.warning('这个物品已禁用，暂时无法兑换');
-          return;
-        }
-        if (!hasGachaRewardTableForItem(rawData, item)) {
-          warnTableTemplateIssue(
-            `未找到${formatGachaRewardDestinationLabel(rawData, item)}，暂时无法兑换。请检查该物品的 targetTable 或当前仪表盘预设。`,
-          );
-          return;
-        }
-        const state = touchGachaActivity(getGachaState(rawData, true));
-        if (!state) return;
-        const ownedBlocked = isGachaItemOwned(rawData, item) && (item.unique || !item.stackable);
-        if (ownedBlocked) {
-          if (window.toastr)
-            window.toastr.warning(
-              `这个物品已在${formatGachaRewardDestinationLabel(rawData, item)}中拥有，不能重复兑换`,
-            );
-          return;
-        }
-        const balance = Math.max(0, Math.floor(Number(state.wallet.shards[item.quality] || 0)));
-        if (balance < GACHA_SHARD_EXCHANGE_COST) {
-          if (window.toastr) window.toastr.warning(`${getGachaShardLabel(item.quality)}不足`);
-          return;
-        }
-        state.wallet.shards[item.quality] = balance - GACHA_SHARD_EXCHANGE_COST;
-        let result: { outcome: GachaDrawOutcome; modifiedSheetKey?: string } | null;
-        try {
-          result = grantGachaReward(rawData, state, item, 1);
-        } catch (error) {
-          state.wallet.shards[item.quality] = balance;
-          throw error;
-        }
-        if (!result || result.outcome.duplicateConverted) {
-          state.wallet.shards[item.quality] = balance;
-          if (window.toastr) window.toastr.warning('兑换失败，碎片已退回');
-          return;
-        }
-        await persistRawDataWithGacha(rawData, result.modifiedSheetKey ? [result.modifiedSheetKey] : undefined, state);
-        refreshGachaVisualization();
-        refreshGachaShardShop();
-        refreshInventoryVisualization();
-        if (window.toastr) window.toastr.success(`已兑换 ${item.name}`, '碎片商城');
-      });
-    } catch (error) {
-      showGachaSaveError(error, '碎片兑换保存');
-    }
-  };
+  const exchangeGachaShardItem = createExchangeGachaShardItem({
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    formatGachaRewardDestinationLabel: (...a: any[]) => formatGachaRewardDestinationLabel(...a),
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    grantGachaReward: (...a: any[]) => grantGachaReward(...a),
+    hasGachaRewardTableForItem: (...a: any[]) => hasGachaRewardTableForItem(...a),
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    isGachaItemOwned: (...a: any[]) => isGachaItemOwned(...a),
+    persistRawDataWithGacha: (...a: any[]) => persistRawDataWithGacha(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    refreshInventoryVisualization: (...a: any[]) => refreshInventoryVisualization(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    showGachaSaveError: (...a: any[]) => showGachaSaveError(...a),
+    touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
+    warnTableTemplateIssue: (...a: any[]) => warnTableTemplateIssue(...a),
+    GACHA_SHARD_EXCHANGE_COST: GACHA_SHARD_EXCHANGE_COST,
+    getCachedRawData: () => cachedRawData,
+  });
 
   const showGachaShardExchangeConfirm = createShowGachaShardExchangeConfirm({
     createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
@@ -44471,49 +44179,16 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     reopenInventoryItemDetail(rowIndex);
   };
 
-  const saveInventoryFieldValue = async (rowIndex: number, fieldKey: InventoryEditableField, nextValue: string) => {
-    const context = getInventoryDetailContext(rowIndex);
-    if (!context) {
-      if (window.toastr) window.toastr.warning('未找到物品数据');
-      return;
-    }
-
-    if (fieldKey === 'acquiredAtLocation' || fieldKey === 'acquiredAt') {
-      const currentRecord = getInventoryMetadataForItem(context.rawData, context.item) || {
-        acquiredAt: '',
-        acquiredAtLocation: '',
-      };
-      const nextRecord: InventoryMetadataRecord = {
-        ...currentRecord,
-        [fieldKey]: String(nextValue || '').trim(),
-      };
-      await saveInventoryMetadataRecord(rowIndex, nextRecord);
-      return;
-    }
-
-    const trimmedValue = String(nextValue || '').trim();
-    if (fieldKey === 'name' && !trimmedValue) {
-      if (window.toastr) window.toastr.warning('物品名称不能为空');
-      return;
-    }
-
-    const colIdx = getInventoryFieldColumnIndex(context.colMap, fieldKey);
-    if (colIdx < 0) {
-      warnTableTemplateIssue(`未找到“${getInventoryFieldLabel(fieldKey)}”列`);
-      return;
-    }
-
-    const nextRow = [...context.row];
-    nextRow[colIdx] = nextValue;
-    await saveRowInstantly(context.item.tableKey, context.item.rowIndex, nextRow, {
-      tableName: context.item.tableName,
-      headers: context.headers,
-      currentRow: context.row,
-      sourceData: context.rawData,
-      sheet: context.rawData?.[context.item.tableKey],
-    });
-    reopenInventoryItemDetail(rowIndex);
-  };
+  const saveInventoryFieldValue = createSaveInventoryFieldValue({
+    getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
+    getInventoryFieldColumnIndex: (...a: any[]) => getInventoryFieldColumnIndex(...a),
+    getInventoryFieldLabel: (...a: any[]) => getInventoryFieldLabel(...a),
+    getInventoryMetadataForItem: (...a: any[]) => getInventoryMetadataForItem(...a),
+    reopenInventoryItemDetail: (...a: any[]) => reopenInventoryItemDetail(...a),
+    saveInventoryMetadataRecord: (...a: any[]) => saveInventoryMetadataRecord(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    warnTableTemplateIssue: (...a: any[]) => warnTableTemplateIssue(...a),
+  });
 
   const renderInventoryMetadataHtml = record => {
     const acquiredAtLocation = String(record?.acquiredAtLocation || '').trim() || '未知';
@@ -44547,67 +44222,15 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     warnTableTemplateIssue: (...a: any[]) => warnTableTemplateIssue(...a),
   });
 
-  const showInventoryMetaEditDialog = rowIndex => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const context = getInventoryDetailContext(rowIndex);
-    if (!context) {
-      if (window.toastr) window.toastr.warning('未找到物品数据');
-      return;
-    }
-
-    const record = getInventoryMetadataForItem(context.rawData, context.item) || {
-      acquiredAt: '',
-      acquiredAtLocation: '',
-    };
-    const dialog = $(`
-      <div class="acu-edit-overlay acu-inventory-edit-overlay acu-inventory-meta-overlay">
-        <div class="acu-edit-dialog acu-theme-${config.theme} acu-inventory-meta-dialog">
-          <div class="acu-edit-title"><i class="fa-solid fa-pen-to-square"></i> 编辑获得信息 · ${escapeHtml(context.item.name)}</div>
-          <div class="acu-settings-content" style="display:flex;flex-direction:column;gap:12px;padding:4px 2px;">
-            <label style="display:flex;flex-direction:column;gap:6px;">
-              <span>获得地</span>
-              <input type="text" class="acu-input acu-inventory-meta-input" data-field="acquiredAtLocation" value="${escapeHtml(record.acquiredAtLocation || '')}" placeholder="例如：校门口甜品店">
-            </label>
-            <label style="display:flex;flex-direction:column;gap:6px;">
-              <span>获取时间</span>
-              <input type="text" class="acu-input acu-inventory-meta-input" data-field="acquiredAt" value="${escapeHtml(record.acquiredAt || '')}" placeholder="例如：2020-05-15 20:05">
-            </label>
-          </div>
-          <div class="acu-dialog-btns">
-            <button class="acu-dialog-btn acu-inventory-meta-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-            <button class="acu-dialog-btn acu-btn-confirm acu-inventory-meta-save"><i class="fa-solid fa-check"></i> 保存</button>
-          </div>
-        </div>
-      </div>
-    `);
-
-    $('body').append(dialog);
-    setupOverlayClose(dialog, 'acu-edit-overlay', () => dialog.remove());
-    dialog.on('click', '.acu-inventory-meta-cancel', () => dialog.remove());
-    dialog.on('click', '.acu-inventory-meta-save', async () => {
-      const nextRecord: InventoryMetadataRecord = {
-        ...record,
-        acquiredAtLocation: String(
-          dialog.find('.acu-inventory-meta-input[data-field="acquiredAtLocation"]').val() || '',
-        ).trim(),
-        acquiredAt: String(dialog.find('.acu-inventory-meta-input[data-field="acquiredAt"]').val() || '').trim(),
-      };
-
-      try {
-        await saveInventoryMetadataRecord(rowIndex, nextRecord);
-        dialog.remove();
-      } catch (e) {
-        console.error('[DICE] 保存物品获得信息失败:', e);
-        if (window.toastr) {
-          showActionableErrorToast('保存获得信息失败', {
-            title: '保存获得信息失败',
-            developerHint: true,
-          });
-        }
-      }
-    });
-  };
+  const showInventoryMetaEditDialog = createShowInventoryMetaEditDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
+    getInventoryMetadataForItem: (...a: any[]) => getInventoryMetadataForItem(...a),
+    saveInventoryMetadataRecord: (...a: any[]) => saveInventoryMetadataRecord(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+  });
 
   const showInventoryDetailMenu = (
     event: JQuery.ClickEvent,
@@ -44789,56 +44412,22 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     smartInsertToTextarea: smartInsertToTextarea,
     getCachedRawData: () => cachedRawData,
   });
-  const handleInventoryAction = (rowIndex, action) => {
-    const { $ } = getCore();
-    const item = findInventoryItemByRow(rowIndex);
-    if (!item && action !== 'detail') return;
-    if (action === 'detail') {
-      showInventoryItemDetail(rowIndex);
-      return;
-    }
-    if (action === 'gift') {
-      void showInventoryGiftDialog(rowIndex);
-      return;
-    }
-    if (action === 'show') {
-      smartInsertToTextarea(`<user>向周围人出示${item.name}。`, 'action');
-      $('.acu-inventory-detail-overlay').remove();
-      return;
-    }
-    if (action === 'send-desc') {
-      smartInsertToTextarea(`${item.name}：${item.description || '暂无描述'}`, 'action');
-      $('.acu-inventory-detail-overlay').remove();
-      return;
-    }
-    if (action === 'jump') {
-      const tableName = resolveExistingTableName(item.tableName);
-      if (!tableName) {
-        warnMissingTableTarget(item.tableName);
-        return;
-      }
-
-      $('.acu-inventory-detail-overlay').remove();
-      closeInventoryVisualization();
-      Store.set(STORAGE_KEY_DASHBOARD_ACTIVE, false);
-      Store.set(STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE, false);
-      Store.set('acu_changes_panel_active', false);
-      saveActiveTabState(tableName);
-      setActiveTableNavButton(tableName);
-      setTimeout(() => renderInterface(), 0);
-      setTimeout(() => {
-        const $targetCard = $(`.acu-data-card[data-row-index="${rowIndex}"]`);
-        if ($targetCard.length) {
-          $targetCard.addClass('acu-highlight-flash');
-          $targetCard[0].scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-          setTimeout(() => $targetCard.removeClass('acu-highlight-flash'), 2000);
-        }
-      }, 300);
-      return;
-    }
-    smartInsertToTextarea(getInventoryActionPrompt(item), 'action');
-    $('.acu-inventory-detail-overlay').remove();
-  };
+  const handleInventoryAction = createHandleInventoryAction({
+    closeInventoryVisualization: (...a: any[]) => closeInventoryVisualization(...a),
+    findInventoryItemByRow: (...a: any[]) => findInventoryItemByRow(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getInventoryActionPrompt: (...a: any[]) => getInventoryActionPrompt(...a),
+    renderInterface: (...a: any[]) => renderInterface(...a),
+    resolveExistingTableName: (...a: any[]) => resolveExistingTableName(...a),
+    saveActiveTabState: (...a: any[]) => saveActiveTabState(...a),
+    setActiveTableNavButton: (...a: any[]) => setActiveTableNavButton(...a),
+    showInventoryGiftDialog: (...a: any[]) => showInventoryGiftDialog(...a),
+    showInventoryItemDetail: (...a: any[]) => showInventoryItemDetail(...a),
+    smartInsertToTextarea: (...a: any[]) => smartInsertToTextarea(...a),
+    warnMissingTableTarget: (...a: any[]) => warnMissingTableTarget(...a),
+    STORAGE_KEY_DASHBOARD_ACTIVE: STORAGE_KEY_DASHBOARD_ACTIVE,
+    STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE: STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE,
+  });
 
   // [修复] 仪表盘NPC头像异步加载（支持IndexedDB本地头像）
   const loadDashboardNpcAvatars = createLoadDashboardNpcAvatars({
