@@ -85,6 +85,19 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createInitCustomDropdown } from './features/ui/init-custom-dropdown';
+import { createApplyConfigStyles } from './features/ui/apply-config-styles';
+import { createGetRandomSkillPool } from './features/dice/get-random-skill-pool';
+import { createDetectVisualizerConflict } from './features/ui/detect-visualizer-conflict';
+import { createGenerateRPGAttributes } from './features/dice/generate-rpg-attributes';
+import { createSaveDataToDatabase } from './features/table/save-data-to-database';
+import { createBindOptionEvents } from './features/ui/bind-option-events';
+import { createInterceptTextareaValue } from './features/textarea/intercept-textarea-value';
+import { createGenerateDiffMap } from './features/changes/generate-diff-map';
+import { createClearPresetAttributesForCharacter } from './features/dice/clear-preset-attributes';
+import { createSelectCrazyParticipant } from './features/dice/select-crazy-participant';
+import { createInjectIndependentOptions } from './features/ui/inject-independent-options';
+import { createEvaluateFormula } from './features/dice/evaluate-formula';
 import { createDismantleInventoryItem } from './features/table/dismantle-inventory-item';
 import { createParseEquipmentItems } from './features/table/parse-equipment-items';
 import { createParseInventoryItems } from './features/table/parse-inventory-items';
@@ -1793,57 +1806,12 @@ import { GachaStateCore } from './features/gacha/gacha-state';
   };
 
   // [新增] 拦截输入框的 value 属性，确保读取时自动替换占位符
-  const interceptTextareaValue = () => {
-    const { $ } = getCore();
-    const $ta = $('#send_textarea');
-    if (!$ta.length) return;
-
-    const textarea = $ta[0] as AcuDiceTextareaElement;
-    if (!textarea || textarea._acuValueIntercepted) return;
-
-    // 标记已拦截，避免重复拦截
-    textarea._acuValueIntercepted = true;
-
-    // 保存原始的 value 属性描述符
-    const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
-    const originalValue = textarea.value;
-
-    // 拦截 value 属性的 getter
-    Object.defineProperty(textarea, 'value', {
-      get: function (this: HTMLTextAreaElement) {
-        // 先获取原始值
-        let val: string;
-        if (originalDescriptor && originalDescriptor.get) {
-          val = originalDescriptor.get.call(this);
-        } else {
-          val = (this as AcuDiceTextareaElement & { _value?: string })._value || originalValue || '';
-        }
-
-        // [性能优化] 快速路径：如果没有骰子数据标记，直接返回
-        // 使用 DOM 属性而非 jQuery data，避免每次 getter 都调用 jQuery
-        // 解决输入 ) 等字符时卡顿的问题
-        const acuTextarea = this as AcuDiceTextareaElement;
-        if (!acuTextarea._acuHasDiceData) {
-          return val;
-        }
-
-        // 检查是否有占位符需要替换，并保留用户在占位符前后继续输入的内容
-        if (val && typeof val === 'string' && val.includes(DICE_RESULT_PLACEHOLDER)) {
-          return resolveTextareaTextWithHiddenDice(acuTextarea, val);
-        }
-        return val;
-      },
-      set: function (this: HTMLTextAreaElement, val: string) {
-        if (originalDescriptor && originalDescriptor.set) {
-          originalDescriptor.set.call(this, val);
-        } else {
-          (this as AcuDiceTextareaElement & { _value?: string })._value = val;
-        }
-        scheduleViewportBoundsRefresh();
-      },
-      configurable: true,
-    });
-  };
+  const interceptTextareaValue = createInterceptTextareaValue({
+    getCore: (...a: any[]) => getCore(...a),
+    resolveTextareaTextWithHiddenDice: (...a: any[]) => resolveTextareaTextWithHiddenDice(...a),
+    scheduleViewportBoundsRefresh: (...a: any[]) => scheduleViewportBoundsRefresh(...a),
+    DICE_RESULT_PLACEHOLDER: DICE_RESULT_PLACEHOLDER,
+  });
   const STORAGE_KEY_TABLE_ORDER = 'acu_table_order';
   const STORAGE_KEY_ACTION_ORDER = 'acu_action_order';
 
@@ -7900,52 +7868,16 @@ ${attributeScaleStr}`;
   };
 
   // 选择参与者
-  const selectCrazyParticipant = () => {
-    const config = getCrazyModeConfig();
-    const rawData = cachedRawData || getTableData();
-    if (!rawData) return null;
-
-    const allTables = processJsonData(rawData || {});
-    const playerResult = DashboardDataParser.findTable(allTables, 'player');
-    const npcResult = DashboardDataParser.findTable(allTables, 'npc');
-
-    // 构建候选列表
-    const candidates = [];
-
-    // 主角
-    if (playerResult?.data?.rows?.length > 0) {
-      const playerName = getDisplayPlayerName() || '主角';
-      const playerAttrs = getFullAttributesForCharacter('<user>');
-      candidates.push({
-        name: playerName,
-        attrs: playerAttrs,
-        isPlayer: true,
-        inScene: true,
-        weight: config.playerWeight,
-      });
-    }
-
-    // NPC
-    if (npcResult) {
-      const npcParsed = DashboardDataParser.parseRows(npcResult, 'npc');
-      npcParsed.forEach(npc => {
-        if (!npc.name) return;
-        const inSceneVal = String(npc.inScene || '').toLowerCase();
-        const isInScene = inSceneVal === 'true' || inSceneVal === '在场';
-        const npcAttrs = getFullAttributesForCharacter(npc.name);
-        candidates.push({
-          name: npc.name,
-          attrs: npcAttrs,
-          isPlayer: false,
-          inScene: isInScene,
-          weight: isInScene ? config.inSceneNpcWeight : config.offSceneNpcWeight,
-        });
-      });
-    }
-
-    if (candidates.length === 0) return null;
-    return weightedRandomSelect(candidates);
-  };
+  const selectCrazyParticipant = createSelectCrazyParticipant({
+    getCrazyModeConfig: (...a: any[]) => getCrazyModeConfig(...a),
+    getDisplayPlayerName: (...a: any[]) => getDisplayPlayerName(...a),
+    getFullAttributesForCharacter: (...a: any[]) => getFullAttributesForCharacter(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    weightedRandomSelect: (...a: any[]) => weightedRandomSelect(...a),
+    getDashboardDataParser: () => DashboardDataParser,
+    getCachedRawData: () => cachedRawData,
+  });
 
   // 选择检定属性
   const selectCrazyAttribute = participant => {
@@ -8010,46 +7942,9 @@ ${attributeScaleStr}`;
    * @param context 变量上下文，如 { 力量: 50, 敏捷: 40 }
    * @returns 计算结果（整数）
    */
-  const evaluateFormula = (formula, context = {}) => {
-    if (!formula) return 0;
+  const evaluateFormula = createEvaluateFormula({
 
-    let expr = String(formula).trim();
-
-    // 1. 替换变量为数值（按长度降序替换，避免部分匹配）
-    const varNames = Object.keys(context).sort((a, b) => b.length - a.length);
-    for (const name of varNames) {
-      const value = context[name];
-      if (typeof value === 'number' && !isNaN(value)) {
-        // 用括号包裹避免运算优先级问题
-        expr = expr.split(name).join(`(${value})`);
-      }
-    }
-
-    // 2. 替换骰子表达式为数值
-    expr = expr.replace(
-      /\d*d(?:\d+|F)(?:[bp]\d+)?(?:r[o]?(?:[><!=]+)?\d*)?(?:!!?(?:[><!=]+\d+)?)?(?:kh\d+|kl\d+|dh\d+|dl\d+)?(?:(?:[><!=]+)\d+)?/gi,
-      match => {
-        const result = rollDiceExpression(match);
-        return Number.isNaN(result.total) ? '0' : String(result.total);
-      },
-    );
-
-    // 3. 安全性检查：只允许数字和基本运算符
-    if (!/^[\d\s+\-*/().]+$/.test(expr)) {
-      console.warn('[DICE]evaluateFormula 公式包含非法字符:', formula, '→', expr);
-      return 0;
-    }
-
-    // 4. 计算数学表达式
-    try {
-      // eslint-disable-next-line no-new-func
-      const result = new Function(`return (${expr})`)();
-      return Math.round(result); // 四舍五入为整数
-    } catch (e) {
-      console.error('[DICE]evaluateFormula 公式计算失败:', formula, '→', expr, e);
-      return 0;
-    }
-  };
+  });
 
   /**
    * 评估条件表达式（支持比较运算和逻辑运算）
@@ -12967,73 +12862,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * 默认状态：返回所有规则预设的属性合并（超级大杂烩）
    * 选中特定规则时：返回该规则的基本属性 + 特殊属性
    */
-  const getRandomSkillPool = () => {
-    try {
-      const preset = AttributePresetManager.getActivePreset();
-      if (preset) {
-        // 选中特定规则：返回该规则的基本属性 + 特殊属性
-        const allAttrs = new Set();
-
-        // 添加基本属性
-        if (preset.baseAttributes && Array.isArray(preset.baseAttributes)) {
-          preset.baseAttributes.forEach(attr => {
-            const attrName = typeof attr === 'string' ? attr : attr && attr.name;
-            if (attrName) {
-              allAttrs.add(attrName);
-            }
-          });
-        }
-
-        // 添加特殊属性
-        if (preset.specialAttributes && Array.isArray(preset.specialAttributes)) {
-          preset.specialAttributes.forEach(attr => {
-            const attrName = typeof attr === 'string' ? attr : attr && attr.name;
-            if (attrName) {
-              allAttrs.add(attrName);
-            }
-          });
-        }
-
-        return Array.from(allAttrs);
-      }
-
-      // 默认状态（没有激活预设）：返回所有规则预设的属性合并（超级大杂烩）
-      const allPresets = AttributePresetManager.getAllPresets() || [];
-      const allAttrs = new Set(RANDOM_SKILL_POOL || []); // 先添加默认池
-
-      // 合并所有预设的基本属性和特殊属性
-      if (Array.isArray(allPresets)) {
-        allPresets.forEach(p => {
-          if (!p) return;
-
-          // 添加基本属性
-          if (p.baseAttributes && Array.isArray(p.baseAttributes)) {
-            p.baseAttributes.forEach(attr => {
-              const attrName = typeof attr === 'string' ? attr : attr && attr.name;
-              if (attrName) {
-                allAttrs.add(attrName);
-              }
-            });
-          }
-
-          // 添加特殊属性
-          if (p.specialAttributes && Array.isArray(p.specialAttributes)) {
-            p.specialAttributes.forEach(attr => {
-              const attrName = typeof attr === 'string' ? attr : attr && attr.name;
-              if (attrName) {
-                allAttrs.add(attrName);
-              }
-            });
-          }
-        });
-      }
-
-      return Array.from(allAttrs);
-    } catch (err) {
-      console.error('[DICE]ACU getRandomSkillPool 错误:', err);
-      return RANDOM_SKILL_POOL || [];
-    }
-  };
+  const getRandomSkillPool = createGetRandomSkillPool({
+    AttributePresetManager: AttributePresetManager,
+    getRANDOM_SKILL_POOL: () => RANDOM_SKILL_POOL,
+  });
 
   // [新增] 随机技能池（用于属性名随机生成，可自由增减）
   const RANDOM_SKILL_POOL = [
@@ -13275,114 +13107,21 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * @param isDNDOrPreset 布尔值(旧版兼容) 或 预设对象 或 null(自动获取激活预设)
    * @returns { base: {...}, special: {...} } 或旧格式 {...}（向后兼容）
    */
-  const generateRPGAttributes = (isDNDOrPreset = undefined) => {
-    // 兼容旧版：如果传入布尔值，使用传统逻辑
-    if (typeof isDNDOrPreset === 'boolean') {
-      const isDND = isDNDOrPreset;
-      const rollDice = sides => Math.floor(Math.random() * sides) + 1;
-      const generate3d6 = () => rollDice(6) + rollDice(6) + rollDice(6);
-
-      const generateValue = () => {
-        if (isDND) {
-          const base = generate3d6();
-          const adjust = rollDice(4) - 2;
-          return Math.max(3, Math.min(18, base + adjust));
-        } else {
-          const base = generate3d6() * 5;
-          const adjust = rollDice(10) - 5;
-          return Math.max(5, Math.min(95, base + adjust));
-        }
-      };
-
-      const result = {};
-      STANDARD_ATTRS.forEach(attr => {
-        result[attr] = generateValue();
-      });
-      return result; // 旧格式
-    }
-
-    // 新版：使用预设系统
-    const preset = isDNDOrPreset || AttributePresetManager.getActivePreset();
-
-    // 如果没有激活预设，使用默认逻辑（百分制六维）
-    if (!preset) {
-      const rollDice = sides => Math.floor(Math.random() * sides) + 1;
-      const generate3d6 = () => rollDice(6) + rollDice(6) + rollDice(6);
-      const result = {};
-      STANDARD_ATTRS.forEach(attr => {
-        const base = generate3d6() * 5;
-        const adjust = rollDice(10) - 5;
-        result[attr] = Math.max(5, Math.min(95, base + adjust));
-      });
-      return { base: result, special: {} };
-    }
-
-    // 第一阶段：生成基本属性
-    const baseResult = {};
-    preset.baseAttributes.forEach(attr => {
-      const formula = attr.modifier ? `${attr.formula}+${attr.modifier}` : attr.formula;
-      baseResult[attr.name] = generateAttributeValue(formula, attr.range, {});
-    });
-
-    // 第二阶段：生成特别属性（可引用基本属性）
-    const specialResult = {};
-    if (preset.specialAttributes && Array.isArray(preset.specialAttributes)) {
-      preset.specialAttributes.forEach(attr => {
-        specialResult[attr.name] = generateAttributeValue(attr.formula, attr.range, baseResult);
-      });
-    }
-
-    return { base: baseResult, special: specialResult };
-  };
+  const generateRPGAttributes = createGenerateRPGAttributes({
+    generateAttributeValue: (...a: any[]) => generateAttributeValue(...a),
+    AttributePresetManager: AttributePresetManager,
+    STANDARD_ATTRS: STANDARD_ATTRS,
+  });
 
   // [简化] 清空角色的属性（直接清空基础属性列和特有属性列）
-  const clearPresetAttributesForCharacter = async charName => {
-    const rawData = cachedRawData || getTableData();
-    if (!rawData) {
-      console.error('[DICE]ACU clearPresetAttributesForCharacter: 无法获取表格数据');
-      if (window.toastr)
-        showActionableErrorToast('无法获取表格数据，暂时不能清空角色属性。', { suggestion: 'table' });
-      return { success: false };
-    }
-
-    const lookup = findCharacterAttributeRow(charName, rawData as DiceRawData);
-    const targetSheet = lookup?.sheet || null;
-    const targetRowIndex = lookup?.rowIndex ?? -1;
-    const sheetKey = lookup?.sheetKey || null;
-    const { baseColIndex, specialColIndex } = lookup
-      ? findPrimaryAttributeColumns(lookup.headers)
-      : { baseColIndex: -1, specialColIndex: -1 };
-
-    // 验证是否找到目标
-    if (!targetSheet || targetRowIndex < 0) {
-      console.error('[DICE]ACU clearPresetAttributesForCharacter: 找不到角色', charName);
-      if (window.toastr)
-        showActionableErrorToast(`找不到角色「${charName || '<user>'}」，无法清空属性。`, {
-          suggestion: '请确认角色名与表格中的名称一致，并刷新数据后再试；如果角色确实存在，请检查角色表是否包含名称列。',
-        });
-      return { success: false };
-    }
-
-    if (baseColIndex < 0) {
-      console.error('[DICE]ACU clearPresetAttributesForCharacter: 找不到属性列');
-      errorTableTemplateIssue('找不到属性列');
-      return { success: false };
-    }
-
-    const nextRow = [...targetSheet.content[targetRowIndex]];
-    nextRow[baseColIndex] = '';
-
-    // 如果存在特有属性列，也清空
-    if (specialColIndex >= 0) {
-      nextRow[specialColIndex] = '';
-    }
-
-    await saveRowInstantly(sheetKey, targetRowIndex - 1, nextRow);
-
-    return {
-      success: true,
-    };
-  };
+  const clearPresetAttributesForCharacter = createClearPresetAttributesForCharacter({
+    errorTableTemplateIssue: (...a: any[]) => errorTableTemplateIssue(...a),
+    findCharacterAttributeRow: (...a: any[]) => findCharacterAttributeRow(...a),
+    findPrimaryAttributeColumns: (...a: any[]) => findPrimaryAttributeColumns(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   // [新增] 将属性写入角色表格
   // [修复] 支持分别写入基础属性列和特有属性列
@@ -13753,85 +13492,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return attrs;
   };
   // [新增] 自定义下拉菜单初始化函数
-  const initCustomDropdown = ($input, options) => {
-    const { $ } = getCore();
-    const inputId = $input.attr('id') || 'dd_' + Math.random().toString(36).substr(2, 9);
-    $input.attr('id', inputId);
-
-    // 移除已存在的下拉
-    $input.parent().find('.acu-dropdown-list').remove();
-
-    // 包裹成 wrapper
-    if (!$input.parent().hasClass('acu-dropdown-wrapper')) {
-      $input.wrap('<div class="acu-dropdown-wrapper"></div>');
-    }
-
-    // 创建下拉列表 - 样式通过 CSS 类控制
-    const $dropdown = $(`<div class="acu-dropdown-list" data-for="${inputId}"></div>`);
-    $input.after($dropdown);
-
-    const renderItems = (filter = '') => {
-      const lowerFilter = filter.toLowerCase();
-      const filtered = options.filter(opt => opt.toLowerCase().includes(lowerFilter));
-
-      if (filtered.length === 0) {
-        $dropdown.html(`<div class="acu-dropdown-empty">无匹配项</div>`);
-      } else {
-        $dropdown.html(
-          filtered
-            .map(opt => `<div class="acu-dropdown-item" data-value="${escapeHtml(opt)}">${escapeHtml(opt)}</div>`)
-            .join(''),
-        );
-      }
-    };
-
-    const showDropdown = () => {
-      $('.acu-dropdown-list').removeClass('visible');
-      renderItems($input.val());
-      $dropdown.addClass('visible');
-    };
-
-    const hideDropdown = () => {
-      $dropdown.removeClass('visible');
-    };
-
-    // 点击输入框显示下拉
-    $input.off('.acudd').on('focus.acudd click.acudd', function (e) {
-      e.stopPropagation();
-      showDropdown();
-    });
-
-    // 输入筛选
-    $input.on('input.acudd', function () {
-      renderItems($(this).val());
-    });
-
-    // hover 效果已通过 CSS :hover 处理，无需 JS
-
-    // 选择项目
-    $dropdown.on('click', '.acu-dropdown-item', function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      const val = $(this).data('value');
-      $input.val(val).trigger('change');
-      hideDropdown();
-    });
-
-    // 点击下拉列表本身不关闭
-    $dropdown.on('click', function (e) {
-      e.stopPropagation();
-    });
-
-    // 点击面板其他区域关闭
-    $input
-      .closest('.acu-dice-panel, .acu-contest-panel')
-      .off('click.acudd_' + inputId)
-      .on('click.acudd_' + inputId, function (e) {
-        if (!$(e.target).closest('.acu-dropdown-wrapper').length) {
-          hideDropdown();
-        }
-      });
-  };
+  const initCustomDropdown = createInitCustomDropdown({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
   // [新增] 给输入框添加清除按钮
   const addClearButton = ($panel, inputSelector) => {
     const { $ } = getCore();
@@ -28239,129 +27903,21 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return changesCount;
   };
 
-  const generateDiffMap = currentData => {
-    const lastData = loadSnapshot();
-    const diffSet = new Set();
-    if (!lastData || !currentData) return diffSet;
+  const generateDiffMap = createGenerateDiffMap({
+    createDiffRowMatcher: (...a: any[]) => createDiffRowMatcher(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    getDiffHeaders: (...a: any[]) => getDiffHeaders(...a),
+    getDiffRows: (...a: any[]) => getDiffRows(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    takeDiffRowMatch: (...a: any[]) => takeDiffRowMatch(...a),
+  });
 
-    for (const sheetId in currentData) {
-      const newSheet = currentData[sheetId];
-      if (!newSheet || !newSheet.name) continue;
-      const tableName = newSheet.name;
-      const oldSheet = findDiffSnapshotEntry(lastData, sheetId, newSheet)?.sheet;
-
-      if (!oldSheet?.content) {
-        // 整个表是新的
-        if (newSheet.content) {
-          newSheet.content.forEach((row, rIdx) => {
-            if (rIdx > 0) diffSet.add(`${tableName}-row-${rIdx - 1}`);
-          });
-        }
-        continue;
-      }
-
-      const headers = getDiffHeaders(newSheet);
-      const oldHeaders = getDiffHeaders(oldSheet);
-      const newRows = getDiffRows(newSheet);
-      const oldRows = getDiffRows(oldSheet);
-      const matcher = createDiffRowMatcher(oldHeaders, oldRows);
-
-      // 遍历当前数据
-      newRows.forEach((row, rIdx) => {
-        const matched = takeDiffRowMatch(matcher, headers, row, rIdx);
-
-        if (!matched) {
-          // 在快照中找不到匹配的行，标记整行为新增
-          diffSet.add(`${tableName}-row-${rIdx}`);
-        } else {
-          // 找到匹配，对比每个单元格
-          row.forEach((cell, cIdx) => {
-            if (cIdx === 0) return; // 跳过索引列
-            const oldCell = matched.row[cIdx];
-            if (String(cell ?? '') !== String(oldCell ?? '')) {
-              diffSet.add(`${tableName}-${rIdx}-${cIdx}`);
-            }
-          });
-        }
-      });
-    }
-    return diffSet;
-  };
-
-  const applyConfigStyles = config => {
-    const targetDocument = getTavernHostDocument();
-    const fontVal = FONTS.find(f => f.id === config.fontFamily)?.val || FONTS[0].val;
-
-    // [优化] 只有字体 ID 变化时才重写 Style 标签，避免闪烁
-    const styleTag = targetDocument.getElementById('acu-dynamic-font');
-    const currentFontId = styleTag?.getAttribute('data-font-id');
-
-    if (currentFontId !== config.fontFamily) {
-      styleTag?.remove();
-      if (targetDocument !== document) {
-        document.getElementById('acu-dynamic-font')?.remove();
-      }
-      const fontImport = `
-                @import url("https://fontsapi.zeoseven.com/3/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/442/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/256/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/482/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/446/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/570/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/292/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/69/main/result.css");
-                @import url("https://fontsapi.zeoseven.com/7/main/result.css");
-            `;
-      const dynamicStyle = targetDocument.createElement('style');
-      dynamicStyle.id = 'acu-dynamic-font';
-      dynamicStyle.setAttribute('data-font-id', config.fontFamily);
-      dynamicStyle.textContent = `
-                    ${fontImport}
-                    ${DICE_ROOT_SELECTOR},
-                    ${DICE_ROOT_SELECTOR} *:not(i[class*="fa-"]):not(i[class*="ti-"]),
-                    .acu-edit-overlay,
-                    .acu-edit-overlay *:not(i[class*="fa-"]):not(i[class*="ti-"]),
-                    .acu-dice-panel,
-                    .acu-dice-panel *:not(i[class*="fa-"]):not(i[class*="ti-"]),
-                    .acu-contest-panel,
-                    .acu-contest-panel *:not(i[class*="fa-"]):not(i[class*="ti-"]),
-                    .acu-dice-config-dialog,
-                    .acu-relation-graph-container, .acu-avatar-manager, .acu-import-confirm-dialog, .acu-inventory-overlay, .acu-inventory-shell, .acu-inventory-detail,
-                    .acu-gacha-overlay, .acu-embedded-options-container, .acu-option-panel, .acu-opt-btn, .acu-check-suggestion-btn {
-                        font-family: ${fontVal} !important;
-                    }
-                `;
-      targetDocument.head.appendChild(dynamicStyle);
-    }
-
-    // [优化] 尺寸和颜色变化只更新 CSS 变量，完全不闪烁
-    const navMetrics = getNavigationFontMetrics(config.navFontSize);
-    const cssVars = {
-      '--acu-card-width': `${config.cardWidth}px`,
-      '--acu-font-size': `${config.fontSize}px`,
-      '--acu-opt-font-size': `${config.optionFontSize || 12}px`,
-      '--acu-nav-button-size': `${navMetrics.buttonSize}px`,
-      '--acu-nav-font-size': `${navMetrics.fontSize}px`,
-      '--acu-nav-icon-size': `${navMetrics.iconSize}px`,
-      '--acu-nav-button-padding-x': `${navMetrics.paddingX}px`,
-      '--acu-grid-cols': config.gridColumns,
-    };
-
-    collectHostAndLocalNodes<HTMLElement>(`${DICE_ROOT_SELECTOR}, .acu-embedded-options-container`).forEach(node => {
-      Array.from(node.classList)
-        .filter(className => className.startsWith('acu-theme-'))
-        .forEach(className => node.classList.remove(className));
-      node.classList.add(`acu-theme-${config.theme}`);
-      if (node.classList.contains('acu-wrapper')) {
-        node.classList.toggle('acu-desktop-nav-aligned', config.desktopNavAligned === true);
-      }
-      Object.entries(cssVars).forEach(([key, value]) => {
-        node.style.setProperty(key, String(value));
-      });
-    });
-
-    return fontVal;
-  };
+  const applyConfigStyles = createApplyConfigStyles({
+    collectHostAndLocalNodes: (...a: any[]) => collectHostAndLocalNodes(...a),
+    getNavigationFontMetrics: (...a: any[]) => getNavigationFontMetrics(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    FONTS: FONTS,
+  });
 
   /**
    * 注入骰子系统样式到页面
@@ -29910,61 +29466,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return refreshedData;
   };
 
-  const saveDataToDatabase = async (tableData, skipRender = false, commitDeletes = false) => {
-    if (isSaving) {
-      console.warn('[DICE]保存操作正在进行中，跳过重复请求');
-      return;
-    }
-    console.info('[DICE]开始通过数据库 CRUD 保存数据...');
-    isSaving = true;
-    const { $ } = getCore();
-    const $saveBtn = $('#acu-btn-save-global');
-
-    if (!skipRender && $saveBtn.length) {
-      $saveBtn.find('i').removeClass('fa-save').addClass('fa-spinner fa-spin');
-      $saveBtn.prop('disabled', true);
-    }
-
-    try {
-      const dataToSave = await applyRuntimeDataViaCrud(tableData, undefined, { commitDeletes });
-      saveSnapshot(dataToSave);
-      hasUnsavedChanges = false;
-      currentDiffMap = new Set();
-      if (window.acuModifiedSet) window.acuModifiedSet.clear();
-      console.info('[DICE]本地状态已更新，未保存更改已清除');
-
-      if (!skipRender) {
-        renderInterface();
-      }
-    } catch (e) {
-      const errorMessage = e.message || '保存出错，请检查数据格式和数据库版本';
-      console.error('[DICE]保存数据失败:', {
-        error: e,
-        message: errorMessage,
-        stack: e.stack,
-      });
-      if (window.toastr) {
-        showActionableErrorToast(errorMessage, { title: '保存失败', suggestion: 'save', toastrOptions: { timeOut: 7000 } });
-      } else {
-        void showDiceSystemConfirmDialog({
-          title: '保存失败',
-          message: errorMessage,
-          iconClass: 'fa-triangle-exclamation',
-          confirmText: '知道了',
-          tone: 'danger',
-          hideCancel: true,
-        });
-      }
-      throw e;
-    } finally {
-      isSaving = false;
-      console.info('[DICE]保存操作完成');
-      if (!skipRender && $saveBtn.length) {
-        $saveBtn.find('i').removeClass('fa-spinner fa-spin').addClass('fa-save');
-        $saveBtn.prop('disabled', false);
-      }
-    }
-  };
+  const saveDataToDatabase = createSaveDataToDatabase({
+    applyRuntimeDataViaCrud: (...a: any[]) => applyRuntimeDataViaCrud(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    renderInterface: (...a: any[]) => renderInterface(...a),
+    saveSnapshot: (...a: any[]) => saveSnapshot(...a),
+    showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
+    getCurrentDiffMap: () => currentDiffMap,
+    setCurrentDiffMap: (v: any) => { currentDiffMap = v; },
+    getHasUnsavedChanges: () => hasUnsavedChanges,
+    setHasUnsavedChanges: (v: any) => { hasUnsavedChanges = v; },
+      getIsSaving: () => isSaving,
+    setIsSaving: (v: any) => { isSaving = v; },
+});
 
   const performSaveDataOnly = async (tableData, modifiedSheetKeys?: string[]) => {
     try {
@@ -37057,102 +36571,22 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   // [新增] 独立插入选项到最新气泡
-  const injectIndependentOptions = htmlContent => {
-    const { $ } = getCore();
-    $('.acu-embedded-options-container').remove();
-
-    // 复用寻找最新 AI 消息的逻辑
-    const getTargetContainer = () => {
-      const $allMes = $('#chat .mes');
-      const $aiMes = $allMes.filter(function () {
-        const $this = $(this);
-        if ($this.attr('is_user') === 'true' || $this.attr('is_system') === 'true' || $this.hasClass('sys_mes'))
-          return false;
-        // 增加 data-is-system 属性判断，兼容性更好
-        if ($this.find('.name_text').text().trim() === 'System' || $this.attr('data-is-system') === 'true')
-          return false;
-        // [修复] 忽略没有文本内容的空消息壳子
-        if ($this.find('.mes_text').length === 0) return false;
-        if ($this.css('display') === 'none') return false;
-        return true;
-      });
-      if ($aiMes.length === 0) return null;
-
-      const $targetMes = $aiMes.last();
-      const $targetText = $targetMes.find('.mes_text');
-      const $targetBlock = $targetMes.find('.mes_block');
-      if ($targetText.length) return $targetText;
-      if ($targetBlock.length) return $targetBlock;
-      return $targetMes;
-    };
-
-    const $target = getTargetContainer();
-    if ($target && $target.length) {
-      const optConfig = getConfig();
-      const $container = $(
-        `<div class="acu-embedded-options-container acu-theme-${optConfig.theme}" style="--acu-opt-font-size:${optConfig.optionFontSize || 12}px;"></div>`,
-      );
-      $container.html(htmlContent);
-      // [修复] 插入到 mes_text 的后面（作为兄弟元素），而不是内部
-      // 这样 SillyTavern 重写 mes_text 内容时不会销毁我们的容器
-      $target.after($container);
-    }
-  };
+  const injectIndependentOptions = createInjectIndependentOptions({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // [修复版] 绑定选项点击事件 (优化：事件委托 + 增强发送逻辑)
-  const bindOptionEvents = () => {
-    const { $ } = getCore();
-    $('body')
-      .off('click.acu_check_suggestion')
-      .on('click.acu_check_suggestion', '.acu-check-suggestion-btn', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const config = getConfig();
-        const displayText = safeDecodeURIComponent($(this).attr('data-display') || '');
-        const commandText = safeDecodeURIComponent($(this).attr('data-command') || '');
-        const executed = executeCheckSuggestionCommand(displayText, commandText);
-        if (!executed) return;
-
-        if (config.clickOptionToAutoSend === false) {
-          $('#send_textarea').focus();
-          return;
-        }
-
-        const messageText = getResolvedComposerText();
-        const sendMode = await sendChatTextAndTrigger(messageText);
-        if (sendMode && sendMode !== 'composer') {
-          clearComposerIfCurrentText(messageText);
-        } else if (!sendMode) {
-          $('#send_textarea').focus();
-        }
-      });
-
-    // 移除旧的直接绑定，改用 Body 委托，提升性能并防止动态元素事件丢失
-    $('body')
-      .off('click.acu_opt')
-      .on('click.acu_opt', '.acu-opt-btn', async function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        const config = getConfig();
-        const val = safeDecodeURIComponent($(this).data('val'));
-
-        // 情况1: 没勾选自动发送 -> 填入输入框
-        if (!config.clickOptionToAutoSend) {
-          smartInsertToTextarea(val, 'action');
-          $('#send_textarea').focus();
-          return;
-        }
-
-        // 情况2: 自动发送。统一兼容全局函数、TavernHelper 包装对象、ST Slash API 和按钮兜底。
-        const sendMode = await sendChatTextAndTrigger(val);
-        if (!sendMode) {
-          smartInsertToTextarea(val, 'action');
-          $('#send_textarea').focus();
-        }
-      });
-  };
+  const bindOptionEvents = createBindOptionEvents({
+    clearComposerIfCurrentText: (...a: any[]) => clearComposerIfCurrentText(...a),
+    executeCheckSuggestionCommand: (...a: any[]) => executeCheckSuggestionCommand(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getResolvedComposerText: (...a: any[]) => getResolvedComposerText(...a),
+    safeDecodeURIComponent: (...a: any[]) => safeDecodeURIComponent(...a),
+    sendChatTextAndTrigger: (...a: any[]) => sendChatTextAndTrigger(...a),
+    smartInsertToTextarea: smartInsertToTextarea,
+  });
 
   const insertHtmlToPage = createInsertHtmlToPage({
     createElementFromHtml: (...a: any[]) => createElementFromHtml(...a),
@@ -47538,69 +46972,9 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
   // [优化后] 新的初始化入口 (Observer 只创建一次)
   // ==========================================
   // 检测可视化前端冲突
-  const detectVisualizerConflict = () => {
-    const { $ } = getCore();
-    if (!$) return false;
-
-    // 检测方法1: 检查是否存在可视化前端创建的 DOM 元素（最可靠）
-    // 可视化前端会创建 .acu-wrapper，但骰子系统也会创建，所以需要进一步判断
-    const $wrapper = $('.acu-wrapper');
-    if ($wrapper.length > 0) {
-      // 检查 wrapper 内部是否有可视化前端特有的元素
-      // 可视化前端 v12.60 使用 'acu_visualizer_ui_v20_pagination' 作为 SCRIPT_ID
-      // 检查是否有可视化前端特有的类名或结构
-      const hasVisualizerNav = $wrapper.find('.acu-nav-container').length > 0;
-      const hasVisualizerDataDisplay = $wrapper.find('.acu-data-display').length > 0;
-
-      // 如果 wrapper 存在但没有骰子系统的特征元素，可能是可视化前端
-      // 或者检查 wrapper 的 data 属性或 id
-      const wrapperId = $wrapper.attr('id') || '';
-      const wrapperClass = $wrapper.attr('class') || '';
-
-      // 如果检测到可视化前端特有的结构，判定为冲突
-      if (hasVisualizerNav && hasVisualizerDataDisplay) {
-        // 进一步检查：是否有骰子系统的特征（如骰子按钮等）
-        const hasDiceFeatures = $wrapper.find('[id*="dice"], [class*="dice"]').length > 0;
-        if (!hasDiceFeatures) {
-          return true; // 只有可视化前端的特征，没有骰子系统特征
-        }
-      }
-    }
-
-    // 检测方法2: 检查脚本内容中是否有可视化前端的标识
-    try {
-      const scripts = document.querySelectorAll('script');
-      for (const script of scripts) {
-        const content = script.textContent || script.innerHTML || '';
-        // 检查可视化前端 v12.60 的特定标识
-        if (content.includes('acu_visualizer_ui_v20_pagination') && content.includes('acu_ui_config_v18')) {
-          return true;
-        }
-      }
-    } catch (e) {
-      // 脚本检查失败，忽略
-    }
-
-    // 检测方法3: 检查 localStorage（作为辅助判断）
-    // 只有当 localStorage 中有可视化前端配置，且没有骰子系统配置时，才判定为冲突
-    try {
-      const visualizerConfig = localStorage.getItem('acu_ui_config_v18');
-      const diceConfig = localStorage.getItem('acu_ui_config_v19');
-
-      // 如果只有可视化前端的配置，且 DOM 中没有骰子系统的元素，判定为冲突
-      if (visualizerConfig && !diceConfig) {
-        // 再次检查 DOM，确保没有骰子系统的元素
-        const hasDiceInDOM = $('[id*="dice"], [class*="dice"]').length > 0;
-        if (!hasDiceInDOM) {
-          return true;
-        }
-      }
-    } catch (e) {
-      // localStorage 访问失败，忽略
-    }
-
-    return false;
-  };
+  const detectVisualizerConflict = createDetectVisualizerConflict({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // 显示冲突错误对话框
   const showConflictDialog = createShowConflictDialog({
