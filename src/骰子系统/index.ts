@@ -85,6 +85,17 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createGetTavernHostWindow } from './shared/tavern-host';
+import { createSendChatTextAndTrigger } from './features/chat/send-chat-text';
+import { createSaveRowInstantly } from './features/table/save-row-instantly';
+import { createRenderDiceProfileManagerBody } from './features/dice/render-dice-profile-manager-body';
+import { createShowTagInputModal } from './features/favorites/show-tag-input-modal';
+import { createShowNewFavoriteModal } from './features/favorites/show-new-favorite-modal';
+import { createGetDiceProfileCurrentCharacterRecords } from './features/dice/get-dice-profile-current-character-records';
+import { createStripCrudSqlComments } from './shared/strip-crud-sql-comments';
+import { createStripCrudSqlBlockComments } from './shared/strip-crud-sql-block-comments';
+import { createCloneRenderPresetRules } from './features/presets/clone-render-preset-rules';
+import { createBindCompositionSafeSearchInput } from './shared/ui/bind-composition-safe-search-input';
 import { createRenderInterfaceImpl } from './features/render/render-interface-impl';
 import { createInit } from './app/init';
 import { createBindEvents } from './features/events/bind-events';
@@ -1732,69 +1743,13 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     return 'composer';
   };
 
-  const sendChatTextAndTrigger = async (messageText: string): Promise<'api' | 'slash' | 'composer' | null> => {
-    const text = String(messageText ?? '').trim();
-    if (!text) return null;
-
-    let createChatMessagesFn = findRuntimeFunction('createChatMessages');
-    if (createChatMessagesFn) {
-      try {
-        await createChatMessagesFn([{ role: 'user', message: text }], { refresh: 'affected' });
-      } catch (err) {
-        console.warn('[DICE]ACU createChatMessages 直接发送失败，尝试 Slash 发送', err);
-        createChatMessagesFn = null;
-      }
-
-      if (createChatMessagesFn) {
-        try {
-          const triggered = await triggerGenerationAfterDirectSend();
-          if (!triggered) console.warn('[DICE]ACU 已直接写入用户消息，但未找到 /trigger 入口');
-        } catch (err) {
-          console.warn('[DICE]ACU 消息已直接写入，但 /trigger 触发失败', err);
-        }
-        return 'api';
-      }
-    }
-
-    let triggerSlashFn = findRuntimeFunction('triggerSlash');
-    if (triggerSlashFn) {
-      try {
-        await triggerSlashFn(`/send raw=true ${quoteSlashArgument(text)}`);
-      } catch (err) {
-        console.warn('[DICE]ACU triggerSlash 发送失败，尝试 SillyTavern 原生接口', err);
-        triggerSlashFn = null;
-      }
-
-      if (triggerSlashFn) {
-        try {
-          await triggerSlashFn('/trigger');
-        } catch (err) {
-          console.warn('[DICE]ACU triggerSlash 已发送消息，但 /trigger 触发失败', err);
-        }
-        return 'slash';
-      }
-    }
-
-    const runSlash = findSillyTavernSlashRunner();
-    if (runSlash) {
-      try {
-        const sendResult = await runSlash(`/send raw=true ${quoteSlashArgument(text)}`);
-        if (!sendResult?.isError && !sendResult?.isAborted) {
-          try {
-            await runSlash('/trigger');
-          } catch (triggerError) {
-            console.warn('[DICE]ACU ST接口已发送消息，但 /trigger 触发失败', triggerError);
-          }
-          return 'slash';
-        }
-        console.warn('[DICE]ACU ST接口 send 失败:', sendResult);
-      } catch (err) {
-        console.warn('[DICE]ACU ST接口失败，尝试按钮模拟', err);
-      }
-    }
-
-    return sendTextViaComposer(text);
-  };
+  const sendChatTextAndTrigger = createSendChatTextAndTrigger({
+    findRuntimeFunction: (...a: any[]) => findRuntimeFunction(...a),
+    findSillyTavernSlashRunner: (...a: any[]) => findSillyTavernSlashRunner(...a),
+    quoteSlashArgument: (...a: any[]) => quoteSlashArgument(...a),
+    sendTextViaComposer: (...a: any[]) => sendTextViaComposer(...a),
+    triggerGenerationAfterDirectSend: (...a: any[]) => triggerGenerationAfterDirectSend(...a),
+  });
 
   // [新增] 在发送消息前恢复真实结果
   const restoreDiceResultBeforeSend = () => {
@@ -2781,8 +2736,9 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     return aliases;
   };
 
-  const cloneRenderPresetRules = (rules: RenderPresetRules): RenderPresetRules =>
-    JSON.parse(JSON.stringify(rules)) as RenderPresetRules;
+  const cloneRenderPresetRules = createCloneRenderPresetRules({
+
+  });
 
   const DEFAULT_DIALOGUE_INDENT_TAG_BLACKLIST = [
     'summary',
@@ -10132,66 +10088,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const HOST_SELECTOR = '#chat, #send_form, #form_sheld, #send_textarea, #chat_input, #send_but';
 
-  const getTavernHostWindow = (): Window => {
-    const windows: Window[] = [];
-    const addWindow = (targetWindow: Window | null | undefined) => {
-      if (!targetWindow || windows.includes(targetWindow)) return;
-      if (!getAccessibleDocument(targetWindow)) return;
-      windows.push(targetWindow);
-    };
-
-    addWindow(window);
-
-    try {
-      let cursor = window;
-      while (cursor.parent && cursor.parent !== cursor) {
-        const parentWindow = cursor.parent;
-        if (!getAccessibleDocument(parentWindow)) break;
-        addWindow(parentWindow);
-        cursor = parentWindow;
-      }
-    } catch {
-      // 跨域或宿主限制时保留已收集的窗口
-    }
-
-    try {
-      addWindow(window.top);
-    } catch {
-      // ignore
-    }
-
-    const hasVisibleHostAnchor = (targetWindow: Window): boolean => {
-      const doc = getAccessibleDocument(targetWindow);
-      if (!doc) return false;
-
-      const viewportWidth = targetWindow.innerWidth || doc.documentElement.clientWidth || 0;
-      const viewportHeight = targetWindow.innerHeight || doc.documentElement.clientHeight || 0;
-      const anchors = Array.from(doc.querySelectorAll<HTMLElement>(HOST_SELECTOR));
-
-      return anchors.some(el => {
-        const rect = el.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return false;
-        if (viewportWidth > 0 && (rect.right <= 0 || rect.left >= viewportWidth)) return false;
-        if (viewportHeight > 0 && (rect.bottom <= 0 || rect.top >= viewportHeight)) return false;
-        return true;
-      });
-    };
-
-    for (let i = windows.length - 1; i >= 0; i--) {
-      if (hasVisibleHostAnchor(windows[i])) {
-        return windows[i];
-      }
-    }
-
-    for (let i = windows.length - 1; i >= 0; i--) {
-      const doc = getAccessibleDocument(windows[i]);
-      if (doc?.querySelector(HOST_SELECTOR)) {
-        return windows[i];
-      }
-    }
-
-    return windows[windows.length - 1] || window;
-  };
+  const getTavernHostWindow = createGetTavernHostWindow({
+    getAccessibleDocument: (...a: any[]) => getAccessibleDocument(...a),
+    HOST_SELECTOR: HOST_SELECTOR,
+  });
 
   const getTavernHostDocument = (): Document => getAccessibleDocument(getTavernHostWindow()) || document;
 
@@ -18304,79 +18204,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const getDiceProfileCurrentCharacterRecords = (): Record<string, unknown>[] => {
-    const ST = getDiceProfileSillyTavern();
-    const records: Record<string, unknown>[] = [];
-    const seen = new Set<string>();
-    const addRecord = (value: unknown): void => {
-      if (!isDiceConfigBackupRecord(value)) return;
-      const key =
-        getDiceConfigBackupRecordString(value, 'avatar') ||
-        getDiceConfigBackupRecordString(value, 'name') ||
-        getDiceConfigBackupRecordString((value.data as Record<string, unknown>) || {}, 'name') ||
-        JSON.stringify(value).slice(0, 200);
-      if (seen.has(key)) return;
-      seen.add(key);
-      records.push(value);
-      const jsonData = getDiceConfigBackupRecordString(value, 'json_data');
-      if (jsonData) {
-        try {
-          addRecord(JSON.parse(jsonData));
-        } catch {
-          // ignore invalid embedded character json
-        }
-      }
-    };
-
-    try {
-      addRecord(ST?.getCharacterCardFields?.({}));
-    } catch {
-      // ignore
-    }
-
-    try {
-      if (typeof getCharData === 'function') addRecord(getCharData('current', true));
-    } catch {
-      // ignore
-    }
-
-    try {
-      const RawCharacterCtor =
-        (globalThis as Record<string, any>).RawCharacter ||
-        (window as unknown as Record<string, any>).RawCharacter ||
-        (window.parent as unknown as Record<string, any>).RawCharacter;
-      if (RawCharacterCtor && typeof RawCharacterCtor.find === 'function') {
-        addRecord(RawCharacterCtor.find({ name: 'current', allowAvatar: true }));
-      }
-    } catch {
-      // ignore
-    }
-
-    try {
-      const characterSources = [
-        (globalThis as Record<string, any>).characters,
-        (window.parent as unknown as Record<string, any>).characters,
-        ST?.characters,
-      ];
-      const indexCandidates = [
-        (globalThis as Record<string, any>).this_chid,
-        (window.parent as unknown as Record<string, any>).this_chid,
-        ST?.this_chid,
-        ST?.characterId,
-      ];
-      characterSources.forEach(source => {
-        if (!Array.isArray(source)) return;
-        indexCandidates.forEach(indexValue => {
-          const index = Number.parseInt(String(indexValue ?? ''), 10);
-          if (!Number.isNaN(index) && index >= 0 && index < source.length) addRecord(source[index]);
-        });
-      });
-    } catch {
-      // ignore
-    }
-
-    return records;
-  };
+  const getDiceProfileCurrentCharacterRecords = createGetDiceProfileCurrentCharacterRecords({
+    getDiceConfigBackupRecordString: (...a: any[]) => getDiceConfigBackupRecordString(...a),
+    getDiceProfileSillyTavern: (...a: any[]) => getDiceProfileSillyTavern(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const collectDiceProfileRegexScriptsFromRecord = (record: Record<string, unknown>): unknown[] => {
     const scripts: unknown[] = [];
@@ -18774,70 +18606,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       </div>
     </section>`;
 
-  const renderDiceProfileManagerBody = async (): Promise<string> => {
-    let characterDetection: DiceCharacterProfileDetection | null = null;
-    try {
-      characterDetection = await detectCharacterDiceProfile({ includeSkipped: true });
-    } catch (error) {
-      console.warn('[DICE][PROFILE]读取当前角色卡配置方案失败:', error);
-    }
-    const summaries = await refreshDiceProfileIndex();
-    const snapshots = summaries.filter(summary => summary.source?.type === 'snapshot');
-    const regularProfiles = summaries.filter(
-      summary => summary.source?.type !== 'snapshot' && !isDiceProfileCharacterSource(summary.source),
-    );
-    const characterProfiles = characterDetection ? [toDiceProfileSummary(characterDetection.profile)] : [];
-    const collapsedSections = getDiceProfileCollapsedSections();
-    const isProfileLibraryCollapsed = collapsedSections.includes('library');
-    const isSaveScopeCollapsed = collapsedSections.includes('saveScope');
-    const managerStateClasses = [
-      isProfileLibraryCollapsed ? 'is-library-collapsed' : '',
-      isSaveScopeCollapsed ? 'is-save-scope-collapsed' : '',
-    ].filter(Boolean).join(' ');
-    return `
-      <div class="acu-config-backup-content acu-profile-manager ${managerStateClasses}">
-        <section class="acu-profile-collapsible acu-profile-library ${isProfileLibraryCollapsed ? 'collapsed' : ''}" data-profile-section="library">
-          <button type="button" class="acu-profile-collapse-header" aria-expanded="${isProfileLibraryCollapsed ? 'false' : 'true'}">
-            <div class="acu-profile-collapse-title">
-              <i class="fa-solid fa-layer-group"></i><span>方案管理</span>
-            </div>
-            <div class="acu-profile-collapse-meta">应用前保存快照，保留最近 ${DICE_PROFILE_PRE_APPLY_SNAPSHOT_LIMIT} 个</div>
-            <i class="fa-solid fa-chevron-down acu-profile-collapse-chevron"></i>
-          </button>
-          <div class="acu-profile-collapse-body acu-profile-library-body">
-            <div class="acu-profile-tabs" role="tablist" aria-label="配置方案分类">
-              <button type="button" class="acu-profile-tab is-active" data-profile-tab="character" role="tab" aria-selected="true"><span>角色卡</span><em>${characterProfiles.length}</em></button>
-              <button type="button" class="acu-profile-tab" data-profile-tab="library" role="tab" aria-selected="false"><span>方案库</span><em>${regularProfiles.length}</em></button>
-              <button type="button" class="acu-profile-tab" data-profile-tab="snapshots" role="tab" aria-selected="false"><span>快照</span><em>${snapshots.length}</em></button>
-            </div>
-            <div class="acu-profile-tab-panels">
-              ${renderDiceProfileTabPanel('character', characterProfiles, '当前角色卡暂无内置方案', { active: true, current: true })}
-              ${renderDiceProfileTabPanel('library', regularProfiles, '暂无方案，可保存或导入')}
-              ${renderDiceProfileTabPanel('snapshots', snapshots, '暂无快照，应用时自动创建')}
-            </div>
-          </div>
-        </section>
-        <section class="acu-profile-collapsible acu-profile-section acu-profile-module-section ${isSaveScopeCollapsed ? 'collapsed' : ''}" data-profile-section="saveScope">
-          <button type="button" class="acu-profile-collapse-header" aria-expanded="${isSaveScopeCollapsed ? 'false' : 'true'}">
-            <div class="acu-profile-collapse-title">
-              <i class="fa-solid fa-list-check"></i><span>保存范围</span>
-            </div>
-            <div class="acu-profile-collapse-meta" data-profile-save-scope-meta>勾选要存入方案的设置</div>
-            <i class="fa-solid fa-chevron-down acu-profile-collapse-chevron"></i>
-          </button>
-          <div class="acu-profile-collapse-body acu-profile-save-scope-body">
-            <div class="acu-config-backup-selection-actions">
-              <button type="button" class="acu-config-backup-select-all acu-setting-action-btn acu-config-backup-mini-btn">全选</button>
-              <button type="button" class="acu-config-backup-invert acu-setting-action-btn acu-config-backup-mini-btn">反选</button>
-              <button type="button" class="acu-config-backup-clear acu-setting-action-btn acu-config-backup-mini-btn">清空选择</button>
-            </div>
-            <div class="acu-config-backup-module-list acu-profile-module-list">
-              ${renderDiceConfigBackupModuleRows(DICE_CONFIG_BACKUP_MODULES.map(module => module.id))}
-            </div>
-          </div>
-        </section>
-      </div>`;
-  };
+  const renderDiceProfileManagerBody = createRenderDiceProfileManagerBody({
+    detectCharacterDiceProfile: (...a: any[]) => detectCharacterDiceProfile(...a),
+    getDiceProfileCollapsedSections: (...a: any[]) => getDiceProfileCollapsedSections(...a),
+    isDiceProfileCharacterSource: (...a: any[]) => isDiceProfileCharacterSource(...a),
+    refreshDiceProfileIndex: (...a: any[]) => refreshDiceProfileIndex(...a),
+    renderDiceConfigBackupModuleRows: (...a: any[]) => renderDiceConfigBackupModuleRows(...a),
+    renderDiceProfileTabPanel: (...a: any[]) => renderDiceProfileTabPanel(...a),
+    toDiceProfileSummary: (...a: any[]) => toDiceProfileSummary(...a),
+    DICE_CONFIG_BACKUP_MODULES: DICE_CONFIG_BACKUP_MODULES,
+    DICE_PROFILE_PRE_APPLY_SNAPSHOT_LIMIT: DICE_PROFILE_PRE_APPLY_SNAPSHOT_LIMIT,
+  });
 
   const showDiceConfigBackupDialog = (): void => {
     const { $ } = getCore();
@@ -19977,188 +19756,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return String(sourceRecord?.ddl || '');
   };
 
-  const stripCrudSqlComments = (ddl: unknown): string => {
-    const text = String(ddl || '');
-    let result = '';
-    let index = 0;
-    let inSingleQuote = false;
-    let inDoubleQuote = false;
-    let inBracketQuote = false;
-    let inBacktickQuote = false;
-    while (index < text.length) {
-      const char = text[index];
-      const next = text[index + 1];
-      if (inSingleQuote) {
-        result += char;
-        if (char === "'" && next === "'") {
-          result += next;
-          index += 2;
-          continue;
-        }
-        if (char === "'") inSingleQuote = false;
-        index += 1;
-        continue;
-      }
-      if (inDoubleQuote) {
-        result += char;
-        if (char === '"' && next === '"') {
-          result += next;
-          index += 2;
-          continue;
-        }
-        if (char === '"') inDoubleQuote = false;
-        index += 1;
-        continue;
-      }
-      if (inBracketQuote) {
-        result += char;
-        if (char === ']') inBracketQuote = false;
-        index += 1;
-        continue;
-      }
-      if (inBacktickQuote) {
-        result += char;
-        if (char === '`' && next === '`') {
-          result += next;
-          index += 2;
-          continue;
-        }
-        if (char === '`') inBacktickQuote = false;
-        index += 1;
-        continue;
-      }
-      if (char === "'") {
-        inSingleQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '"') {
-        inDoubleQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '[') {
-        inBracketQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '`') {
-        inBacktickQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '-' && next === '-') {
-        while (index < text.length && text[index] !== '\n') index += 1;
-        if (index < text.length) result += text[index++];
-        continue;
-      }
-      if (char === '/' && next === '*') {
-        index += 2;
-        while (index < text.length && !(text[index] === '*' && text[index + 1] === '/')) {
-          if (text[index] === '\n') result += '\n';
-          index += 1;
-        }
-        index += index < text.length ? 2 : 0;
-        continue;
-      }
-      result += char;
-      index += 1;
-    }
-    return result;
-  };
+  const stripCrudSqlComments = createStripCrudSqlComments({
 
-  const stripCrudSqlBlockComments = (ddl: unknown): string => {
-    const text = String(ddl || '');
-    let result = '';
-    let index = 0;
-    let inSingleQuote = false;
-    let inDoubleQuote = false;
-    let inBracketQuote = false;
-    let inBacktickQuote = false;
-    while (index < text.length) {
-      const char = text[index];
-      const next = text[index + 1];
-      if (inSingleQuote) {
-        result += char;
-        if (char === "'" && next === "'") {
-          result += next;
-          index += 2;
-          continue;
-        }
-        if (char === "'") inSingleQuote = false;
-        index += 1;
-        continue;
-      }
-      if (inDoubleQuote) {
-        result += char;
-        if (char === '"' && next === '"') {
-          result += next;
-          index += 2;
-          continue;
-        }
-        if (char === '"') inDoubleQuote = false;
-        index += 1;
-        continue;
-      }
-      if (inBracketQuote) {
-        result += char;
-        if (char === ']') inBracketQuote = false;
-        index += 1;
-        continue;
-      }
-      if (inBacktickQuote) {
-        result += char;
-        if (char === '`' && next === '`') {
-          result += next;
-          index += 2;
-          continue;
-        }
-        if (char === '`') inBacktickQuote = false;
-        index += 1;
-        continue;
-      }
-      if (char === "'") {
-        inSingleQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '"') {
-        inDoubleQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '[') {
-        inBracketQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '`') {
-        inBacktickQuote = true;
-        result += char;
-        index += 1;
-        continue;
-      }
-      if (char === '/' && next === '*') {
-        index += 2;
-        while (index < text.length && !(text[index] === '*' && text[index + 1] === '/')) {
-          if (text[index] === '\n') result += '\n';
-          index += 1;
-        }
-        index += index < text.length ? 2 : 0;
-        continue;
-      }
-      result += char;
-      index += 1;
-    }
-    return result;
-  };
+  });
+
+  const stripCrudSqlBlockComments = createStripCrudSqlBlockComments({
+
+  });
 
   const stripCrudSqlNonStructuralComments = (ddl: unknown): string =>
     stripCrudSqlBlockComments(ddl)
@@ -21290,81 +20894,29 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     sheet?: DiffSheet;
   };
 
-  const saveRowInstantly = async (
-    tableKey: string,
-    rowIndex: number,
-    newRowData: unknown[],
-    context?: RuntimeRowSaveContext,
-  ): Promise<void> => {
-    try {
-      await runInSaveQueue(async () => {
-        const api = assertRuntimeCrudApi();
-        const source = resolveRuntimeMutationSource(tableKey);
-        const sourceData = context?.sourceData || source?.data;
-        const entry = source?.entry;
-        const tableName = normalizeDiffText(context?.tableName) || normalizeDiffText(entry?.sheet?.name);
-        const sheetForMetadata = context?.sheet || entry?.sheet;
-        const headers = Array.isArray(context?.headers) ? context.headers : getSheetHeaders(entry?.sheet);
-        const currentRow = Array.isArray(context?.currentRow)
-          ? context.currentRow
-          : getDiffDataRow(entry?.sheet, rowIndex);
-
-        if (!tableName) {
-          throw new Error(`表格 "${tableKey}" 不存在`);
-        }
-        if (!Array.isArray(headers) || headers.length === 0) {
-          throw new Error(`表格 "${tableName}" 表头为空`);
-        }
-        if (!currentRow) {
-          throw new Error(`表格 "${tableName}" 第 ${rowIndex + 1} 行不存在`);
-        }
-
-        const crudTableName = getCrudTableIdentifier(sheetForMetadata, tableName);
-        const nextRow = [...newRowData];
-        const columnAliasMap = buildCrudColumnAliasMap(sheetForMetadata);
-        const changedColumns = getCrudChangedColumns(headers, currentRow, nextRow);
-        const appliedColumns = await applyExistingRowCellPatchesViaCrud({
-          api,
-          sheetKey: tableKey,
-          tableName,
-          crudTableName,
-          headers,
-          currentRow,
-          nextRow,
-          sheet: sheetForMetadata,
-          rowIndex,
-          changedColumns,
-          columnAliasMap,
-        });
-        if (appliedColumns.size === 0) return;
-
-        const fallbackData = sourceData ? cloneRuntimeDataValue(sourceData) : null;
-        if (fallbackData) {
-          const fallbackEntry =
-            findRuntimeSheetEntryForMutation(fallbackData, entry?.key || tableKey) ||
-            findRuntimeSheetEntryForMutation(fallbackData, tableKey);
-          if (fallbackEntry?.sheet?.content?.[rowIndex + 1]) {
-            fallbackEntry.sheet.content[rowIndex + 1] = [...nextRow];
-          }
-          updateRuntimeDataCacheAfterCrud(api, fallbackData, entry?.key || tableKey);
-        } else {
-          cachedRawData = getTableData({ silent: true }) || cachedRawData;
-          api._notifyTableUpdate?.();
-        }
-
-        const snapshot = loadSnapshot();
-        const snapshotEntry = snapshot ? findDiffSnapshotEntry(snapshot, tableKey, sheetForMetadata) : null;
-        if (setDiffDataRow(snapshotEntry?.sheet, rowIndex, nextRow)) {
-          saveSnapshot(snapshot);
-        }
-      });
-    } catch (e) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
-      console.error('[DICE]ACU saveRowInstantly error:', getRuntimeErrorLogPayload(e));
-      showActionableErrorToast(`保存失败: ${errorMsg}`, { title: '保存失败', suggestion: 'save' });
-      throw e;
-    }
-  };
+  const saveRowInstantly = createSaveRowInstantly({
+    applyExistingRowCellPatchesViaCrud: (...a: any[]) => applyExistingRowCellPatchesViaCrud(...a),
+    assertRuntimeCrudApi: (...a: any[]) => assertRuntimeCrudApi(...a),
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    cloneRuntimeDataValue: (...a: any[]) => cloneRuntimeDataValue(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    findRuntimeSheetEntryForMutation: (...a: any[]) => findRuntimeSheetEntryForMutation(...a),
+    getCrudChangedColumns: (...a: any[]) => getCrudChangedColumns(...a),
+    getCrudTableIdentifier: (...a: any[]) => getCrudTableIdentifier(...a),
+    getDiffDataRow: (...a: any[]) => getDiffDataRow(...a),
+    getRuntimeErrorLogPayload: (...a: any[]) => getRuntimeErrorLogPayload(...a),
+    getSheetHeaders: (...a: any[]) => getSheetHeaders(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    normalizeDiffText: (...a: any[]) => normalizeDiffText(...a),
+    resolveRuntimeMutationSource: (...a: any[]) => resolveRuntimeMutationSource(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    saveSnapshot: (...a: any[]) => saveSnapshot(...a),
+    setDiffDataRow: (...a: any[]) => setDiffDataRow(...a),
+    updateRuntimeDataCacheAfterCrud: (...a: any[]) => updateRuntimeDataCacheAfterCrud(...a),
+    getCachedRawData: () => cachedRawData,
+    setCachedRawData: (v: any) => { cachedRawData = v; },
+  });
 
   const appendRowInstantly = async (tableKey: string, newRowData: unknown[]): Promise<void> => {
     await runInSaveQueue(async () => {
@@ -23712,158 +23264,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   // 标签输入弹窗（替代浏览器原生 prompt）
-  const showTagInputModal = (): Promise<string | null> => {
-    const { $ } = getCore();
-    const config = getConfig();
-
-    return new Promise(resolve => {
-      $('.acu-fav-tag-overlay').remove();
-
-      const overlayHtml = `
-        <div class="acu-fav-tag-overlay acu-theme-${config.theme}">
-          <div class="acu-fav-tag-modal">
-            <div class="acu-fav-tag-modal-header">
-              <h4><i class="fa-solid fa-tags"></i> 添加标签</h4>
-              <button class="acu-fav-tag-close"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="acu-fav-tag-modal-body">
-              <div class="acu-fav-tag-input-section">
-                <label>标签（多个标签用逗号分隔，留空则无标签）</label>
-                <input type="text" id="acu-fav-tag-input" placeholder="例如：武器, 稀有, 攻击" />
-              </div>
-            </div>
-            <div class="acu-fav-tag-modal-footer">
-              <button class="acu-fav-tag-cancel">取消</button>
-              <button class="acu-fav-tag-confirm">确认收藏</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      $('body').append(overlayHtml);
-
-      const $overlay = $('.acu-fav-tag-overlay');
-      // 内联样式确保移动端层叠上下文正确（与发送到表格弹窗同策略）
-      $overlay.css({
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        right: '0',
-        bottom: '0',
-        width: '100vw',
-        height: '100vh',
-        'z-index': '31300',
-        display: 'flex',
-        'align-items': 'center',
-        'justify-content': 'center',
-        padding: '16px',
-        'box-sizing': 'border-box',
-      });
-      const $modal = $overlay.find('.acu-fav-tag-modal');
-      const $input = $modal.find('#acu-fav-tag-input');
-      let resolved = false;
-
-      const closeModal = (result: string | null) => {
-        if (resolved) return;
-        resolved = true;
-        $overlay.remove();
-        resolve(result);
-      };
-
-      // 点击遮罩关闭
-      $overlay.on('click', e => {
-        if ($(e.target).hasClass('acu-fav-tag-overlay')) closeModal(null);
-      });
-
-      // 关闭/取消按钮
-      $modal.find('.acu-fav-tag-close, .acu-fav-tag-cancel').on('click', () => closeModal(null));
-
-      // 确认按钮
-      $modal.find('.acu-fav-tag-confirm').on('click', () => {
-        closeModal(($input.val() as string) || '');
-      });
-
-      // 回车确认
-      $input.on('keydown', (e: JQuery.KeyDownEvent) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          closeModal(($input.val() as string) || '');
-        }
-      });
-
-      // 自动聚焦输入框
-      setTimeout(() => $input.trigger('focus'), 100);
-    });
-  };
+  const showTagInputModal = createShowTagInputModal({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // 新建收藏弹窗（选择模板）
-  const showNewFavoriteModal = (
-    currentTables: Record<string, any>,
-    onCreate: (header: string[], tableName: string) => void,
-  ) => {
-    const { $ } = getCore();
-    $('.acu-fav-new-overlay').remove();
-
-    const config = getConfig();
-
-    const tableOptions = Object.keys(currentTables)
-      .map(key => {
-        const table = currentTables[key];
-        const name = table.name || key;
-        return `<option value="${escapeHtml(key)}">${escapeHtml(name)}</option>`;
-      })
-      .join('');
-
-    const overlayHtml = `
-      <div class="acu-fav-new-overlay acu-theme-${config.theme}">
-        <div class="acu-fav-new-modal">
-          <div class="acu-fav-new-modal-header">
-            <h4>选择模板</h4>
-            <button class="acu-fav-new-close"><i class="fa-solid fa-times"></i></button>
-          </div>
-          <div class="acu-fav-new-modal-body">
-            <label>从以下表格中选择结构作为模板:</label>
-            <select id="acu-fav-new-template">
-              ${tableOptions}
-            </select>
-          </div>
-          <div class="acu-fav-new-modal-footer">
-            <button class="acu-fav-new-cancel">取消</button>
-            <button class="acu-fav-new-create">创建</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    $('body').append(overlayHtml);
-
-    const $overlay = $('.acu-fav-new-overlay');
-    const $modal = $overlay.find('.acu-fav-new-modal');
-
-    const closeModal = () => $overlay.remove();
-
-    $overlay.on('click', e => {
-      if ($(e.target).hasClass('acu-fav-new-overlay')) closeModal();
-    });
-
-    $modal.find('.acu-fav-new-close, .acu-fav-new-cancel').on('click', closeModal);
-
-    $modal.find('.acu-fav-new-create').on('click', () => {
-      const key = $modal.find('#acu-fav-new-template').val() as string;
-      const table = currentTables[key];
-      if (!table || !table.content || !table.content[0]) {
-        showActionableErrorToast('无效的表格模板', { suggestion: 'tableTemplate' });
-        return;
-      }
-
-      const fullHeader = table.content[0];
-      const header: string[] = fullHeader.slice(1).map((h: any) => String(h || ''));
-      const tableName = table.name || key;
-
-      onCreate(header, tableName);
-      closeModal();
-    });
-  };
+  const showNewFavoriteModal = createShowNewFavoriteModal({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // 发送到表格弹窗
   const showSendToTableModal = (
@@ -26979,74 +26390,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const saveInventoryFiltersCollapsedState = (collapsed: boolean) =>
     Store.set(STORAGE_KEY_INVENTORY_FILTERS_COLLAPSED, collapsed);
 
-  const bindCompositionSafeSearchInput = (
-    binding: CompositionSafeSearchBinding,
-    options: CompositionSafeSearchOptions,
-  ) => {
-    const { root, selector, namespace } = binding;
-    const suffix = namespace ? `.${namespace}` : '';
-    const eventNames = `compositionstart${suffix} compositionend${suffix} input${suffix}`;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+  const bindCompositionSafeSearchInput = createBindCompositionSafeSearchInput({
 
-    const clearTimer = () => {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-    };
-
-    const emitCommit = (input: HTMLInputElement, immediate = false) => {
-      const value = String(input.value || '');
-      const selectionStart = input.selectionStart ?? value.length;
-      const selectionEnd = input.selectionEnd ?? value.length;
-      const payload: CompositionSafeSearchPayload = {
-        input,
-        value,
-        selectionStart,
-        selectionEnd,
-      };
-      clearTimer();
-      if (immediate || options.delay <= 0) {
-        options.onCommit(payload);
-        return;
-      }
-      timer = setTimeout(() => {
-        timer = null;
-        options.onCommit(payload);
-      }, options.delay);
-    };
-
-    const bindEvent = (eventName: string, handler: (this: HTMLInputElement) => void) => {
-      if (selector) {
-        root.on(`${eventName}${suffix}`, selector, function () {
-          handler.call(this as HTMLInputElement);
-        });
-        return;
-      }
-      root.on(`${eventName}${suffix}`, function () {
-        handler.call(this as HTMLInputElement);
-      });
-    };
-
-    if (selector) {
-      root.off(eventNames, selector);
-    } else {
-      root.off(eventNames);
-    }
-
-    bindEvent('compositionstart', function () {
-      this.dataset.acuComposing = 'true';
-      clearTimer();
-    });
-    bindEvent('compositionend', function () {
-      this.dataset.acuComposing = 'false';
-      emitCommit(this, true);
-    });
-    bindEvent('input', function () {
-      if (this.dataset.acuComposing === 'true') return;
-      emitCommit(this);
-    });
-  };
+  });
 
 
   const isBuiltinGachaPoolId = (poolId: GachaPoolTag): boolean =>
