@@ -85,6 +85,46 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createCollectDiceConfigBackupGachaCatalogRecords } from './features/dice/collect-dice-config-backup-gacha-catalog-records';
+import { createCloneAdvancedPresetFieldWithDefaults } from './features/presets/clone-advanced-preset-field-with-defaults';
+import { createCapturePendingHumanInputSnapshot } from './features/human-input/capture-pending-human-input-snapshot';
+import { createBindTutorialButtonsIn } from './features/tutorial/bind-tutorial-buttons-in';
+import { createInventoryQualityFilterMeta } from './features/gacha/inventory-quality-filter-meta';
+import { createCustomTableNameIconAllowedPanelSections } from './features/table/custom-table-name-icon-allowed-panel-sections';
+import { createAcuDatabaseNewUiApiMethods } from './features/table/acu-database-new-ui-api-methods';
+import { createTouchGachaActivity } from './features/gacha/touch-gacha-activity';
+import { createThrowAdvancedPresetValidationIssues } from './features/presets/throw-advanced-preset-validation-issues';
+import { createSetInventoryRowBasicFields } from './features/gacha/set-inventory-row-basic-fields';
+import { createSetDiceProfilePromptState } from './features/dice/set-dice-profile-prompt-state';
+import { createSetActiveTableNavButton } from './features/table/set-active-table-nav-button';
+import { createSerializeAcuDiceGachaPool } from './features/api/serialize-acu-dice-gacha-pool';
+import { createSerializeAcuDiceGachaDrawResult } from './features/api/serialize-acu-dice-gacha-draw-result';
+import { createScheduleFloatingCollapseBoundsRefresh } from './features/ui/schedule-floating-collapse-bounds-refresh';
+import { createSavePanelRequestedHeight } from './features/ui/save-panel-requested-height';
+import { createSaveInventoryMetadataRecord } from './features/gacha/save-inventory-metadata-record';
+import { createResolveDashboardCustomTableNameIconContextInfo } from './features/dashboard/resolve-dashboard-custom-table-name-icon-context-info';
+import { createResetPanelRequestedHeight } from './features/ui/reset-panel-requested-height';
+import { createPushDiceQuickSelectCharacter } from './features/dice/push-dice-quick-select-character';
+import { createPopModal } from './features/ui/pop-modal';
+import { createParseSqlQuotedValues } from './shared/parse-sql-quoted-values';
+import { createParseImageUrl } from './shared/parse-image-url';
+import { createParseCheckSuggestionModifierValue } from './features/dice/parse-check-suggestion-modifier-value';
+import { createOpenDatabaseInterface } from './features/table/open-database-interface';
+import { createGetViewportAnchorRect } from './features/ui/get-viewport-anchor-rect';
+import { createGetGachaSettingsFilterLabel } from './features/gacha/get-gacha-settings-filter-label';
+import { createGetCustomTableNameIconManagerInvalidSourceText } from './features/table/get-custom-table-name-icon-manager-invalid-source-text';
+import { createGetAttributeRulePresetById } from './features/dice/get-attribute-rule-preset-by-id';
+import { createGenerateAttributeValue } from './features/dice/generate-attribute-value';
+import { createFindSillyTavernSlashRunner } from './features/table/find-silly-tavern-slash-runner';
+import { createFindRelationGraphColumnIndex } from './features/table/find-relation-graph-column-index';
+import { createCreateBuiltinRenderPreset } from './features/presets/create-builtin-render-preset';
+import { createCreateBuiltinDashboardPreset } from './features/presets/create-builtin-dashboard-preset';
+import { createCoerceAdvancedPresetContextNumber } from './features/presets/coerce-advanced-preset-context-number';
+import { createAssignAdvancedPresetContextNumber } from './features/presets/assign-advanced-preset-context-number';
+import { createSettingsGroupTutorialMap } from './features/tutorial/settings-group-tutorial-map';
+import { createGachaSettingsSortOptions } from './features/gacha/gacha-settings-sort-options';
+import { createGachaCommonWrittenTargetColumnKeys } from './features/gacha/gacha-common-written-target-column-keys';
+import { createDashboardModuleSectionKind } from './features/dashboard/dashboard-module-section-kind';
 import { createAssertRuntimeCrudApi } from './features/table/assert-runtime-crud-api';
 import { createViewportBottomRefreshEvents } from './features/ui/viewport-bottom-refresh-events';
 import { createGachaTargetColumnLabels } from './features/gacha/gacha-target-column-labels';
@@ -1010,15 +1050,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   const normalizeImageUrlInput = (url: unknown): string => String(url ?? '').trim();
 
-  const parseImageUrl = (url: string): URL | null => {
-    const normalizedUrl = normalizeImageUrlInput(url);
-    if (!normalizedUrl) return null;
-    try {
-      return new URL(normalizedUrl, window.location.href);
-    } catch {
-      return null;
-    }
-  };
+  const parseImageUrl = createParseImageUrl({
+    normalizeImageUrlInput: (...a: any[]) => normalizeImageUrlInput(...a),
+  });
 
   const getRemoteImageUrlValidationError = (url: string): ImageUrlValidationReason | null => {
     const parsedUrl = parseImageUrl(url);
@@ -1281,16 +1315,17 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     lastHumanInputActivityAt = Date.now();
   };
 
-  const capturePendingHumanInputSnapshot = (rawText?: unknown, systemActionText?: unknown) => {
-    const sanitized = stripSystemInjectedContent(rawText, systemActionText) || lastHumanInputSnapshot;
-    const now = Date.now();
-    markHumanInputActivity();
-    lastHumanInputSnapshot = sanitized;
-    if (sanitized === lastCapturedHumanInputSnapshot && now - lastHumanInputCaptureAt < 500) return;
-    lastCapturedHumanInputSnapshot = sanitized;
-    lastHumanInputCaptureAt = now;
-    humanInputSendQueue.push(sanitized);
-  };
+  const capturePendingHumanInputSnapshot = createCapturePendingHumanInputSnapshot({
+    markHumanInputActivity: (...a: any[]) => markHumanInputActivity(...a),
+    stripSystemInjectedContent: (...a: any[]) => stripSystemInjectedContent(...a),
+    getHumanInputSendQueue: () => humanInputSendQueue,
+    getLastHumanInputSnapshot: () => lastHumanInputSnapshot,
+    setLastHumanInputSnapshot: (v: any) => { lastHumanInputSnapshot = v; },
+    getLastCapturedHumanInputSnapshot: () => lastCapturedHumanInputSnapshot,
+    setLastCapturedHumanInputSnapshot: (v: any) => { lastCapturedHumanInputSnapshot = v; },
+    getLastHumanInputCaptureAt: () => lastHumanInputCaptureAt,
+    setLastHumanInputCaptureAt: (v: any) => { lastHumanInputCaptureAt = v; },
+  });
 
   const consumePendingHumanInputSnapshot = (): string => {
     if (humanInputSendQueue.length > 0) {
@@ -1341,15 +1376,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return typeof globalFn === 'function' ? globalFn.bind(globalThis) : null;
   };
 
-  const findSillyTavernSlashRunner = () => {
-    for (const runtimeWindow of getRuntimeWindowCandidates()) {
-      const ST = runtimeWindow?.SillyTavern;
-      if (typeof ST?.executeSlashCommandsWithOptions === 'function') {
-        return ST.executeSlashCommandsWithOptions.bind(ST);
-      }
-    }
-    return null;
-  };
+  const findSillyTavernSlashRunner = createFindSillyTavernSlashRunner({
+    getRuntimeWindowCandidates: (...a: any[]) => getRuntimeWindowCandidates(...a),
+  });
 
   const quoteSlashArgument = (text: string): string =>
     `"${String(text ?? '')
@@ -1853,14 +1882,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     DEFAULT_RENDER_PRESET_RULES: DEFAULT_RENDER_PRESET_RULES,
   });
 
-  const createBuiltinRenderPreset = (): RenderPreset => ({
-    format: RENDER_PRESET_FORMAT,
-    version: PRESET_FORMAT_VERSION,
-    id: RENDER_DEFAULT_PRESET_ID,
-    name: '默认渲染预设',
-    builtin: true,
-    description: '内置默认渲染规则，包含列名显示、属性键值对、关系、短标签、快捷检定过滤和正文头像渲染标签过滤等规则',
-    rules: cloneRenderPresetRules(DEFAULT_RENDER_PRESET_RULES),
+  const createBuiltinRenderPreset = createCreateBuiltinRenderPreset({
+    cloneRenderPresetRules: (...a: any[]) => cloneRenderPresetRules(...a),
+    getDEFAULT_RENDER_PRESET_RULES: () => DEFAULT_RENDER_PRESET_RULES,
+    getRENDER_DEFAULT_PRESET_ID: () => RENDER_DEFAULT_PRESET_ID,
+    getRENDER_PRESET_FORMAT: () => RENDER_PRESET_FORMAT,
   });
 
   const parseRenderPresetJson = (jsonText: string): { name: string; description: string; rules: RenderPresetRules } => {
@@ -3457,16 +3483,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     };
   };
 
-  const cloneAdvancedPresetFieldWithDefaults = (
-    rawField: unknown,
-    fallback: Record<string, unknown>,
-  ): Record<string, unknown> => {
-    const field = isAdvancedPresetRecord(rawField) ? { ...rawField } : {};
-    Object.entries(fallback).forEach(([key, value]) => {
-      if (!(key in field)) field[key] = value;
-    });
-    return field;
-  };
+  const cloneAdvancedPresetFieldWithDefaults = createCloneAdvancedPresetFieldWithDefaults({
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+  });
 
   const normalizeAdvancedPresetData = (
     rawData: Record<string, unknown>,
@@ -3583,15 +3602,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
   });
 
-  const coerceAdvancedPresetContextNumber = (value: unknown, fallback: number): number => {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'boolean') return value ? 1 : 0;
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    return fallback;
-  };
+  const coerceAdvancedPresetContextNumber = createCoerceAdvancedPresetContextNumber({
+
+  });
 
   const createAdvancedPresetRollResult = (total: number, tags: string[] = []): RollResult => ({
     total,
@@ -3607,15 +3620,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return value.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
   };
 
-  const assignAdvancedPresetContextNumber = (
-    context: Record<string, string | number | boolean | RollResult>,
-    key: string,
-    value: unknown,
-  ): void => {
-    const numericValue = coerceAdvancedPresetContextNumber(value, Number.NaN);
-    if (!Number.isFinite(numericValue)) return;
-    context[key.startsWith('$') ? key : `$${key}`] = numericValue;
-  };
+  const assignAdvancedPresetContextNumber = createAssignAdvancedPresetContextNumber({
+    coerceAdvancedPresetContextNumber: (...a: any[]) => coerceAdvancedPresetContextNumber(...a),
+  });
 
   const buildAdvancedPresetEvaluationContext = createBuildAdvancedPresetEvaluationContext({
     assignAdvancedPresetContextNumber: (...a: any[]) => assignAdvancedPresetContextNumber(...a),
@@ -3684,15 +3691,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
   });
 
-  const throwAdvancedPresetValidationIssues = (issues: AdvancedPresetValidationIssue[]): void => {
-    if (issues.length === 0) return;
-    const summary = issues
-      .slice(0, 5)
-      .map(issue => `${issue.path}: ${issue.message}`)
-      .join('；');
-    const extra = issues.length > 5 ? `；另有 ${issues.length - 5} 个问题` : '';
-    throw new Error(`预设校验失败：${summary}${extra}`);
-  };
+  const throwAdvancedPresetValidationIssues = createThrowAdvancedPresetValidationIssues({
+
+  });
 
   const validateAdvancedPreset = createValidateAdvancedPreset({
     pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
@@ -3863,15 +3864,9 @@ ${examples}`;
   type RuleTemplateSheet = { name?: unknown; sourceData?: RuleTemplateSourceData };
   type RuleTemplateRecord = Record<string, unknown>;
 
-  const getAttributeRulePresetById = (presetId: string | null | undefined): AttributeRulePresetConfig => {
-    if (presetId === null || presetId === undefined || presetId === '__default__') {
-      return DEFAULT_VIRTUAL_PRESET;
-    }
-    const found = (AttributePresetManager.getAllPresets() as AttributeRulePresetConfig[]).find(
-      preset => preset.id === presetId,
-    );
-    return found || DEFAULT_VIRTUAL_PRESET;
-  };
+  const getAttributeRulePresetById = createGetAttributeRulePresetById({
+    getAttributePresetManager: () => AttributePresetManager,
+  });
 
   const getAttributeRangeBounds = (
     attributes: AttributeRuleAttributeConfig[] | undefined,
@@ -4189,15 +4184,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * @param context 变量上下文
    * @returns 属性值
    */
-  const generateAttributeValue = (formula, range, context) => {
-    let value = evaluateFormula(formula, context);
-
-    if (range && Array.isArray(range) && range.length === 2) {
-      value = Math.max(range[0], Math.min(range[1], value));
-    }
-
-    return value;
-  };
+  const generateAttributeValue = createGenerateAttributeValue({
+    evaluateFormula: (...a: any[]) => evaluateFormula(...a),
+  });
 
   // ========================================
   // 仪表盘统一配置中心
@@ -4287,14 +4276,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const createBuiltinDashboardPreset = (): DashboardPreset => ({
-    format: DASHBOARD_PRESET_FORMAT,
-    version: PRESET_FORMAT_VERSION,
-    id: DASHBOARD_DEFAULT_PRESET_ID,
-    name: '默认仪表盘预设',
-    builtin: true,
-    description: '内置默认仪表盘抓取规则，可导出后修改并重新导入为自定义预设',
-    modules: createDashboardPresetModulesFromConfig(DASHBOARD_TABLE_CONFIG),
+  const createBuiltinDashboardPreset = createCreateBuiltinDashboardPreset({
+    createDashboardPresetModulesFromConfig: (...a: any[]) => createDashboardPresetModulesFromConfig(...a),
+    getDASHBOARD_DEFAULT_PRESET_ID: () => DASHBOARD_DEFAULT_PRESET_ID,
+    getDASHBOARD_PRESET_FORMAT: () => DASHBOARD_PRESET_FORMAT,
   });
 
   const isRecordValue = (value: unknown): value is Record<string, unknown> =>
@@ -4889,15 +4874,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * 从栈中弹出当前弹窗并返回上一个弹窗
    * @returns 是否成功返回上一个弹窗
    */
-  const popModal = (): boolean => {
-    modalStack.pop(); // 移除当前弹窗
-    const prev = modalStack.pop(); // 获取上一个弹窗
-    if (prev) {
-      prev.show(); // 重新打开上一个弹窗
-      return true;
-    }
-    return false;
-  };
+  const popModal = createPopModal({
+    getModalStack: () => modalStack,
+  });
 
   /**
    * 清空弹窗栈（用于关闭所有弹窗或从根弹窗关闭）
@@ -5097,16 +5076,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   });
 
   const ACU_DATABASE_NEW_UI_MENU_SELECTOR = '#acu-v2-menu-item';
-  const ACU_DATABASE_NEW_UI_API_METHODS = [
-    'openApp',
-    'openMain',
-    'openNewUI',
-    'openNewUi',
-    'openUi',
-    'openUI',
-    'openShell',
-    'showApp',
-  ];
+  const ACU_DATABASE_NEW_UI_API_METHODS = createAcuDatabaseNewUiApiMethods({
+
+  });
   const ACU_DATABASE_MANUAL_UPDATE_API_METHODS = [
     'manualUpdate',
     'runManualUpdate',
@@ -5179,15 +5151,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return false;
   };
 
-  const openDatabaseInterface = async (): Promise<void> => {
-    if (await openDatabaseNewUiViaApi()) return;
-    if (openDatabaseNewUiViaMenuEntry()) return;
-    if (openLegacyDatabaseSettings()) return;
-
-    if (window.toastr) {
-      window.toastr.warning('数据库脚本未就绪或版本过低，无法打开数据库界面');
-    }
-  };
+  const openDatabaseInterface = createOpenDatabaseInterface({
+    openDatabaseNewUiViaApi: (...a: any[]) => openDatabaseNewUiViaApi(...a),
+    openDatabaseNewUiViaMenuEntry: (...a: any[]) => openDatabaseNewUiViaMenuEntry(...a),
+    openLegacyDatabaseSettings: (...a: any[]) => openLegacyDatabaseSettings(...a),
+  });
 
   type DatabaseVisualizerNewUiOpenResult = 'opened' | 'unavailable' | 'failed';
 
@@ -5542,15 +5510,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     section: CustomTableNameIconSection;
   };
 
-  const DASHBOARD_MODULE_SECTION_KIND: Record<string, GlobalInteractionSectionKind> = {
-    player: 'character',
-    npc: 'character',
-    location: 'map',
-    bag: 'item',
-    equip: 'equipment',
-    quest: 'task',
-    skill: 'skill',
-  };
+  const DASHBOARD_MODULE_SECTION_KIND = createDashboardModuleSectionKind({
+
+  });
 
   const CUSTOM_TABLE_NAME_ICON_DASHBOARD_MODULE_CONTEXTS: Record<string, DashboardCustomTableNameIconContextInfo> = {
     location: { moduleId: 'global-interaction-map-marker', section: 'map' },
@@ -5581,15 +5543,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return null;
   };
 
-  const resolveDashboardCustomTableNameIconContextInfo = (
-    tableName: string,
-  ): DashboardCustomTableNameIconContextInfo | null => {
-    for (const moduleKey of getDashboardModuleKeysForTableName(tableName)) {
-      const contextInfo = CUSTOM_TABLE_NAME_ICON_DASHBOARD_MODULE_CONTEXTS[moduleKey];
-      if (contextInfo) return contextInfo;
-    }
-    return null;
-  };
+  const resolveDashboardCustomTableNameIconContextInfo = createResolveDashboardCustomTableNameIconContextInfo({
+    getDashboardModuleKeysForTableName: (...a: any[]) => getDashboardModuleKeysForTableName(...a),
+    getCUSTOM_TABLE_NAME_ICON_DASHBOARD_MODULE_CONTEXTS: () => CUSTOM_TABLE_NAME_ICON_DASHBOARD_MODULE_CONTEXTS,
+  });
 
   const resolveDashboardCustomTableNameIconRowName = (
     tableName: string,
@@ -5641,16 +5598,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     'alias',
     'user',
   ];
-  const CUSTOM_TABLE_NAME_ICON_ALLOWED_PANEL_SECTIONS = new Set<CustomTableNameIconSection>([
-    'map',
-    'item',
-    'equipment',
-    'faction',
-    'shop',
-    'task',
-    'skill',
-    'generic',
-  ]);
+  const CUSTOM_TABLE_NAME_ICON_ALLOWED_PANEL_SECTIONS = createCustomTableNameIconAllowedPanelSections({
+
+  });
   const CUSTOM_TABLE_NAME_ICON_DENIED_MODULES = new Set<CustomTableNameIconModuleId>([
     'avatar-manager',
     'relationship-graph',
@@ -5913,15 +5863,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     CustomTableNameIconStoreManager: CustomTableNameIconStoreManager,
   });
 
-  const getCustomTableNameIconManagerInvalidSourceText = (
-    reason: CustomTableNameIconInvalidSourceReason | null,
-  ): string => {
-    if (reason === 'invalid_protocol') return '仅支持 http/https 图片地址';
-    if (reason === 'svg_url' || reason === 'svg_mime') return '不支持 SVG 图片';
-    if (reason === 'unsupported_mime') return '仅支持 PNG、JPEG、WebP、GIF';
-    if (reason === 'oversize') return '本地图片不能超过 1 MB';
-    return '图片来源无效';
-  };
+  const getCustomTableNameIconManagerInvalidSourceText = createGetCustomTableNameIconManagerInvalidSourceText({
+
+  });
 
   const getCustomTableNameIconManagerEntryAsset = async (
     entry: CustomTableNameIconEntry | null,
@@ -6296,25 +6240,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     );
   };
 
-  const savePanelRequestedHeight = (panelKey: unknown, height: unknown): number | null => {
-    const key = String(panelKey ?? '').trim();
-    const normalizedHeight = normalizePanelHeightValue(height);
-    if (!key || !normalizedHeight) return null;
-    const heights = getTableHeights();
-    heights[key] = normalizedHeight;
-    saveTableHeights(heights);
-    return normalizedHeight;
-  };
+  const savePanelRequestedHeight = createSavePanelRequestedHeight({
+    getTableHeights: (...a: any[]) => getTableHeights(...a),
+    normalizePanelHeightValue: (...a: any[]) => normalizePanelHeightValue(...a),
+    saveTableHeights: (...a: any[]) => saveTableHeights(...a),
+  });
 
-  const resetPanelRequestedHeight = ($panel: JQuery<HTMLElement>, panelKey: unknown): void => {
-    const key = String(panelKey ?? '').trim();
-    if (key) {
-      const heights = getTableHeights();
-      delete heights[key];
-      saveTableHeights(heights);
-    }
-    clearPanelRequestedHeight($panel);
-  };
+  const resetPanelRequestedHeight = createResetPanelRequestedHeight({
+    clearPanelRequestedHeight: (...a: any[]) => clearPanelRequestedHeight(...a),
+    getTableHeights: (...a: any[]) => getTableHeights(...a),
+    saveTableHeights: (...a: any[]) => saveTableHeights(...a),
+  });
 
   const getActivePanelHeightKey = (): string | null => {
     if (Store.get(STORAGE_KEY_DASHBOARD_ACTIVE, false)) return '仪表盘';
@@ -6465,15 +6401,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return found ? found.value : null;
   };
 
-  const pushDiceQuickSelectCharacter = (list: string[], name: unknown, preferFront = false): void => {
-    const displayName = getDisplayName(String(name ?? '').trim());
-    if (!displayName || list.some(existing => characterNamesMatch(existing, displayName))) return;
-    if (preferFront) {
-      list.unshift(displayName);
-    } else {
-      list.push(displayName);
-    }
-  };
+  const pushDiceQuickSelectCharacter = createPushDiceQuickSelectCharacter({
+    characterNamesMatch: (...a: any[]) => characterNamesMatch(...a),
+  });
 
   const getDiceQuickSelectCharacterList = createGetDiceQuickSelectCharacterList({
     getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
@@ -6895,15 +6825,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const RELATION_GRAPH_FALLBACK_RELATION_COLUMN_KEYWORDS = ['人际关系', 'relation_state', 'relation_text'];
 
-  const findRelationGraphColumnIndex = (headers: RelationGraphCell[], keywords: string[]): number => {
-    for (let i = 0; i < headers.length; i++) {
-      const header = String(headers[i] || '').toLowerCase();
-      if (keywords.some(keyword => header.includes(keyword.toLowerCase()))) {
-        return i;
-      }
-    }
-    return -1;
-  };
+  const findRelationGraphColumnIndex = createFindRelationGraphColumnIndex({
+
+  });
 
   const findRelationGraphRelationColumnMatch = (
     headers: RelationGraphCell[],
@@ -7494,16 +7418,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       })
       .filter((record): record is GachaCatalogRecord => Boolean(record));
 
-  const collectDiceConfigBackupGachaCatalogRecords = async (): Promise<GachaCatalogRecord[]> => {
-    try {
-      await migrateGachaCatalogRecordsToGlobalScope();
-      return normalizeDiceConfigBackupGachaCatalogSnapshotRecords(await GachaCatalogDB.getAll());
-    } catch (error) {
-      console.error('[DICE]配置备份读取商城自定义目录失败:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`读取骰子商城自定义物品目录失败，已取消导出：${message}`);
-    }
-  };
+  const collectDiceConfigBackupGachaCatalogRecords = createCollectDiceConfigBackupGachaCatalogRecords({
+    migrateGachaCatalogRecordsToGlobalScope: (...a: any[]) => migrateGachaCatalogRecordsToGlobalScope(...a),
+    normalizeDiceConfigBackupGachaCatalogSnapshotRecords: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogSnapshotRecords(...a),
+  });
 
   const collectDiceConfigBackupGachaCatalogRollbackSnapshot =
     async (): Promise<DiceConfigBackupGachaCatalogRollbackSnapshot> => {
@@ -8143,15 +8061,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return isDiceConfigBackupRecord(stored) ? stored : {};
   };
 
-  const setDiceProfilePromptState = (
-    chatId: string,
-    fingerprint: string,
-    state: 'skipped' | 'applied' | 'saved',
-  ): void => {
-    const states = getDiceProfilePromptStates();
-    states[getAcuDiceProfilePromptKey(chatId, fingerprint)] = state;
-    Store.set(DICE_PROFILE_SKIPPED_PROMPTS_STORAGE_KEY, states);
-  };
+  const setDiceProfilePromptState = createSetDiceProfilePromptState({
+    getDiceProfilePromptStates: (...a: any[]) => getDiceProfilePromptStates(...a),
+    getDICE_PROFILE_SKIPPED_PROMPTS_STORAGE_KEY: () => DICE_PROFILE_SKIPPED_PROMPTS_STORAGE_KEY,
+  });
 
   const getDiceProfilePromptState = (
     chatId: string,
@@ -8484,15 +8397,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return true;
   };
 
-  const SETTINGS_GROUP_TUTORIAL_MAP: Partial<Record<TutorialScope, string>> = {
-    settingsAppearance: 'appearance',
-    settingsLayout: 'layout',
-    settingsPosition: 'position',
-    settingsOptions: 'position',
-    settingsTables: 'position',
-    settingsDicePresets: 'dicePresets',
-    settingsAdvanced: 'advanced',
-  };
+  const SETTINGS_GROUP_TUTORIAL_MAP = createSettingsGroupTutorialMap({
+
+  });
 
   const prepareSettingsGroupTutorial = createPrepareSettingsGroupTutorial({
     getCore: (...a: any[]) => getCore(...a),
@@ -8510,16 +8417,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     prepareSettingsGroupTutorial: (...a: any[]) => prepareSettingsGroupTutorial(...a),
   });
 
-  const bindTutorialButtonsIn = ($root: JQuery): void => {
-    $root
-      .find('.acu-panel-tutorial-btn')
-      .off('click.acu_panel_tutorial_direct')
-      .on('click.acu_panel_tutorial_direct', function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        startTutorialFromButton(this);
-      });
-  };
+  const bindTutorialButtonsIn = createBindTutorialButtonsIn({
+    startTutorialFromButton: (...a: any[]) => startTutorialFromButton(...a),
+  });
 
   type DiffSheet = {
     name?: unknown;
@@ -9044,15 +8944,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return aliases;
   };
 
-  const parseSqlQuotedValues = (value: string): string[] => {
-    const values: string[] = [];
-    const regex = /'((?:''|[^'])*)'/g;
-    let match: RegExpExecArray | null = null;
-    while ((match = regex.exec(String(value || ''))) !== null) {
-      values.push(String(match[1] || '').replace(/''/g, "'"));
-    }
-    return values;
-  };
+  const parseSqlQuotedValues = createParseSqlQuotedValues({
+
+  });
 
   type RuntimeCrudEnumConstraint = {
     values: string[];
@@ -10373,15 +10267,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     parseCheckSuggestionPrimitiveValue: (...a: any[]) => parseCheckSuggestionPrimitiveValue(...a),
   });
 
-  const parseCheckSuggestionModifierValue = (value: string): number => {
-    const trimmed = String(value || '').trim();
-    if (!trimmed) return 0;
-    if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed);
-    const rollResult = rollComplexDiceExpression(trimmed);
-    if (!Number.isNaN(rollResult.total)) return rollResult.total;
-    const formulaValue = evaluateFormula(trimmed, {});
-    return Number.isFinite(formulaValue) ? formulaValue : 0;
-  };
+  const parseCheckSuggestionModifierValue = createParseCheckSuggestionModifierValue({
+    evaluateFormula: (...a: any[]) => evaluateFormula(...a),
+  });
 
   const resolveCheckSuggestionDefaultValue = createResolveCheckSuggestionDefaultValue({
     evaluateFormula: (...a: any[]) => evaluateFormula(...a),
@@ -10939,15 +10827,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return elements;
   };
 
-  const getViewportAnchorRect = (): DOMRect | null => {
-    const targetDocument = getTavernHostDocument();
-
-    const chat = targetDocument.querySelector<HTMLElement>('#chat');
-    if (!chat) return null;
-
-    const rect = chat.getBoundingClientRect();
-    return rect.width > 0 ? rect : null;
-  };
+  const getViewportAnchorRect = createGetViewportAnchorRect({
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+  });
 
   const getFixedWrapperParentMetrics = (
     parent: HTMLElement | null,
@@ -11093,15 +10975,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setFixedWrapperBoundsRefreshHandler: (v: any) => { fixedWrapperBoundsRefreshHandler = v; },
   });
 
-  const scheduleFloatingCollapseBoundsRefresh = () => {
-    if (!isFloatingCollapseActive()) return;
-    if (floatingCollapseBoundsRaf !== null) return;
-
-    floatingCollapseBoundsRaf = requestAnimationFrame(() => {
-      floatingCollapseBoundsRaf = null;
-      updateFloatingCollapseBounds();
-    });
-  };
+  const scheduleFloatingCollapseBoundsRefresh = createScheduleFloatingCollapseBoundsRefresh({
+    isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
+    updateFloatingCollapseBounds: (...a: any[]) => updateFloatingCollapseBounds(...a),
+    getFloatingCollapseBoundsRaf: () => floatingCollapseBoundsRaf,
+    setFloatingCollapseBoundsRaf: (v: any) => { floatingCollapseBoundsRaf = v; },
+  });
 
   const clearFloatingCollapseBoundsListeners = createClearFloatingCollapseBoundsListeners({
     getFloatingCollapseBoundsListenerWindow: () => floatingCollapseBoundsListenerWindow,
@@ -11754,15 +11633,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     { value: 'enabled', label: '启用', iconClass: 'fa-circle-check' },
     { value: 'disabled', label: '禁用', iconClass: 'fa-circle-pause' },
   ];
-  const GACHA_SETTINGS_SORT_OPTIONS: readonly GachaSettingsFilterOption<GachaSettingsItemSortMode>[] = [
-    { value: 'default', label: '默认排序', iconClass: 'fa-arrow-down-wide-short' },
-    { value: 'nameAsc', label: '名称 A-Z', iconClass: 'fa-arrow-down-a-z' },
-    { value: 'nameDesc', label: '名称 Z-A', iconClass: 'fa-arrow-down-z-a' },
-    { value: 'createdDesc', label: '最新创建', iconClass: 'fa-clock' },
-    { value: 'createdAsc', label: '最早创建', iconClass: 'fa-clock-rotate-left' },
-    { value: 'qualityDesc', label: '品质高到低', iconClass: 'fa-gem' },
-    { value: 'weightDesc', label: '权重高到低', iconClass: 'fa-scale-balanced' },
-  ];
+  const GACHA_SETTINGS_SORT_OPTIONS = createGachaSettingsSortOptions({
+
+  });
   const INVENTORY_TYPE_FILTER_META: InventoryFilterButtonMeta<InventoryTypeFilter>[] = [
     { value: '全部', icon: 'fa-boxes-stacked', label: '全部类型' },
     { value: '消耗品', icon: 'fa-flask', label: '消耗品' },
@@ -11770,16 +11643,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     { value: '任务物品', icon: 'fa-scroll', label: '任务物品' },
     { value: '道具', icon: 'fa-cube', label: '道具' },
   ];
-  const INVENTORY_QUALITY_FILTER_META: InventoryFilterButtonMeta<InventoryQualityFilter>[] = [
-    { value: '全部', icon: 'fa-layer-group', label: '全部品质' },
-    { value: '普通', icon: 'fa-circle', label: '普通' },
-    { value: '优秀', icon: 'fa-square', label: '优秀' },
-    { value: '稀有', icon: 'fa-diamond', label: '稀有' },
-    { value: '史诗', icon: 'fa-crown', label: '史诗' },
-    { value: '传说', icon: 'fa-star', label: '传说' },
-    { value: '神话', icon: 'fa-sun', label: '神话' },
-    { value: '唯一', icon: 'fa-fingerprint', label: '唯一' },
-  ];
+  const INVENTORY_QUALITY_FILTER_META = createInventoryQualityFilterMeta({
+
+  });
 
   const getInventoryFilters = (): InventoryFilterState => {
     const stored = Store.get(STORAGE_KEY_INVENTORY_FILTERS, {}) as Partial<InventoryFilterState>;
@@ -11984,15 +11850,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const GACHA_TARGET_COLUMN_LABELS = createGachaTargetColumnLabels({
 
   });
-  const GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS = new Set<GachaRewardTargetColumnKey>([
-    'name',
-    'type',
-    'quantity',
-    'quality',
-    'tags',
-    'effect',
-    'description',
-  ]);
+  const GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS = createGachaCommonWrittenTargetColumnKeys({
+
+  });
   const GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS = new Set<GachaRewardTargetColumnKey>([
     ...GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS,
     'status',
@@ -12540,15 +12400,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return createIfMissing ? createDefaultGachaState() : null;
   };
 
-  const touchGachaActivity = (state: GachaState | null = getGachaState(undefined, true)): GachaState | null => {
-    if (!state) return null;
-    const now = Date.now();
-    state.inputStats.lastActiveAt = Math.max(now, state.inputStats.lastActiveAt || 0, lastHumanInputActivityAt || 0);
-    if (!state.inputStats.lastHeartbeatAt) {
-      state.inputStats.lastHeartbeatAt = now;
-    }
-    return state;
-  };
+  const touchGachaActivity = createTouchGachaActivity({
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getLastHumanInputActivityAt: () => lastHumanInputActivityAt,
+  });
 
   const recordGachaFortuneGain = (state: GachaState, gain: number, reason: string, detail: string) => {
     if (gain <= 0) return;
@@ -12801,15 +12656,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getInventoryMetadataForItem: (...a: any[]) => getInventoryMetadataForItem(...a),
   });
 
-  const setInventoryRowBasicFields = (row: unknown[], colMap, item: GachaItemDefinition, quantity: number) => {
-    if (colMap.name >= 0) row[colMap.name] = item.name;
-    if (colMap.type >= 0) row[colMap.type] = item.type;
-    if (colMap.quantity >= 0) row[colMap.quantity] = String(quantity);
-    if (colMap.quality >= 0) row[colMap.quality] = item.quality;
-    if (typeof colMap.tags === 'number' && colMap.tags >= 0) row[colMap.tags] = getGachaItemTagsText(item);
-    if (typeof colMap.effect === 'number' && colMap.effect >= 0) row[colMap.effect] = getGachaItemEffectText(item);
-    if (colMap.description >= 0) row[colMap.description] = getGachaItemDescriptionText(item);
-  };
+  const setInventoryRowBasicFields = createSetInventoryRowBasicFields({
+    getGachaItemDescriptionText: (...a: any[]) => getGachaItemDescriptionText(...a),
+    getGachaItemEffectText: (...a: any[]) => getGachaItemEffectText(...a),
+    getGachaItemTagsText: (...a: any[]) => getGachaItemTagsText(...a),
+  });
 
   const resolveEquipmentTableTypeForGachaItem = createResolveEquipmentTableTypeForGachaItem({
     buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
@@ -13429,15 +13280,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
   });
 
-  const getGachaSettingsFilterLabel = (field: GachaSettingsFilterField, value: string): string => {
-    if (field === 'source') {
-      return GACHA_SETTINGS_SOURCE_FILTER_OPTIONS.find(option => option.value === value)?.label || '全部来源';
-    }
-    if (field === 'status') {
-      return GACHA_SETTINGS_STATUS_FILTER_OPTIONS.find(option => option.value === value)?.label || '全部状态';
-    }
-    return GACHA_SETTINGS_SORT_OPTIONS.find(option => option.value === value)?.label || '默认排序';
-  };
+  const getGachaSettingsFilterLabel = createGetGachaSettingsFilterLabel({
+    getGACHA_SETTINGS_SORT_OPTIONS: () => GACHA_SETTINGS_SORT_OPTIONS,
+    getGACHA_SETTINGS_SOURCE_FILTER_OPTIONS: () => GACHA_SETTINGS_SOURCE_FILTER_OPTIONS,
+    getGACHA_SETTINGS_STATUS_FILTER_OPTIONS: () => GACHA_SETTINGS_STATUS_FILTER_OPTIONS,
+  });
 
   const renderGachaSettingsFilterMenuHtml = createRenderGachaSettingsFilterMenuHtml({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -14167,15 +14014,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     showInventoryItemDetail(rowIndex);
   };
 
-  const saveInventoryMetadataRecord = async (rowIndex: number, nextRecord: InventoryMetadataRecord) => {
-    const context = getInventoryDetailContext(rowIndex);
-    if (!context) {
-      if (window.toastr) window.toastr.warning('未找到物品数据');
-      return;
-    }
-    setInventoryMetadataForItem(context.rawData, context.item, nextRecord);
-    reopenInventoryItemDetail(rowIndex);
-  };
+  const saveInventoryMetadataRecord = createSaveInventoryMetadataRecord({
+    getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
+    reopenInventoryItemDetail: (...a: any[]) => reopenInventoryItemDetail(...a),
+    setInventoryMetadataForItem: (...a: any[]) => setInventoryMetadataForItem(...a),
+  });
 
   const saveInventoryFieldValue = createSaveInventoryFieldValue({
     getInventoryDetailContext: (...a: any[]) => getInventoryDetailContext(...a),
@@ -14450,15 +14293,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     warnTableTemplateIssue(tableName ? `未找到表格「${tableName}」` : '无法定位目标表格');
   };
 
-  const setActiveTableNavButton = (tableName: string) => {
-    const { $ } = getCore();
-    $('.acu-nav-btn').removeClass('active');
-    $('.acu-nav-btn[data-table]')
-      .filter(function (this: HTMLElement) {
-        return String($(this).data('table') ?? '') === tableName;
-      })
-      .addClass('active');
-  };
+  const setActiveTableNavButton = createSetActiveTableNavButton({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   /**
    * 面板切换工具函数 - 快速更新面板内容（无过渡延迟）
@@ -14895,14 +14732,8 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const serializeAcuDiceGachaPool = (pool: GachaPoolDefinition) => ({
-    id: pool.id,
-    name: pool.name,
-    builtin: pool.builtin === true,
-    visibleInTabs: pool.visibleInTabs === true,
-    includeInAll: pool.includeInAll === true,
-    order: Number(pool.order) || 0,
-    canDelete: canDeleteGachaPoolDefinition(pool),
+  const serializeAcuDiceGachaPool = createSerializeAcuDiceGachaPool({
+    canDeleteGachaPoolDefinition: (...a: any[]) => canDeleteGachaPoolDefinition(...a),
   });
 
   const serializeAcuDiceGachaItem = (item: GachaItemDefinition, customIds?: ReadonlySet<string>) => ({
@@ -14918,14 +14749,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     shardGain: outcome.shardGain,
   });
 
-  const serializeAcuDiceGachaDrawResult = (result: Awaited<ReturnType<typeof performGachaDraw>>) => ({
-    success: result.success === true,
-    drawCount: result.drawCount,
-    cost: result.cost,
-    outcomes: result.outcomes.map(serializeAcuDiceGachaDrawOutcome),
-    state: buildAcuDiceGachaStateSnapshot(result.state),
-    message: result.message,
-    error: result.error || undefined,
+  const serializeAcuDiceGachaDrawResult = createSerializeAcuDiceGachaDrawResult({
+    buildAcuDiceGachaStateSnapshot: (...a: any[]) => buildAcuDiceGachaStateSnapshot(...a),
+    performGachaDraw: (...a: any[]) => performGachaDraw(...a),
+    serializeAcuDiceGachaDrawOutcome: (...a: any[]) => serializeAcuDiceGachaDrawOutcome(...a),
   });
 
   const changeAcuDiceGachaFortune = createChangeAcuDiceGachaFortune({
