@@ -85,6 +85,14 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createShowTableTemplateRequirementPresetManager } from './features/table/show-table-template-requirement-preset-manager';
+import { createShowTableTemplateRequirementPresetEditor } from './features/table/show-table-template-requirement-preset-editor';
+import { createRenderDataCardCellContent } from './features/table/render-data-card-cell-content';
+import { createApplyExistingRowCellPatchesViaCrud } from './features/table/apply-existing-row-cell-patches-via-crud';
+import { createMergeDiceConfigBackupCustomOnlyPresetArray } from './features/dice/merge-dice-config-backup-custom-only-preset-array';
+import { createNormalizeRenderPresetRules } from './features/presets/normalize-render-preset-rules';
+import { createMergeDiceConfigBackupPresetArraySafely } from './features/dice/merge-dice-config-backup-preset-array-safely';
+import { createDeleteGachaPoolConfig } from './features/gacha/delete-gacha-pool-config';
 import { createAcuDiceAPI } from './features/api/public-api';
 import { createUpdateTemplateForActivePreset } from './features/presets/update-template-for-active-preset';
 import { createShowTemplateInspectionResultModal } from './features/table/show-template-inspection-result-modal';
@@ -2813,107 +2821,13 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     },
   };
 
-  const normalizeRenderPresetRules = (rawRules: unknown): RenderPresetRules => {
-    const raw = isRecordValue(rawRules) ? rawRules : {};
-    const columnDisplay = isRecordValue(raw.columnDisplay) ? raw.columnDisplay : {};
-    const relationship = isRecordValue(raw.relationship) ? raw.relationship : {};
-    const attributes = isRecordValue(raw.attributes) ? raw.attributes : {};
-    const shortTags = isRecordValue(raw.shortTags) ? raw.shortTags : {};
-    const badges = isRecordValue(raw.badges) ? raw.badges : {};
-    const quickCheck = isRecordValue(raw.quickCheck) ? raw.quickCheck : {};
-    const dialogueIndent = isRecordValue(raw.dialogueIndent) ? raw.dialogueIndent : {};
-
-    const shortTextMaxLength = Math.max(
-      1,
-      Math.min(
-        24,
-        Math.floor(Number(badges.shortTextMaxLength) || DEFAULT_RENDER_PRESET_RULES.badges.shortTextMaxLength),
-      ),
-    );
-    const shortTagMaxLength = Math.max(
-      1,
-      Math.min(24, Math.floor(Number(shortTags.maxLength) || DEFAULT_RENDER_PRESET_RULES.shortTags.maxLength)),
-    );
-
-    return {
-      columnDisplay: {
-        stripBracketContent:
-          typeof columnDisplay.stripBracketContent === 'boolean'
-            ? columnDisplay.stripBracketContent
-            : DEFAULT_RENDER_PRESET_RULES.columnDisplay.stripBracketContent,
-        aliases: normalizeRenderPresetAliasMap(
-          columnDisplay.aliases,
-          DEFAULT_RENDER_PRESET_RULES.columnDisplay.aliases,
-        ),
-      },
-      invalidValues: normalizeRenderPresetStringList(raw.invalidValues, DEFAULT_RENDER_PRESET_RULES.invalidValues),
-      identityHeaderKeywords: normalizeRenderPresetStringList(
-        raw.identityHeaderKeywords,
-        DEFAULT_RENDER_PRESET_RULES.identityHeaderKeywords,
-      ),
-      relationship: {
-        enabled:
-          typeof relationship.enabled === 'boolean'
-            ? relationship.enabled
-            : DEFAULT_RENDER_PRESET_RULES.relationship.enabled,
-        headerKeywords: normalizeRenderPresetStringList(
-          relationship.headerKeywords,
-          DEFAULT_RENDER_PRESET_RULES.relationship.headerKeywords,
-        ),
-        autoDetectMultipleParen:
-          typeof relationship.autoDetectMultipleParen === 'boolean'
-            ? relationship.autoDetectMultipleParen
-            : DEFAULT_RENDER_PRESET_RULES.relationship.autoDetectMultipleParen,
-      },
-      attributes: {
-        enabled:
-          typeof attributes.enabled === 'boolean' ? attributes.enabled : DEFAULT_RENDER_PRESET_RULES.attributes.enabled,
-        parseJsonObject:
-          typeof attributes.parseJsonObject === 'boolean'
-            ? attributes.parseJsonObject
-            : DEFAULT_RENDER_PRESET_RULES.attributes.parseJsonObject,
-        parseKeyValuePairs:
-          typeof attributes.parseKeyValuePairs === 'boolean'
-            ? attributes.parseKeyValuePairs
-            : DEFAULT_RENDER_PRESET_RULES.attributes.parseKeyValuePairs,
-      },
-      shortTags: {
-        enabled:
-          typeof shortTags.enabled === 'boolean' ? shortTags.enabled : DEFAULT_RENDER_PRESET_RULES.shortTags.enabled,
-        maxLength: shortTagMaxLength,
-      },
-      badges: {
-        enabled: typeof badges.enabled === 'boolean' ? badges.enabled : DEFAULT_RENDER_PRESET_RULES.badges.enabled,
-        shortTextMaxLength,
-        numericPattern:
-          typeof badges.numericPattern === 'boolean'
-            ? badges.numericPattern
-            : DEFAULT_RENDER_PRESET_RULES.badges.numericPattern,
-        statusValues: normalizeRenderPresetStringList(
-          badges.statusValues,
-          DEFAULT_RENDER_PRESET_RULES.badges.statusValues,
-        ),
-      },
-      quickCheck: {
-        enabled:
-          typeof quickCheck.enabled === 'boolean' ? quickCheck.enabled : DEFAULT_RENDER_PRESET_RULES.quickCheck.enabled,
-        excludeKeywords: normalizeRenderPresetStringList(
-          quickCheck.excludeKeywords,
-          DEFAULT_RENDER_PRESET_RULES.quickCheck.excludeKeywords,
-        ),
-      },
-      dialogueIndent: {
-        whitelist: normalizeRenderPresetTagFilterList(
-          dialogueIndent.whitelist,
-          DEFAULT_RENDER_PRESET_RULES.dialogueIndent.whitelist,
-        ),
-        blacklist: normalizeRenderPresetTagFilterList(
-          dialogueIndent.blacklist,
-          DEFAULT_RENDER_PRESET_RULES.dialogueIndent.blacklist,
-        ),
-      },
-    };
-  };
+  const normalizeRenderPresetRules = createNormalizeRenderPresetRules({
+    isRecordValue: (...a: any[]) => isRecordValue(...a),
+    normalizeRenderPresetAliasMap: (...a: any[]) => normalizeRenderPresetAliasMap(...a),
+    normalizeRenderPresetStringList: (...a: any[]) => normalizeRenderPresetStringList(...a),
+    normalizeRenderPresetTagFilterList: (...a: any[]) => normalizeRenderPresetTagFilterList(...a),
+    DEFAULT_RENDER_PRESET_RULES: DEFAULT_RENDER_PRESET_RULES,
+  });
 
   const createBuiltinRenderPreset = (): RenderPreset => ({
     format: RENDER_PRESET_FORMAT,
@@ -11755,156 +11669,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     );
   };
 
-  const renderDataCardCellContent = (options: RenderDataCardCellOptions): RenderDataCardCellResult => {
-    const preset = RenderPresetManager.getActivePreset();
-    const rawHeaderName = String(options.rawHeaderName || '');
-    const headerName = RenderPresetManager.getColumnDisplayName(rawHeaderName || '属性');
-    const rawStrOriginal = String(options.cell ?? '').trim();
-    const rawStr = replaceUserPlaceholders(rawStrOriginal);
-    const isFieldLocked = options.isFieldLocked === true;
-
-    if (RenderPresetManager.isInvalidValue(rawStr)) {
-      return { headerName, contentHtml: '', hideLabel: false, shouldRender: false };
-    }
-
-    let contentHtml = '';
-    let hideLabel = false;
-    const splitRegex = /[;；]/;
-    const isIdentityField =
-      RenderPresetManager.isIdentityHeader(rawHeaderName) || RenderPresetManager.isIdentityHeader(headerName);
-    const parsedAttrs = isIdentityField ? [] : parseRenderPresetAttributes(rawStr, preset);
-
-    if (isIdentityField) {
-      const badgeStyle = getRenderPresetBadgeStyle(rawStr, preset);
-      const displayCell = escapeHtml(rawStr) === '' && String(options.cell) !== '0' ? '&nbsp;' : escapeHtml(rawStr);
-      contentHtml = badgeStyle ? '<span class="acu-badge ' + badgeStyle + '">' + displayCell + '</span>' : displayCell;
-    } else if (RenderPresetManager.isRelationshipCell(rawStr, headerName)) {
-      const relations = parseRelationshipString(rawStr) as RenderRelationshipItem[];
-      const validRelations = relations.filter(rel => {
-        if (!rel.relation) return true;
-        return !RenderPresetManager.isInvalidValue(rel.relation);
-      });
-
-      if (validRelations.length > 1) {
-        hideLabel = true;
-        let relHtml = '';
-        for (let i = 0; i < validRelations.length; i++) {
-          const rel = validRelations[i];
-          const borderStyle = i < validRelations.length - 1 ? 'border-bottom:1px dashed rgba(128,128,128,0.2);' : '';
-          relHtml += '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;' + borderStyle + '">';
-          relHtml +=
-            '<span style="color:var(--acu-text-sub);font-size:0.95em;" data-locked="' +
-            isFieldLocked +
-            '">' +
-            escapeHtml(rel.name) +
-            '</span>';
-          if (rel.relation) {
-            relHtml +=
-              '<span style="color:var(--acu-text-main);font-size:0.85em;background:var(--acu-badge-bg);padding:1px 6px;border-radius:8px;">' +
-              escapeHtml(rel.relation) +
-              '</span>';
-          }
-          relHtml += '</div>';
-        }
-        contentHtml = '<div class="acu-relation-container">' + relHtml + '</div>';
-      } else if (validRelations.length === 1) {
-        hideLabel = true;
-        const rel = validRelations[0];
-        contentHtml = '<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">';
-        contentHtml +=
-          '<span style="color:var(--acu-text-sub);font-size:0.95em;" data-locked="' +
-          isFieldLocked +
-          '">' +
-          escapeHtml(rel.name) +
-          '</span>';
-        if (rel.relation) {
-          contentHtml +=
-            '<span style="color:var(--acu-text-main);font-size:0.85em;background:var(--acu-badge-bg);padding:1px 6px;border-radius:8px;">' +
-            escapeHtml(rel.relation) +
-            '</span>';
-        }
-        contentHtml += '</div>';
-      }
-    } else if (parsedAttrs.length > 1) {
-      hideLabel = true;
-      let attrsHtml = '';
-      for (let i = 0; i < parsedAttrs.length; i++) {
-        const attr = parsedAttrs[i];
-        attrsHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">';
-        attrsHtml +=
-          '<span style="color:var(--acu-text-sub);font-size:0.9em;white-space:nowrap;" data-locked="' +
-          isFieldLocked +
-          '" title="' +
-          escapeHtml(attr.name) +
-          '">' +
-          escapeHtml(attr.name.length > 3 ? attr.name.substring(0, 5) : attr.name) +
-          '</span>';
-        attrsHtml += '<div style="display:flex;align-items:center;gap:4px;">';
-        attrsHtml +=
-          '<span style="color:var(--acu-text-main);font-weight:bold;font-size:0.95em;">' + attr.value + '</span>';
-        attrsHtml += renderInlineQuickCheckButton(attr.name, attr.value, {
-          fontSize: options.diceIconFontSize || '10px',
-        });
-        attrsHtml += '</div></div>';
-      }
-      contentHtml = '<div class="acu-multi-attr-container">' + attrsHtml + '</div>';
-    } else if (parsedAttrs.length === 1) {
-      hideLabel = true;
-      const attr = parsedAttrs[0];
-      contentHtml = '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      contentHtml +=
-        '<span style="color:var(--acu-text-sub);font-size:0.95em;" data-locked="' +
-        isFieldLocked +
-        '">' +
-        escapeHtml(attr.name) +
-        '</span>';
-      contentHtml += '<div style="display:flex;align-items:center;gap:6px;">';
-      contentHtml += '<span style="color:var(--acu-text-main);font-weight:bold;">' + attr.value + '</span>';
-      contentHtml += renderInlineQuickCheckButton(attr.name, attr.value, {
-        fontSize: options.diceIconFontSize || '11px',
-      });
-      contentHtml += '</div></div>';
-    } else if (
-      preset.rules.shortTags.enabled &&
-      rawStr.length > 0 &&
-      splitRegex.test(rawStr) &&
-      !rawStr.includes('http')
-    ) {
-      const parts = rawStr
-        .split(splitRegex)
-        .map(s => s.trim())
-        .filter(s => s && !RenderPresetManager.isInvalidValue(s));
-      const allShort = parts.length > 1 && parts.every(p => p.length <= preset.rules.shortTags.maxLength);
-      if (allShort) {
-        const tagsHtml = parts
-          .map(part => {
-            const subStyle = getRenderPresetBadgeStyle(part, preset) || 'acu-badge-neutral';
-            return '<span class="acu-badge ' + subStyle + '">' + escapeHtml(part) + '</span>';
-          })
-          .join('');
-        contentHtml = '<div class="acu-tag-container">' + tagsHtml + '</div>';
-      } else if (parts.length > 0) {
-        contentHtml = escapeHtml(parts.join('; '));
-      } else {
-        contentHtml = '';
-      }
-    } else if (isNumericCell(rawStr) && !rawStr.includes(':') && !rawStr.includes('：')) {
-      const numVal = extractNumericValue(rawStr);
-      contentHtml = '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      contentHtml += '<span>' + escapeHtml(rawStr) + '</span>';
-      contentHtml += renderInlineQuickCheckButton(headerName, numVal, {
-        fontSize: options.diceIconFontSize || '11px',
-        marginLeft: options.numericDiceMarginLeft === true,
-      });
-      contentHtml += '</div>';
-    } else {
-      const badgeStyle = getRenderPresetBadgeStyle(rawStr, preset);
-      const displayCell = escapeHtml(rawStr) === '' && String(options.cell) !== '0' ? '&nbsp;' : escapeHtml(rawStr);
-      contentHtml = badgeStyle ? '<span class="acu-badge ' + badgeStyle + '">' + displayCell + '</span>' : displayCell;
-    }
-
-    return { headerName, contentHtml, hideLabel, shouldRender: true };
-  };
+  const renderDataCardCellContent = createRenderDataCardCellContent({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    extractNumericValue: (...a: any[]) => extractNumericValue(...a),
+    getRenderPresetBadgeStyle: (...a: any[]) => getRenderPresetBadgeStyle(...a),
+    isNumericCell: (...a: any[]) => isNumericCell(...a),
+    parseRelationshipString: (...a: any[]) => parseRelationshipString(...a),
+    parseRenderPresetAttributes: (...a: any[]) => parseRenderPresetAttributes(...a),
+    renderInlineQuickCheckButton: (...a: any[]) => renderInlineQuickCheckButton(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    RenderPresetManager: RenderPresetManager,
+  });
 
   // [优化] 统一存储封装 (带静默自动清理)
 
@@ -16035,126 +15810,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return result;
   };
 
-  const mergeDiceConfigBackupCustomOnlyPresetArray = (
-    current: unknown,
-    incoming: unknown,
-    moduleName: string,
-    key: string,
-  ): DiceConfigBackupPresetMergeResult => {
-    const result: DiceConfigBackupPresetMergeResult = {
-      value: [],
-      idMap: new Map<string, string>(),
-      added: 0,
-      overwritten: 0,
-      skipped: 0,
-      warnings: [],
-    };
-    const builtinPresetIds = new Set(getDiceConfigBackupBuiltinPresetIds(key));
-    const indexById = new Map<string, number>();
-    const currentIndexByName = new Map<string, number>();
-    const consumedCurrentNameIndexes = new Set<number>();
-    const normalizeCustomPreset = (item: unknown, fallbackId: string): Record<string, unknown> | null => {
-      let normalized: unknown = null;
-      if (key === STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS) {
-        normalized = normalizeTableTemplateRequirementPreset(item, fallbackId);
-      } else if (isDiceConfigBackupRecord(item)) {
-        normalized = cloneDiceConfigBackupValue(item);
-      }
-      if (!normalized || !isDiceConfigBackupRecord(normalized)) return null;
-      const id = getDiceConfigBackupPresetRecordId(normalized);
-      if (!id || builtinPresetIds.has(id)) return null;
-      return { ...cloneDiceConfigBackupValue(normalized), id, builtin: false };
-    };
-    const keepCurrentPresets = (items: readonly unknown[]): void => {
-      const currentById = new Map<string, Record<string, unknown>>();
-      items.forEach(item => {
-        const sourceId = isDiceConfigBackupRecord(item) ? getDiceConfigBackupPresetRecordId(item) : '';
-        const preset = normalizeCustomPreset(item, sourceId);
-        if (!preset) return;
-        const id = getDiceConfigBackupPresetRecordId(preset);
-        currentById.set(id, preset);
-      });
-      currentById.forEach(preset => {
-        const id = getDiceConfigBackupPresetRecordId(preset);
-        const targetIndex = result.value.length;
-        result.value.push(preset);
-        indexById.set(id, targetIndex);
-        const name = getDiceConfigBackupPresetRecordName(preset);
-        if (name && !currentIndexByName.has(name)) currentIndexByName.set(name, targetIndex);
-      });
-    };
-    if (Array.isArray(current)) keepCurrentPresets(current);
-    const addIncomingPreset = (preset: Record<string, unknown>, sourceId: string): void => {
-      const nextPreset = { ...preset, id: sourceId, builtin: false };
-      result.value.push(nextPreset);
-      indexById.set(sourceId, result.value.length - 1);
-      result.idMap.set(sourceId, sourceId);
-      result.added += 1;
-    };
-
-    if (!Array.isArray(incoming)) {
-      result.skipped += 1;
-      result.warnings.push(`${moduleName}: ${key} 不是预设数组，已跳过。`);
-      return result;
-    }
-
-    incoming.forEach(item => {
-      if (!isDiceConfigBackupRecord(item)) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: ${key} 中存在非对象预设，已跳过。`);
-        return;
-      }
-      const imported = cloneDiceConfigBackupValue(item);
-      const sourceId = getDiceConfigBackupPresetRecordId(imported);
-      const sourceName = getDiceConfigBackupPresetRecordName(imported);
-      if (!sourceId) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 存在缺少 id 的预设 "${sourceName || '未命名'}"，已跳过。`);
-        return;
-      }
-      if (builtinPresetIds.has(sourceId) || imported.builtin === true) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 内置预设 "${sourceName || sourceId}" 以当前脚本版本为准，已跳过备份中的同名记录。`);
-        return;
-      }
-      const normalized = normalizeCustomPreset(imported, sourceId);
-      if (!normalized) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 预设 "${sourceName || sourceId}" 结构无效，已跳过。`);
-        return;
-      }
-
-      if (indexById.has(sourceId)) {
-        const targetIndex = indexById.get(sourceId)!;
-        const currentRecord = isDiceConfigBackupRecord(result.value[targetIndex]) ? result.value[targetIndex] : {};
-        result.value[targetIndex] = { ...currentRecord, ...normalized, id: sourceId, builtin: false };
-        result.idMap.set(sourceId, sourceId);
-        result.overwritten += 1;
-        consumedCurrentNameIndexes.add(targetIndex);
-        return;
-      }
-
-      if (sourceName && currentIndexByName.has(sourceName)) {
-        const targetIndex = currentIndexByName.get(sourceName)!;
-        if (consumedCurrentNameIndexes.has(targetIndex)) {
-          addIncomingPreset(normalized, sourceId);
-          return;
-        }
-        const currentRecord = isDiceConfigBackupRecord(result.value[targetIndex]) ? result.value[targetIndex] : {};
-        const targetId = getDiceConfigBackupPresetRecordId(currentRecord) || sourceId;
-        result.value[targetIndex] = { ...currentRecord, ...normalized, id: targetId, builtin: false };
-        result.idMap.set(sourceId, targetId);
-        result.overwritten += 1;
-        consumedCurrentNameIndexes.add(targetIndex);
-        indexById.set(targetId, targetIndex);
-        return;
-      }
-
-      addIncomingPreset(normalized, sourceId);
-    });
-
-    return result;
-  };
+  const mergeDiceConfigBackupCustomOnlyPresetArray = createMergeDiceConfigBackupCustomOnlyPresetArray({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupBuiltinPresetIds: (...a: any[]) => getDiceConfigBackupBuiltinPresetIds(...a),
+    getDiceConfigBackupPresetRecordId: (...a: any[]) => getDiceConfigBackupPresetRecordId(...a),
+    getDiceConfigBackupPresetRecordName: (...a: any[]) => getDiceConfigBackupPresetRecordName(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS: STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS,
+  });
 
   const getDiceConfigBackupRuleRecords = (
     value: unknown,
@@ -16270,106 +15933,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Array.isArray(current) ? cloneDiceConfigBackupValue(current) : [];
   };
 
-  const mergeDiceConfigBackupPresetArraySafely = (
-    current: unknown,
-    incoming: unknown,
-    moduleName: string,
-    key: string,
-  ): DiceConfigBackupPresetMergeResult => {
-    const result: DiceConfigBackupPresetMergeResult = {
-      value: getDiceConfigBackupSafeCurrentPresets(key, current),
-      idMap: new Map<string, string>(),
-      added: 0,
-      overwritten: 0,
-      skipped: 0,
-      warnings: [],
-    };
-    if (!Array.isArray(incoming)) {
-      result.skipped += 1;
-      result.warnings.push(`${moduleName}: ${key} 不是预设数组，已跳过。`);
-      return result;
-    }
-
-    const mergeRules =
-      key === STORAGE_KEY_PRESETS ? mergeDiceConfigBackupValidationRules : mergeDiceConfigBackupRegexRules;
-    const builtinPresetIds = new Set(getDiceConfigBackupBuiltinPresetIds(key));
-    const indexById = new Map<string, number>();
-    const customIndexByName = new Map<string, number>();
-    result.value.forEach((item, index) => {
-      if (!isDiceConfigBackupRecord(item)) return;
-      const id = getDiceConfigBackupPresetRecordId(item);
-      const name = getDiceConfigBackupPresetRecordName(item);
-      if (id) indexById.set(id, index);
-      if (name && !builtinPresetIds.has(id) && item.builtin !== true && !customIndexByName.has(name)) {
-        customIndexByName.set(name, index);
-      }
-    });
-
-    incoming.forEach(item => {
-      if (!isDiceConfigBackupRecord(item)) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: ${key} 中存在非对象预设，已跳过。`);
-        return;
-      }
-      const imported = cloneDiceConfigBackupValue(item);
-      const sourceId = getDiceConfigBackupPresetRecordId(imported);
-      const sourceName = getDiceConfigBackupPresetRecordName(imported);
-      if (!sourceId) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 存在缺少 id 的预设 "${sourceName || '未命名'}"，已跳过。`);
-        return;
-      }
-
-      const sourceIsBuiltin = builtinPresetIds.has(sourceId) || imported.builtin === true;
-      const targetIndex = indexById.get(sourceId) ?? (sourceIsBuiltin ? undefined : customIndexByName.get(sourceName));
-      if (targetIndex !== undefined) {
-        const currentRecord = isDiceConfigBackupRecord(result.value[targetIndex]) ? result.value[targetIndex] : {};
-        const targetId = getDiceConfigBackupPresetRecordId(currentRecord) || sourceId;
-        const targetIsBuiltin = builtinPresetIds.has(targetId) || currentRecord.builtin === true;
-        const mergedRules = mergeRules(currentRecord.rules, imported.rules);
-        result.value[targetIndex] = targetIsBuiltin
-          ? {
-              ...currentRecord,
-              id: targetId,
-              builtin: true,
-              version: PRESET_FORMAT_VERSION,
-              rules: mergedRules,
-            }
-          : {
-              ...currentRecord,
-              ...imported,
-              id: targetId,
-              builtin: false,
-              version: PRESET_FORMAT_VERSION,
-              rules: mergedRules,
-            };
-        result.idMap.set(sourceId, targetId);
-        result.overwritten += 1;
-        return;
-      }
-
-      if (sourceIsBuiltin) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 内置预设 "${sourceName || sourceId}" 在当前版本中不存在，已跳过。`);
-        return;
-      }
-
-      const nextPreset = {
-        ...imported,
-        builtin: false,
-        version: PRESET_FORMAT_VERSION,
-        rules: mergeRules([], imported.rules),
-      };
-      result.value.push(nextPreset);
-      const nextIndex = result.value.length - 1;
-      indexById.set(sourceId, nextIndex);
-      if (sourceName) customIndexByName.set(sourceName, nextIndex);
-      result.idMap.set(sourceId, sourceId);
-      result.added += 1;
-    });
-
-    return result;
-  };
+  const mergeDiceConfigBackupPresetArraySafely = createMergeDiceConfigBackupPresetArraySafely({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupBuiltinPresetIds: (...a: any[]) => getDiceConfigBackupBuiltinPresetIds(...a),
+    getDiceConfigBackupPresetRecordId: (...a: any[]) => getDiceConfigBackupPresetRecordId(...a),
+    getDiceConfigBackupPresetRecordName: (...a: any[]) => getDiceConfigBackupPresetRecordName(...a),
+    getDiceConfigBackupSafeCurrentPresets: (...a: any[]) => getDiceConfigBackupSafeCurrentPresets(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    mergeDiceConfigBackupRegexRules: (...a: any[]) => mergeDiceConfigBackupRegexRules(...a),
+    mergeDiceConfigBackupValidationRules: (...a: any[]) => mergeDiceConfigBackupValidationRules(...a),
+    STORAGE_KEY_PRESETS: STORAGE_KEY_PRESETS,
+  });
 
   const normalizeDiceConfigBackupGachaPoolSettings = (value: unknown): GachaPoolSettingsRecord | null => {
     if (!isDiceConfigBackupRecord(value)) return null;
@@ -19435,131 +19009,21 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
 
-  const applyExistingRowCellPatchesViaCrud = async (input: CrudExistingRowPatchInput): Promise<Set<number>> => {
-    const changedColumns =
-      input.changedColumns || getCrudChangedColumns(input.headers, input.currentRow, input.nextRow);
-    const writableColumns = new Set<number>(
-      Array.from(changedColumns).filter(index => index > 0 && Boolean(input.headers[index])),
-    );
-    if (writableColumns.size === 0) return writableColumns;
-
-    const columnAliasMap = input.columnAliasMap || buildCrudColumnAliasMap(input.sheet);
-    assertCrudRequiredColumnsRepresented(input.tableName, input.headers, input.sheet);
-    assertCrudEnumConstraints(
-      input.tableName,
-      input.headers,
-      input.nextRow,
-      input.sheet,
-      input.rowIndex,
-      writableColumns,
-      columnAliasMap,
-    );
-    assertCrudLengthConstraints(
-      input.tableName,
-      input.headers,
-      input.nextRow,
-      input.sheet,
-      input.rowIndex,
-      writableColumns,
-      columnAliasMap,
-    );
-
-    if (typeof input.api.updateRow === 'function') {
-      const result = await input.api.updateRow({
-        tableName: input.crudTableName,
-        rowIndex: input.rowIndex + 1,
-        data: buildRowDataForCrud(
-          input.headers,
-          input.nextRow,
-          writableColumns,
-          input.sheet,
-          columnAliasMap,
-        ),
-        ...consumeCrudWriteOptions(input.batchContext),
-      });
-      if (result !== false && result !== -1) return writableColumns;
-
-      if (input.batchContext) input.batchContext.remainingOperations += writableColumns.size;
-      console.warn('[DICE]ACU updateRow failed, falling back to updateCell:', {
-        tableName: input.tableName,
-        rowIndex: input.rowIndex + 1,
-        changedColumnCount: writableColumns.size,
-      });
-    }
-
-    for (const colIndex of Array.from(writableColumns).sort((left, right) => left - right)) {
-      const headerName = String(input.headers[colIndex] || '').trim();
-      const rowIdPreparation = prepareCrudRowIdForUpdateCell(input, colIndex);
-      let result: unknown;
-      try {
-        result = await input.api.updateCell({
-          tableName: input.crudTableName,
-          rowIndex: input.rowIndex + 1,
-          colIdentifier: headerName,
-          value: getCrudCellValueForWrite(
-            input.headers,
-            input.nextRow,
-            colIndex,
-            input.sheet,
-            columnAliasMap,
-          ),
-          ...consumeCrudWriteOptions(input.batchContext),
-        });
-      } catch (error) {
-        restoreCrudRowIdPreparation(rowIdPreparation);
-        throw error;
-      }
-      if (result === false || result === -1) {
-        restoreCrudRowIdPreparation(rowIdPreparation);
-        assertCrudEnumConstraints(
-          input.tableName,
-          input.headers,
-          input.nextRow,
-          input.sheet,
-          input.rowIndex,
-          undefined,
-          columnAliasMap,
-        );
-        assertCrudLengthConstraints(
-          input.tableName,
-          input.headers,
-          input.nextRow,
-          input.sheet,
-          input.rowIndex,
-          undefined,
-          columnAliasMap,
-        );
-        assertCrudRequiredCellValues(
-          input.tableName,
-          input.headers,
-          input.nextRow,
-          input.sheet,
-          input.rowIndex,
-          columnAliasMap,
-        );
-        assertCrudJsonFallbackAllowed(input.tableName, input.sheet);
-        if (rowIdPreparation && (await applyJsonCellFallbackForCrud(input, colIndex))) {
-          continue;
-        }
-        console.warn('[DICE]ACU updateCell failed after row_id preparation:', {
-          tableName: input.tableName,
-          crudTableName: input.crudTableName,
-          rowIndex: input.rowIndex + 1,
-          column: headerName || `#${colIndex + 1}`,
-          preparedRowId: rowIdPreparation?.rowId,
-          preparedRowIdSource: rowIdPreparation?.source || '',
-        });
-        const rowIdDetail = rowIdPreparation
-          ? `；已按 ${rowIdPreparation.source} 补齐 row_id=${String(rowIdPreparation.rowId)} 后数据库仍拒绝更新，通常表示该行没有成功载入 SQLite（例如同一行其它 NOT NULL/CHECK 字段仍不满足）`
-          : '';
-        throw new Error(
-          `更新 "${input.tableName}" 第 ${input.rowIndex + 1} 行失败（列：${headerName || `#${colIndex + 1}`}）${rowIdDetail}`,
-        );
-      }
-    }
-
-    return writableColumns;
-  };
+  const applyExistingRowCellPatchesViaCrud = createApplyExistingRowCellPatchesViaCrud({
+    applyJsonCellFallbackForCrud: (...a: any[]) => applyJsonCellFallbackForCrud(...a),
+    assertCrudEnumConstraints: (...a: any[]) => assertCrudEnumConstraints(...a),
+    assertCrudJsonFallbackAllowed: (...a: any[]) => assertCrudJsonFallbackAllowed(...a),
+    assertCrudLengthConstraints: (...a: any[]) => assertCrudLengthConstraints(...a),
+    assertCrudRequiredCellValues: (...a: any[]) => assertCrudRequiredCellValues(...a),
+    assertCrudRequiredColumnsRepresented: (...a: any[]) => assertCrudRequiredColumnsRepresented(...a),
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    buildRowDataForCrud: (...a: any[]) => buildRowDataForCrud(...a),
+    consumeCrudWriteOptions: (...a: any[]) => consumeCrudWriteOptions(...a),
+    getCrudCellValueForWrite: (...a: any[]) => getCrudCellValueForWrite(...a),
+    getCrudChangedColumns: (...a: any[]) => getCrudChangedColumns(...a),
+    prepareCrudRowIdForUpdateCell: (...a: any[]) => prepareCrudRowIdForUpdateCell(...a),
+    restoreCrudRowIdPreparation: (...a: any[]) => restoreCrudRowIdPreparation(...a),
+  });
 
   const findDeletionIndicesForCrud = (oldRows, desiredRows): number[] | null => {
     if (desiredRows.length > oldRows.length) return null;
@@ -22403,358 +21867,44 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const showTableTemplateRequirementPresetEditor = (presetId: string | null = null): void => {
-    const { $ } = getCore();
-    $('.acu-edit-overlay').remove();
-    pushModal('showTableTemplateRequirementPresetEditor', () => showTableTemplateRequirementPresetEditor(presetId));
+  const showTableTemplateRequirementPresetEditor = createShowTableTemplateRequirementPresetEditor({
+    bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
+    buildNewTableTemplateRequirementPresetJsoncTemplate: (...a: any[]) => buildNewTableTemplateRequirementPresetJsoncTemplate(...a),
+    buildTableTemplateRequirementPresetAgentPrompt: (...a: any[]) => buildTableTemplateRequirementPresetAgentPrompt(...a),
+    buildTableTemplateRequirementPresetAgentPromptFilename: (...a: any[]) => buildTableTemplateRequirementPresetAgentPromptFilename(...a),
+    downloadAiPromptFile: (...a: any[]) => downloadAiPromptFile(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getJsonLikeErrorMessage: (...a: any[]) => getJsonLikeErrorMessage(...a),
+    getTableTemplateRequirementPresetStats: (...a: any[]) => getTableTemplateRequirementPresetStats(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    parseTableTemplateRequirementPresetJson: (...a: any[]) => parseTableTemplateRequirementPresetJson(...a),
+    popModal: (...a: any[]) => popModal(...a),
+    pushModal: (...a: any[]) => pushModal(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showTableTemplateRequirementPresetManager: (...a: any[]) => showTableTemplateRequirementPresetManager(...a),
+    TableTemplateRequirementPresetManager: TableTemplateRequirementPresetManager,
+    validateJsoncEditorConfig: validateJsoncEditorConfig,
+  });
 
-    const config = getConfig();
-    const isEdit = Boolean(presetId);
-    const existingPreset = isEdit ? TableTemplateRequirementPresetManager.getPresetById(presetId) : null;
-    const defaultJsonText = existingPreset
-      ? JSON.stringify(
-          {
-            name: existingPreset.name,
-            description: existingPreset.description || '',
-            requirementLevels: existingPreset.requirementLevels,
-            template: existingPreset.template,
-          },
-          null,
-          2,
-        )
-      : buildNewTableTemplateRequirementPresetJsoncTemplate();
-    const defaultPreset =
-      normalizeTableTemplateRequirementPreset(parseTableTemplateRequirementPresetJson(defaultJsonText), presetId || undefined) ||
-      TableTemplateRequirementPresetManager.getActivePreset();
-
-    const overlay = $(`
-      <div class="acu-edit-overlay">
-        <div class="acu-edit-dialog acu-advanced-preset-editor-dialog acu-table-template-requirement-preset-editor-dialog acu-theme-${config.theme}">
-          <div class="acu-advanced-preset-header">
-            <h3><i class="fa-solid fa-table-list"></i> ${isEdit ? '编辑' : '新建'}模板检验预设</h3>
-            <div class="acu-advanced-preset-header-actions">
-              ${getTutorialButtonHtml('tableTemplateRequirementPresetEditor', '查看模板检验预设教程', 'acu-help-btn')}
-              <button type="button" class="acu-close-btn" aria-label="关闭模板检验预设编辑器" title="关闭"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-
-          <div class="acu-advanced-preset-editor-body">
-            <div class="acu-advanced-preset-editor-fields">
-              <div class="acu-advanced-preset-field">
-                <label for="table-template-requirement-preset-name">预设名称</label>
-                <input id="table-template-requirement-preset-name" type="text" value="${escapeHtml(defaultPreset.name || '')}" class="acu-preset-editor-input" />
-              </div>
-              <div class="acu-advanced-preset-field">
-                <label for="table-template-requirement-preset-desc">描述</label>
-                <input id="table-template-requirement-preset-desc" type="text" value="${escapeHtml(defaultPreset.description || '')}" placeholder="可选" class="acu-preset-editor-input" />
-              </div>
-            </div>
-
-            <div class="acu-advanced-preset-json-section">
-              <div class="acu-advanced-preset-json-head">
-                <label class="acu-advanced-preset-json-label" for="table-template-requirement-preset-json">
-                  JSONC 配置
-                  <span>支持完整预设、仅 template 对象，或直接导入表格模板 JSON</span>
-                </label>
-              </div>
-              <textarea id="table-template-requirement-preset-json" class="acu-preset-editor-textarea acu-advanced-preset-json-textarea"></textarea>
-              <div id="table-template-requirement-preset-format-help" class="acu-advanced-preset-format-help-summary">
-                <strong>分层要求：</strong>
-                <span>template 中出现的表、列和可选 sourceData / DDL / 配置会参与校验；可用 requirementLevels 标记 error、warning 或 info。</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="acu-advanced-preset-editor-footer">
-            <div class="acu-advanced-preset-editor-tools">
-              <button id="table-template-requirement-preset-download-ai-prompt" type="button" class="acu-dialog-btn acu-advanced-preset-tool-btn">
-                <i class="fa-solid fa-file-arrow-down"></i> 下载 AI 提示词
-              </button>
-              <button id="table-template-requirement-preset-validate" type="button" class="acu-dialog-btn acu-advanced-preset-tool-btn">
-                <i class="fa-solid fa-vial-circle-check"></i> 验证配置
-              </button>
-            </div>
-            <div class="acu-advanced-preset-editor-actions">
-              <button type="button" id="table-template-requirement-preset-save" class="acu-dialog-btn acu-btn-confirm acu-advanced-preset-editor-save">
-                <i class="fa-solid fa-check"></i> 保存
-              </button>
-              <button type="button" id="table-template-requirement-preset-cancel" class="acu-dialog-btn">
-                <i class="fa-solid fa-times"></i> 取消
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `);
-
-    $('body').append(overlay);
-    bindTutorialButtonsIn(overlay);
-
-    const $jsonTextarea = overlay.find('#table-template-requirement-preset-json');
-    $jsonTextarea.val(defaultJsonText);
-
-    const parseEditorPreset = () => {
-      const name = String(overlay.find('#table-template-requirement-preset-name').val() || '').trim();
-      const description = String(overlay.find('#table-template-requirement-preset-desc').val() || '').trim();
-      const parsed = parseTableTemplateRequirementPresetJson(String($jsonTextarea.val() || ''));
-      const normalized = normalizeTableTemplateRequirementPreset(parsed, presetId || undefined);
-      if (!normalized) throw new Error('配置中必须包含 template 对象，或直接提供表格模板对象。');
-      normalized.name = name || normalized.name;
-      normalized.description = description || normalized.description || '';
-      normalized.builtin = false;
-      return normalized;
-    };
-
-    overlay.find('#table-template-requirement-preset-download-ai-prompt').on('click', () => {
-      const promptText = buildTableTemplateRequirementPresetAgentPrompt();
-      const presetName = String(
-        overlay.find('#table-template-requirement-preset-name').val() ||
-          defaultPreset?.name ||
-          'table_template_requirement_preset',
-      );
-      const filename = buildTableTemplateRequirementPresetAgentPromptFilename(presetName);
-      downloadAiPromptFile(promptText, filename);
-      if (window.toastr) window.toastr.success('已下载 AI 提示词');
-    });
-
-    overlay.find('#table-template-requirement-preset-validate').on('click', () => {
-      validateJsoncEditorConfig({
-        text: String($jsonTextarea.val() || ''),
-        parse: () => parseEditorPreset(),
-        successMessage: preset => {
-          const stats = getTableTemplateRequirementPresetStats(preset);
-          return `配置有效：${preset.name}，${stats.sheetCount} 张表，${stats.headerCount} 个业务列`;
-        },
-        logLabel: '[DICE]ACU 模板检验预设验证失败:',
-      });
-    });
-
-    overlay.find('#table-template-requirement-preset-save').on('click', () => {
-      try {
-        const preset = parseEditorPreset();
-        if (!preset.name) {
-          if (window.toastr) window.toastr.warning('请输入预设名称');
-          return;
-        }
-        if (isEdit && presetId) {
-          TableTemplateRequirementPresetManager.updatePreset(presetId, preset);
-        } else {
-          TableTemplateRequirementPresetManager.createPreset(preset);
-        }
-        overlay.remove();
-        popModal();
-        showTableTemplateRequirementPresetManager();
-      } catch (error) {
-        console.error('[DICE]ACU 保存模板检验预设失败:', error);
-        showActionableErrorToast('保存失败: ' + getJsonLikeErrorMessage(error), { suggestion: 'save' });
-      }
-    });
-
-    overlay.find('.acu-close-btn, #table-template-requirement-preset-cancel').on('click', () => {
-      overlay.remove();
-      popModal();
-      showTableTemplateRequirementPresetManager();
-    });
-
-    setupOverlayClose(overlay, 'acu-edit-overlay', () => {
-      overlay.remove();
-      popModal();
-      showTableTemplateRequirementPresetManager();
-    });
-  };
-
-  const showTableTemplateRequirementPresetManager = (): void => {
-    const { $ } = getCore();
-    $('.acu-edit-overlay').remove();
-    pushModal('showTableTemplateRequirementPresetManager', showTableTemplateRequirementPresetManager);
-
-    const config = getConfig();
-    const presets = TableTemplateRequirementPresetManager.getAllPresets();
-    const activeId = TableTemplateRequirementPresetManager.getActivePresetId();
-    const presetsHtml = presets
-            .map(preset => {
-              const isActive = preset.id === activeId;
-              const isBuiltin = preset.builtin === true;
-              const stats = getTableTemplateRequirementPresetStats(preset);
-              return `
-          <div class="acu-preset-item acu-table-template-requirement-preset-item" data-id="${escapeHtml(preset.id)}">
-            <div class="acu-preset-info">
-              <div class="acu-preset-name" title="${escapeHtml(preset.name)}">
-                ${escapeHtml(preset.name)}
-                ${isBuiltin ? `<span class="acu-preset-badge">内置</span>` : ''}
-                ${isActive ? `<span class="acu-preset-badge">当前</span>` : ''}
-              </div>
-              ${preset.description ? `<div class="acu-preset-desc">${escapeHtml(preset.description)}</div>` : ''}
-              <div class="acu-preset-stats" title="${escapeHtml(preset.format || TABLE_TEMPLATE_REQUIREMENT_PRESET_FORMAT)}">${stats.sheetCount} 张表 · ${stats.headerCount} 列</div>
-            </div>
-            <div class="acu-preset-actions">
-              <label class="acu-toggle" title="设为当前模板检验预设">
-                <input type="checkbox" class="acu-table-template-requirement-preset-toggle" data-id="${escapeHtml(preset.id)}" ${isActive ? 'checked' : ''} aria-label="启用 ${escapeHtml(preset.name)}">
-                <span class="acu-toggle-slider"></span>
-              </label>
-              ${
-                isBuiltin
-                  ? `<button type="button" class="acu-preset-btn acu-table-template-requirement-preset-copy" data-id="${escapeHtml(preset.id)}" title="复制为自定义预设" aria-label="复制 ${escapeHtml(preset.name)}"><i class="fa-solid fa-copy"></i></button>`
-                  : `<button type="button" class="acu-preset-btn acu-table-template-requirement-preset-edit" data-id="${escapeHtml(preset.id)}" title="编辑" aria-label="编辑 ${escapeHtml(preset.name)}"><i class="fa-solid fa-pen"></i></button>`
-              }
-              <button type="button" class="acu-preset-btn acu-table-template-requirement-preset-export" data-id="${escapeHtml(preset.id)}" title="导出" aria-label="导出 ${escapeHtml(preset.name)}"><i class="fa-solid fa-download"></i></button>
-              ${!isBuiltin ? `<button type="button" class="acu-preset-btn acu-preset-delete acu-table-template-requirement-preset-delete" data-id="${escapeHtml(preset.id)}" title="删除" aria-label="删除 ${escapeHtml(preset.name)}"><i class="fa-solid fa-trash"></i></button>` : ''}
-            </div>
-          </div>`;
-      })
-      .join('');
-
-    const overlay = $(`
-      <div class="acu-edit-overlay">
-        <div class="acu-edit-dialog acu-advanced-preset-manager-dialog acu-table-template-requirement-manager-dialog acu-theme-${config.theme}">
-          <div class="acu-advanced-preset-header">
-            <h3><i class="fa-solid fa-table-list"></i> 模板检验预设管理</h3>
-            <div class="acu-advanced-preset-header-actions">
-              ${getTutorialButtonHtml('tableTemplateRequirementPresetManager', '查看模板检验预设管理教程', 'acu-help-btn')}
-              <button type="button" class="acu-close-btn" aria-label="关闭模板检验预设管理" title="关闭"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-
-          <div class="acu-advanced-preset-body">
-            <div id="acu-table-template-requirement-presets-list">
-              ${presetsHtml || `<div class="acu-empty-state">暂无模板检验预设</div>`}
-            </div>
-          </div>
-
-          <div class="acu-advanced-preset-footer">
-            <button id="acu-table-template-requirement-preset-new" type="button" class="acu-dialog-btn acu-btn-confirm acu-advanced-preset-footer-main" title="新建模板检验预设" aria-label="新建模板检验预设">
-              <i class="fa-solid fa-plus"></i> 新建
-            </button>
-            <button id="acu-table-template-requirement-preset-import" type="button" class="acu-dialog-btn acu-advanced-preset-footer-main">
-              <i class="fa-solid fa-file-import"></i> 导入
-            </button>
-            <button id="acu-table-template-requirement-preset-back" type="button" class="acu-dialog-btn">
-              <i class="fa-solid fa-arrow-left"></i> 返回
-            </button>
-          </div>
-        </div>
-      </div>
-    `);
-
-    $('body').append(overlay);
-    bindTutorialButtonsIn(overlay);
-
-    overlay.find('.acu-close-btn, #acu-table-template-requirement-preset-back').on('click', () => {
-      overlay.remove();
-      popModal();
-    });
-
-    overlay.on('change', '.acu-table-template-requirement-preset-toggle', function () {
-      const $toggle = $(this);
-      const id = String($toggle.data('id') || '');
-      if (!$toggle.is(':checked')) {
-        $toggle.prop('checked', true);
-        return;
-      }
-      const success = TableTemplateRequirementPresetManager.setActivePresetId(id);
-      if (!success) {
-        showActionableErrorToast('切换模板检验预设失败', { suggestion: 'tableTemplate' });
-        return;
-      }
-      overlay.find('.acu-table-template-requirement-preset-toggle').each(function () {
-        if (String($(this).data('id') || '') !== id) $(this).prop('checked', false);
-      });
-      if (window.toastr) window.toastr.success('已切换模板检验预设');
-      overlay.remove();
-      showTableTemplateRequirementPresetManager();
-    });
-
-    overlay.on('click', '.acu-table-template-requirement-preset-copy', function () {
-      const id = String($(this).data('id') || '');
-      const preset = TableTemplateRequirementPresetManager.getPresetById(id);
-      if (!preset) return;
-      const copy = TableTemplateRequirementPresetManager.createPreset({
-        name: `${preset.name} (副本)`,
-        description: preset.description || '',
-        requirementLevels: preset.requirementLevels ? cloneTemplateValue(preset.requirementLevels) : undefined,
-        template: cloneTemplateValue(preset.template),
-      });
-      if (copy && window.toastr) window.toastr.success(`已创建副本：${copy.name}`);
-      overlay.remove();
-      showTableTemplateRequirementPresetManager();
-    });
-
-    overlay.on('click', '.acu-table-template-requirement-preset-edit', function () {
-      const id = String($(this).data('id') || '');
-      overlay.remove();
-      popModal();
-      showTableTemplateRequirementPresetEditor(id);
-    });
-
-    overlay.on('click', '.acu-table-template-requirement-preset-export', function () {
-      const id = String($(this).data('id') || '');
-      const preset = TableTemplateRequirementPresetManager.getPresetById(id);
-      const json = TableTemplateRequirementPresetManager.exportPreset(id);
-      if (!json) {
-        showActionableErrorToast('导出失败', { title: '模板检验预设导出失败', suggestion: 'importExport' });
-        return;
-      }
-      downloadJsonFile(json, `${preset?.name || '模板检验预设'}.json`);
-      if (window.toastr) window.toastr.success('已导出文件');
-    });
-
-    overlay.on('click', '.acu-table-template-requirement-preset-delete', async function () {
-      const id = String($(this).data('id') || '');
-      const preset = TableTemplateRequirementPresetManager.getPresetById(id);
-      const confirmed = await showDiceSystemConfirmDialog({
-        title: '删除模板检验预设',
-        message: `确定要删除「${preset?.name || '未命名预设'}」吗？`,
-        detail: '删除后需要重新导入或手动创建才能恢复。内置默认预设不会被删除。',
-        iconClass: 'fa-trash',
-        confirmText: '删除预设',
-        cancelText: '取消',
-        tone: 'danger',
-      });
-      if (!confirmed) return;
-      try {
-        const success = TableTemplateRequirementPresetManager.deletePreset(id);
-        if (!success) {
-          showActionableErrorToast('删除失败', { title: '模板检验预设删除失败', suggestion: 'save' });
-          return;
-        }
-        overlay.remove();
-        showTableTemplateRequirementPresetManager();
-      } catch (error) {
-        showActionableErrorToast('删除失败: ' + getJsonLikeErrorMessage(error), { suggestion: 'save' });
-      }
-    });
-
-    overlay.find('#acu-table-template-requirement-preset-new').on('click', () => {
-      overlay.remove();
-      popModal();
-      showTableTemplateRequirementPresetEditor();
-    });
-
-    overlay.find('#acu-table-template-requirement-preset-import').on('click', () => {
-      void (async () => {
-        const selected = await pickTextFile();
-        if (!selected) return;
-        try {
-          const preset = TableTemplateRequirementPresetManager.importPreset(selected.text);
-          if (!preset) {
-            showActionableErrorToast('导入失败，请检查 JSONC 格式和 template 内容', { suggestion: 'importExport' });
-            return;
-          }
-          if (window.toastr) window.toastr.success(`导入成功：${preset.name}`);
-          overlay.remove();
-          showTableTemplateRequirementPresetManager();
-        } catch (error) {
-          console.error('[DICE]ACU 模板检验预设导入失败:', error);
-          showActionableErrorToast('导入失败: ' + getJsonLikeErrorMessage(error), { suggestion: 'importExport' });
-        }
-      })();
-    });
-
-    setupOverlayClose(overlay, 'acu-edit-overlay', () => {
-      overlay.remove();
-      popModal();
-    });
-  };
+  const showTableTemplateRequirementPresetManager = createShowTableTemplateRequirementPresetManager({
+    bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
+    downloadJsonFile: (...a: any[]) => downloadJsonFile(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getJsonLikeErrorMessage: (...a: any[]) => getJsonLikeErrorMessage(...a),
+    getTableTemplateRequirementPresetStats: (...a: any[]) => getTableTemplateRequirementPresetStats(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    pickTextFile: (...a: any[]) => pickTextFile(...a),
+    popModal: (...a: any[]) => popModal(...a),
+    pushModal: (...a: any[]) => pushModal(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
+    showTableTemplateRequirementPresetEditor: (...a: any[]) => showTableTemplateRequirementPresetEditor(...a),
+    TableTemplateRequirementPresetManager: TableTemplateRequirementPresetManager,
+  });
 
   const showSettingsModal = createShowSettingsModal({
     areAllTablesReversed: (...a: any[]) => areAllTablesReversed(...a),
@@ -27000,84 +26150,27 @@ if (includesAny(['armor', 'breastplate', 'shield', 'helmet', 'helm', '甲', '铠
     refreshGachaShardShop();
   };
 
-  const deleteGachaPoolConfig = async (poolId: GachaPoolTag, rawData): Promise<boolean> => {
-    const id = normalizeGachaPoolId(poolId);
-    if (!id || id === GACHA_ALL_POOL_TAG) return false;
-    const pool = getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === id);
-    if (!pool || !canDeleteGachaPoolDefinition(pool)) return false;
-
-    await ensureGachaCatalogLoaded(rawData);
-    const originalItems = cloneGachaCatalogItems(getCustomGachaItemDefinitions(rawData));
-    const deletingFallbackPool = id === GACHA_CUSTOM_ONLY_POOL_TAG;
-    const nextItems: GachaItemDefinition[] = [];
-    const removedItemIds: string[] = [];
-    let needsFallbackPool = false;
-
-    getCustomGachaItemDefinitions(rawData).forEach(item => {
-      if (!item.poolTags.includes(id)) {
-        nextItems.push(item);
-        return;
-      }
-      const nextTags = item.poolTags.filter(tag => tag !== id);
-      if (nextTags.length > 0) {
-        nextItems.push({
-          ...item,
-          poolTags: nextTags,
-        });
-        return;
-      }
-      if (deletingFallbackPool) {
-        removedItemIds.push(item.id);
-        return;
-      }
-      needsFallbackPool = true;
-      nextItems.push({
-        ...item,
-        poolTags: [GACHA_CUSTOM_ONLY_POOL_TAG],
-      });
-    });
-
-    const savedCatalog = await saveStoredGachaCatalog(nextItems);
-    if (!savedCatalog) return false;
-    const localStorageSnapshot = collectGachaLocalStorageSnapshot([
-      STORAGE_KEY_GACHA_POOL_SETTINGS,
-      STORAGE_KEY_GACHA_ITEM_SETTINGS,
-      STORAGE_KEY_GACHA_ACTIVE_POOL_TAG,
-      STORAGE_KEY_GACHA_SETTINGS_POOL_TAG,
-    ]);
-    try {
-      const pools = getConfiguredGachaPoolDefinitions().filter(candidate => candidate.id !== id);
-      if (needsFallbackPool && !pools.some(candidate => candidate.id === GACHA_CUSTOM_ONLY_POOL_TAG)) {
-        const nextOrder = pools.reduce((max, candidate) => Math.max(max, Number(candidate.order) || 0), 0) + 10;
-        pools.push(
-          buildDefaultGachaPoolDefinition(GACHA_CUSTOM_ONLY_POOL_TAG, {
-            name: GACHA_CUSTOM_ONLY_POOL_TAG,
-            builtin: false,
-            visibleInTabs: false,
-            includeInAll: false,
-            order: nextOrder,
-          }),
-        );
-      }
-      saveGachaPoolSettings(pools);
-      removedItemIds.forEach(deleteGachaItemSetting);
-      if (getStoredGachaActivePoolTag(GACHA_ALL_POOL_TAG) === id) saveStoredGachaActivePoolTag(GACHA_ALL_POOL_TAG);
-      if (normalizeGachaPoolId(Store.get(STORAGE_KEY_GACHA_SETTINGS_POOL_TAG, GACHA_ALL_POOL_TAG)) === id) {
-        saveStoredGachaSettingsPoolTag(GACHA_ALL_POOL_TAG);
-      }
-    } catch (error) {
-      const rolledBackCatalog = await saveStoredGachaCatalog(originalItems);
-      const rollbackWarnings = restoreGachaLocalStorageSnapshot(localStorageSnapshot);
-      const message = getRuntimeErrorMessage(error) || '删除卡池配置失败';
-      const rollbackMessage = [
-        !rolledBackCatalog ? '自定义物品目录回滚失败' : '',
-        ...rollbackWarnings,
-      ].filter(Boolean).join('；');
-      if (rollbackMessage) throw new Error(`${message}；${rollbackMessage}`);
-      throw error;
-    }
-    return true;
-  };
+  const deleteGachaPoolConfig = createDeleteGachaPoolConfig({
+    buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
+    canDeleteGachaPoolDefinition: (...a: any[]) => canDeleteGachaPoolDefinition(...a),
+    cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
+    collectGachaLocalStorageSnapshot: (...a: any[]) => collectGachaLocalStorageSnapshot(...a),
+    deleteGachaItemSetting: (...a: any[]) => deleteGachaItemSetting(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    getStoredGachaActivePoolTag: (...a: any[]) => getStoredGachaActivePoolTag(...a),
+    restoreGachaLocalStorageSnapshot: (...a: any[]) => restoreGachaLocalStorageSnapshot(...a),
+    saveGachaPoolSettings: (...a: any[]) => saveGachaPoolSettings(...a),
+    saveStoredGachaActivePoolTag: (...a: any[]) => saveStoredGachaActivePoolTag(...a),
+    saveStoredGachaCatalog: (...a: any[]) => saveStoredGachaCatalog(...a),
+    saveStoredGachaSettingsPoolTag: (...a: any[]) => saveStoredGachaSettingsPoolTag(...a),
+    STORAGE_KEY_GACHA_ACTIVE_POOL_TAG: STORAGE_KEY_GACHA_ACTIVE_POOL_TAG,
+    STORAGE_KEY_GACHA_ITEM_SETTINGS: STORAGE_KEY_GACHA_ITEM_SETTINGS,
+    STORAGE_KEY_GACHA_POOL_SETTINGS: STORAGE_KEY_GACHA_POOL_SETTINGS,
+    STORAGE_KEY_GACHA_SETTINGS_POOL_TAG: STORAGE_KEY_GACHA_SETTINGS_POOL_TAG,
+  });
 
   const getStoredGachaSettingsPoolTag = (rawData): GachaPoolTag => {
     const stored = normalizeGachaPoolId(Store.get(STORAGE_KEY_GACHA_SETTINGS_POOL_TAG, GACHA_ALL_POOL_TAG));
