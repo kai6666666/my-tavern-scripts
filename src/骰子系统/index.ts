@@ -85,6 +85,16 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createBuildCheckSuggestionPresetSide } from './features/checks/build-check-suggestion-preset-side';
+import { createResolveCheckSuggestionContestWinner } from './features/checks/resolve-check-suggestion-contest-winner';
+import { createExecuteAdvancedContestCheckSuggestion } from './features/checks/execute-advanced-contest-check-suggestion';
+import { createShowDiceSystemInputDialog } from './features/ui/show-dice-system-input-dialog';
+import { createShowCardEditModal } from './features/table/show-card-edit-modal';
+import { createShowFavoriteEditModal } from './features/favorites/show-favorite-edit-modal';
+import { createShowDiceSystemConfirmDialog } from './features/ui/show-dice-system-confirm-dialog';
+import { createShowManualUpdateDialog } from './features/ui/show-manual-update-dialog';
+import { createExecuteTableInteractionAction } from './features/table/execute-table-interaction-action';
+import { createNormalizeImportedGachaItem } from './features/gacha/normalize-imported-gacha-item';
 import { createShowAvatarManager } from './features/avatar/show-avatar-manager';
 import { createExecuteSecondaryEffectsChain } from './features/effects/execute-secondary-effects-chain';
 import { createRenderGachaSettingsPoolItemsHtml } from './features/gacha/render-gacha-settings-pool-items-html';
@@ -8564,118 +8574,16 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return groups;
   };
 
-  const executeTableInteractionAction = (
-    action:
-      | {
-          label: string;
-          icon?: string;
-          type?: string;
-          template?: string;
-          auto_send?: boolean;
-        }
-      | undefined,
-    headers: unknown[],
-    rowData: unknown[],
-  ) => {
-    if (!action) return false;
-
-    if (action.type === 'skill_check') {
-      const skillName = String(rowData[1] ?? '技能');
-      let checkValue: number | null = null;
-      const attrValIdx = headers.findIndex(header => header && String(header).includes('属性值'));
-      const profIdx = headers.findIndex(
-        header => header && (String(header).includes('熟练') || String(header).includes('等级')),
-      );
-
-      if (attrValIdx > 0 && rowData[attrValIdx]) {
-        const value = extractNumericValue(rowData[attrValIdx]);
-        if (value > 0) checkValue = value;
-      }
-      if (checkValue === null && profIdx > 0 && rowData[profIdx]) {
-        const value = extractNumericValue(rowData[profIdx]);
-        if (value > 0) checkValue = value;
-      }
-
-      const promptText = processTemplate(action.template, rowData, headers);
-      smartInsertToTextarea(promptText, 'action');
-
-      if (checkValue !== null && checkValue > 0) {
-        showDicePanel({
-          attrValue: checkValue,
-          targetValue: null,
-          targetName: skillName,
-          initiatorName: '<user>',
-        });
-      } else {
-        $('#send_textarea').focus();
-      }
-      return true;
-    }
-
-    if (!action.template) return false;
-
-    if (action.label === '交谈') {
-      const { $ } = getCore();
-      const targetName = String(rowData[1] ?? rowData[0] ?? '对方').trim() || '对方';
-      const config = getConfig();
-      $('.acu-msg-overlay').remove();
-
-      const overlay = $(`
-        <div class="acu-msg-overlay acu-theme-${config.theme}" role="dialog" aria-modal="true" aria-label="发送消息">
-          <div class="acu-msg-dialog">
-            <div class="acu-msg-title">
-              <i class="fa-solid fa-comment"></i> 发送消息给 ${escapeHtml(targetName)}
-            </div>
-            <input type="text" id="acu-msg-input" class="acu-msg-input" placeholder="输入消息内容..." autofocus>
-            <div class="acu-msg-actions">
-              <button type="button" id="acu-msg-cancel" class="acu-msg-cancel">取消</button>
-              <button type="button" id="acu-msg-send" class="acu-msg-send">发送</button>
-            </div>
-          </div>
-        </div>
-      `);
-
-      $('body').append(overlay);
-      const overlayEl = overlay[0];
-      overlayEl.style.setProperty('position', 'fixed', 'important');
-      overlayEl.style.setProperty('top', '0', 'important');
-      overlayEl.style.setProperty('left', '0', 'important');
-      overlayEl.style.setProperty('right', '0', 'important');
-      overlayEl.style.setProperty('bottom', '0', 'important');
-      overlayEl.style.setProperty('width', '100vw', 'important');
-      overlayEl.style.setProperty('height', '100vh', 'important');
-      overlayEl.style.setProperty('display', 'flex', 'important');
-      overlayEl.style.setProperty('justify-content', 'center', 'important');
-      overlayEl.style.setProperty('align-items', 'center', 'important');
-      overlayEl.style.setProperty('z-index', '31100', 'important');
-      setTimeout(() => overlay.find('#acu-msg-input').focus(), 50);
-
-      const sendMessage = () => {
-        const msg = String(overlay.find('#acu-msg-input').val() || '').trim();
-        if (msg) {
-          smartInsertToTextarea(`<user>对${targetName}说：“${msg}”`, 'action');
-          $('#send_textarea').focus();
-        }
-        overlay.remove();
-      };
-
-      overlay.find('#acu-msg-send').click(sendMessage);
-      overlay.find('#acu-msg-input').on('keydown', function (ev) {
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          sendMessage();
-        }
-      });
-      overlay.find('#acu-msg-cancel').click(() => overlay.remove());
-      setupOverlayClose(overlay, 'acu-msg-overlay', () => overlay.remove());
-      return true;
-    }
-
-    const promptText = processTemplate(action.template, rowData, headers);
-    smartInsertToTextarea(promptText, 'action');
-    $('#send_textarea').focus();
-    return true;
-  };
+  const executeTableInteractionAction = createExecuteTableInteractionAction({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    extractNumericValue: (...a: any[]) => extractNumericValue(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    processTemplate: (...a: any[]) => processTemplate(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    showDicePanel: (...a: any[]) => showDicePanel(...a),
+    smartInsertToTextarea: (...a: any[]) => smartInsertToTextarea(...a),
+  });
 
   const isNumericCell = value => {
     if (value === null || value === undefined || value === '') return false;
@@ -10527,235 +10435,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   type DiceSystemConfirmTone = 'warning' | 'danger';
 
-  const showDiceSystemConfirmDialog = (options: {
-    title: string;
-    message: string;
-    detail?: string;
-    detailHtml?: string;
-    iconClass: string;
-    confirmText: string;
-    cancelText?: string;
-    tone?: DiceSystemConfirmTone;
-    hideCancel?: boolean;
-  }): Promise<boolean> => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const tone: DiceSystemConfirmTone = options.tone || 'warning';
-    const detailClass = options.detailHtml ? ' structured' : '';
-    const dialogClass = options.detailHtml ? ' structured-detail' : '';
-    const detailHtml = options.detailHtml
-      ? `<div class="acu-system-confirm-detail acu-custom-icon-confirm-detail${detailClass}">${options.detailHtml}</div>`
-      : options.detail
-      ? `<div class="acu-system-confirm-detail acu-custom-icon-confirm-detail">${options.detail
-          .split('\n')
-          .map(line => `<div>${escapeHtml(line)}</div>`)
-          .join('')}</div>`
-      : '';
-    const cancelButtonHtml = options.hideCancel
-      ? ''
-      : `<button class="acu-import-cancel-btn acu-system-confirm-cancel acu-custom-icon-confirm-cancel" type="button">${escapeHtml(options.cancelText || '取消')}</button>`;
+  const showDiceSystemConfirmDialog = createShowDiceSystemConfirmDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+  });
 
-    return new Promise(resolve => {
-      $('.acu-system-confirm-overlay, .acu-custom-icon-confirm-overlay').remove();
-      const overlay = $(`
-        <div class="acu-import-confirm-overlay acu-system-confirm-overlay acu-custom-icon-confirm-overlay acu-theme-${config.theme}" tabindex="-1">
-          <div class="acu-import-confirm-dialog acu-system-confirm-dialog acu-custom-icon-confirm-dialog${dialogClass}">
-            <div class="acu-import-confirm-header">
-              <span class="acu-import-confirm-title">
-                <i class="fa-solid ${escapeHtml(options.iconClass)}"></i>
-                ${escapeHtml(options.title)}
-              </span>
-              <button class="acu-import-close-btn acu-system-confirm-cancel acu-custom-icon-confirm-cancel" type="button" title="关闭" aria-label="关闭">
-                <i class="fa-solid fa-times"></i>
-              </button>
-            </div>
-            <div class="acu-import-confirm-body">
-              <div class="acu-import-warning-container acu-system-confirm-content acu-custom-icon-confirm-content">
-                <i class="fa-solid ${escapeHtml(options.iconClass)} acu-import-warning-icon ${tone}"></i>
-                <div class="acu-import-warning-title">${escapeHtml(options.message)}</div>
-                ${detailHtml}
-              </div>
-            </div>
-            <div class="acu-import-confirm-footer">
-              ${cancelButtonHtml}
-              <button class="acu-import-confirm-btn acu-system-confirm-ok acu-custom-icon-confirm-ok ${tone}" type="button">${escapeHtml(options.confirmText)}</button>
-            </div>
-          </div>
-        </div>
-      `);
-
-      let settled = false;
-      const finish = (confirmed: boolean): void => {
-        if (settled) return;
-        settled = true;
-        overlay.remove();
-        resolve(confirmed);
-      };
-
-      $('body').append(overlay);
-
-      // 移动端酒馆会给若干容器叠加定位/缩放，这里用高优先级内联规则兜住居中层级。
-      const overlayEl = overlay[0] as HTMLElement | undefined;
-      if (overlayEl) {
-        overlayEl.style.setProperty('position', 'fixed', 'important');
-        overlayEl.style.setProperty('top', '0', 'important');
-        overlayEl.style.setProperty('left', '0', 'important');
-        overlayEl.style.setProperty('right', '0', 'important');
-        overlayEl.style.setProperty('bottom', '0', 'important');
-        overlayEl.style.setProperty('width', '100vw', 'important');
-        overlayEl.style.setProperty('height', '100dvh', 'important');
-        overlayEl.style.setProperty('min-height', '100vh', 'important');
-        overlayEl.style.setProperty('display', 'flex', 'important');
-        overlayEl.style.setProperty('align-items', 'center', 'important');
-        overlayEl.style.setProperty('justify-content', 'center', 'important');
-        overlayEl.style.setProperty('z-index', '32100', 'important');
-        overlayEl.style.setProperty('padding', '16px', 'important');
-        overlayEl.style.setProperty('box-sizing', 'border-box', 'important');
-        overlayEl.style.setProperty('margin', '0', 'important');
-        overlayEl.style.setProperty('transform', 'none', 'important');
-      }
-
-      const dialogEl = overlay.find('.acu-system-confirm-dialog')[0] as HTMLElement | undefined;
-      if (dialogEl) {
-        dialogEl.style.setProperty('margin', 'auto', 'important');
-        dialogEl.style.setProperty('max-height', 'calc(100dvh - 32px)', 'important');
-        dialogEl.style.setProperty('transform', 'none', 'important');
-      }
-
-      setupOverlayClose(overlay, 'acu-system-confirm-overlay', () => finish(false));
-      overlay.on('click', '.acu-system-confirm-cancel', () => finish(false));
-      overlay.on('click', '.acu-system-confirm-ok', () => finish(true));
-      window.setTimeout(() => {
-        const confirmButton = overlay.find('.acu-system-confirm-ok')[0] as HTMLButtonElement | undefined;
-        confirmButton?.focus();
-      }, 0);
-    });
-  };
-
-  const showDiceSystemInputDialog = (options: {
-    title: string;
-    message: string;
-    detail?: string;
-    iconClass: string;
-    initialValue?: string;
-    placeholder?: string;
-    confirmText?: string;
-    cancelText?: string;
-    inputMode?: string;
-    multiline?: boolean;
-    readonly?: boolean;
-    hideCancel?: boolean;
-  }): Promise<string | null> => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const fieldId = `acu-system-input-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const detailHtml = options.detail
-      ? `<div class="acu-system-input-detail">${options.detail
-          .split('\n')
-          .map(line => `<div>${escapeHtml(line)}</div>`)
-          .join('')}</div>`
-      : '';
-    const fieldAttrs = [
-      `id="${fieldId}"`,
-      'class="acu-system-input-control"',
-      `aria-label="${escapeHtml(options.message)}"`,
-      `placeholder="${escapeHtml(options.placeholder || '')}"`,
-      options.readonly ? 'readonly' : '',
-      options.inputMode ? `inputmode="${escapeHtml(options.inputMode)}"` : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    const initialValue = escapeHtml(options.initialValue || '');
-    const fieldHtml = options.multiline
-      ? `<textarea ${fieldAttrs}>${initialValue}</textarea>`
-      : `<input type="text" ${fieldAttrs} value="${initialValue}">`;
-    const cancelButtonHtml = options.hideCancel
-      ? ''
-      : `<button class="acu-import-cancel-btn acu-system-input-cancel" type="button">${escapeHtml(options.cancelText || '取消')}</button>`;
-
-    return new Promise(resolve => {
-      $('.acu-system-input-overlay').remove();
-      const overlay = $(`
-        <div class="acu-import-confirm-overlay acu-system-input-overlay acu-theme-${config.theme}" tabindex="-1">
-          <div class="acu-import-confirm-dialog acu-system-input-dialog" role="dialog" aria-modal="true" aria-labelledby="${fieldId}-title">
-            <div class="acu-import-confirm-header">
-              <span class="acu-import-confirm-title" id="${fieldId}-title">
-                <i class="fa-solid ${escapeHtml(options.iconClass)}"></i>
-                ${escapeHtml(options.title)}
-              </span>
-              <button class="acu-import-close-btn acu-system-input-cancel" type="button" title="关闭" aria-label="关闭">
-                <i class="fa-solid fa-times"></i>
-              </button>
-            </div>
-            <div class="acu-import-confirm-body">
-              <div class="acu-system-input-content">
-                <label class="acu-system-input-label" for="${fieldId}">${escapeHtml(options.message)}</label>
-                ${detailHtml}
-                ${fieldHtml}
-              </div>
-            </div>
-            <div class="acu-import-confirm-footer">
-              ${cancelButtonHtml}
-              <button class="acu-import-confirm-btn acu-system-input-ok" type="button">${escapeHtml(options.confirmText || '确定')}</button>
-            </div>
-          </div>
-        </div>
-      `);
-
-      let settled = false;
-      const finish = (value: string | null): void => {
-        if (settled) return;
-        settled = true;
-        overlay.remove();
-        resolve(value);
-      };
-
-      $('body').append(overlay);
-
-      const overlayEl = overlay[0] as HTMLElement | undefined;
-      if (overlayEl) {
-        overlayEl.style.setProperty('position', 'fixed', 'important');
-        overlayEl.style.setProperty('top', '0', 'important');
-        overlayEl.style.setProperty('left', '0', 'important');
-        overlayEl.style.setProperty('right', '0', 'important');
-        overlayEl.style.setProperty('bottom', '0', 'important');
-        overlayEl.style.setProperty('width', '100vw', 'important');
-        overlayEl.style.setProperty('height', '100dvh', 'important');
-        overlayEl.style.setProperty('min-height', '100vh', 'important');
-        overlayEl.style.setProperty('display', 'flex', 'important');
-        overlayEl.style.setProperty('align-items', 'center', 'important');
-        overlayEl.style.setProperty('justify-content', 'center', 'important');
-        overlayEl.style.setProperty('z-index', '32100', 'important');
-        overlayEl.style.setProperty('padding', '16px', 'important');
-        overlayEl.style.setProperty('box-sizing', 'border-box', 'important');
-        overlayEl.style.setProperty('margin', '0', 'important');
-        overlayEl.style.setProperty('transform', 'none', 'important');
-      }
-
-      const inputEl = overlay.find('.acu-system-input-control')[0] as
-        | HTMLInputElement
-        | HTMLTextAreaElement
-        | undefined;
-      const confirm = (): void => finish(inputEl?.value ?? '');
-
-      setupOverlayClose(overlay, 'acu-system-input-overlay', () => finish(null));
-      overlay.on('click', '.acu-system-input-cancel', () => finish(null));
-      overlay.on('click', '.acu-system-input-ok', confirm);
-      overlay.on('keydown', '.acu-system-input-control', event => {
-        if (!options.multiline && event.key === 'Enter') {
-          event.preventDefault();
-          confirm();
-        }
-      });
-      overlay.on('keydown', event => {
-        if (event.key === 'Escape') finish(null);
-      });
-      window.setTimeout(() => {
-        inputEl?.focus();
-        if (inputEl instanceof HTMLInputElement && !options.readonly) inputEl.select();
-      }, 0);
-    });
-  };
+  const showDiceSystemInputDialog = createShowDiceSystemInputDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+  });
 
   const showCustomTableNameIconManager = createShowCustomTableNameIconManager({
     analyzeCustomTableNameIconPackImport: (...a: any[]) => analyzeCustomTableNameIconPackImport(...a),
@@ -12673,107 +12365,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   // 手动更新/确认弹窗（支持复用）
-  const showManualUpdateDialog = (options?: {
-    title?: string;
-    iconClass?: string;
-    description?: string;
-    safeTitle?: string;
-    safeDescription?: string;
-    confirmText?: string;
-    loadingText?: string;
-    onConfirm?: () => Promise<void>;
-    isDanger?: boolean;
-    safeIconClass?: string;
-  }) => {
-    const { $ } = getCore();
-    $('.acu-manual-update-overlay').remove();
-
-    const config = getConfig();
-    const title = options?.title || '手动更新';
-    const iconClass = options?.iconClass || 'fa-rotate';
-    const description = options?.description || '将清理脚本缓存并刷新页面，以获取最新版本。';
-    const safeTitle = options?.safeTitle || '数据安全';
-    const safeDescription =
-      options?.safeDescription || '您的自定义规则、预设、正则转换、黑名单等数据存储在本地游览器中，不会受到影响。';
-    const confirmText = options?.confirmText || '立即更新';
-    const loadingText = options?.loadingText || '更新中...';
-    const onConfirm = options?.onConfirm;
-    const isDanger = options?.isDanger || false;
-    const safeIconClass = options?.safeIconClass || (isDanger ? 'fa-triangle-exclamation' : 'fa-shield-check');
-
-    // 颜色统一跟随主题变量，避免硬编码色与主题不协调
-    const headerBg = 'var(--acu-table-head)';
-    const headerTextColor = 'var(--acu-text-main)';
-    const confirmBtnBg = 'var(--acu-accent)';
-    const safeBoxBorder = 'var(--acu-border)';
-    const safeBoxIconColor = 'var(--acu-accent)';
-
-    const dialogHtml = `
-    <div class="acu-manual-update-overlay acu-theme-${config.theme}">
-      <div class="acu-manual-update-dialog" style="background:var(--acu-bg-panel);border-color:var(--acu-border);max-width:420px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
-        <div class="acu-manual-update-header" style="background:${headerBg};color:${headerTextColor};border-bottom:1px solid var(--acu-border);padding:12px 16px;font-weight:bold;font-size:1.1em;display:flex;align-items:center;gap:8px;">
-          <i class="fa-solid ${escapeHtml(iconClass)}" style="font-size:1.1em;"></i> ${escapeHtml(title)}
-        </div>
-        <div class="acu-manual-update-body" style="color:var(--acu-text-main);padding:20px 16px;">
-          <p style="color:var(--acu-text-main);margin-bottom:16px;line-height:1.5;">${escapeHtml(description)}</p>
-          <div class="acu-manual-update-safe-box" style="background:var(--acu-btn-bg);border:1px solid ${safeBoxBorder};border-radius:6px;padding:12px;display:flex;gap:12px;align-items:flex-start;">
-            <i class="fa-solid ${escapeHtml(safeIconClass)}" style="color:${safeBoxIconColor};font-size:1.2em;margin-top:2px;"></i>
-            <div class="safe-text" style="display:flex;flex-direction:column;gap:4px;">
-              <strong style="color:var(--acu-text-main);font-size:0.95em;">${escapeHtml(safeTitle)}</strong>
-              <span style="color:var(--acu-text-sub);font-size:0.85em;line-height:1.4;">${escapeHtml(safeDescription)}</span>
-            </div>
-          </div>
-        </div>
-        <div class="acu-manual-update-footer" style="background:var(--acu-table-head);border-top:1px solid var(--acu-border);padding:12px 16px;display:flex;justify-content:flex-end;gap:10px;">
-          <button class="acu-manual-update-cancel-btn" style="background:transparent;color:var(--acu-text-sub);border:1px solid var(--acu-border);padding:6px 16px;border-radius:4px;cursor:pointer;transition:all 0.2s;">取消</button>
-          <button class="acu-manual-update-confirm-btn" style="background:${confirmBtnBg};color:var(--acu-btn-active-text, #fff);border:none;padding:6px 20px;border-radius:4px;cursor:pointer;font-weight:bold;box-shadow:0 2px 4px rgba(0,0,0,0.2);transition:all 0.2s;">${escapeHtml(confirmText)}</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-    const $dialog = $(dialogHtml);
-    $('body').append($dialog);
-
-    const overlayEl = $dialog[0];
-
-    // 事件绑定
-    $dialog.find('.acu-manual-update-cancel-btn').on('click', () => {
-      $dialog.remove();
-    });
-
-    $dialog.find('.acu-manual-update-confirm-btn').on('click', async () => {
-      const $btn = $dialog.find('.acu-manual-update-confirm-btn');
-      $btn.prop('disabled', true).html(`<i class="fa-solid fa-spinner fa-spin"></i> ${escapeHtml(loadingText)}`);
-
-      try {
-        if (onConfirm) {
-          await onConfirm();
-          $dialog.remove();
-          return;
-        }
-
-        await clearDiceSystemCache();
-        // 刷新整个酒馆页面并绕过缓存（相当于 Ctrl+Shift+R）
-        if (window.parent !== window) {
-          window.parent.location.reload();
-        } else {
-          window.location.reload();
-        }
-      } catch (err) {
-        console.error('[DICE] 手动弹窗操作失败:', err);
-        if (window.toastr) showActionableErrorToast('手动更新操作失败，请查看控制台日志。', { developerHint: true });
-        $btn.prop('disabled', false).html(escapeHtml(confirmText));
-      }
-    });
-
-    // 点击遮罩关闭
-    $dialog.on('click', e => {
-      if (e.target === overlayEl) {
-        $dialog.remove();
-      }
-    });
-  };
+  const showManualUpdateDialog = createShowManualUpdateDialog({
+    clearDiceSystemCache: (...a: any[]) => clearDiceSystemCache(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // 导入确认弹窗
   const showImportConfirmDialog = createShowImportConfirmDialog({
@@ -12784,129 +12381,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     AvatarManager: AvatarManager,
   });
   // [新增] 整体编辑模态框 (已修复自动高度与样式复用)
-  const showCardEditModal = (
-    row,
-    headers,
-    tableName,
-    rowIndex,
-    tableKey,
-    options?: { overlayClass?: string; onSaved?: () => void },
-  ) => {
-    const { $ } = getCore();
-    const config = getConfig();
-    let rawData = cachedRawData || getTableData() || loadSnapshot();
-
-    let displayRow = row;
-    // 确保获取的是最新数据
-    if (rawData && rawData[tableKey] && rawData[tableKey]?.content?.[rowIndex + 1]) {
-      displayRow = rawData[tableKey]?.content?.[rowIndex + 1];
-    }
-
-    const inputsHtml = displayRow
-      .map((cell, idx) => {
-        if (idx === 0) return ''; // 跳过索引列
-        const headerName = headers[idx] || `列 ${idx}`;
-        const val = cell || '';
-        // 自动高度的 textarea
-        return `
-                <div class="acu-card-edit-field">
-                    <label class="acu-card-edit-label">${escapeHtml(headerName)}</label>
-                    <textarea class="acu-card-edit-input acu-card-edit-textarea" data-col="${idx}" spellcheck="false" rows="1">${escapeHtml(val)}</textarea>
-                </div>`;
-      })
-      .join('');
-
-    const dialog = $(`
-            <div class="acu-edit-overlay ${options?.overlayClass || ''}">
-                <div class="acu-edit-dialog acu-theme-${config.theme}">
-                    <div class="acu-edit-title">整体编辑 (#${rowIndex + 1} - ${escapeHtml(tableName)})</div>
-                    <div class="acu-settings-content acu-settings-content-scroll">
-                        ${inputsHtml}
-                    </div>
-                     <div class="acu-dialog-btns">
-                        <button class="acu-dialog-btn" id="dlg-card-cancel"><i class="fa-solid fa-times"></i> 取消</button>
-                        <button class="acu-dialog-btn acu-btn-confirm" id="dlg-card-save"><i class="fa-solid fa-check"></i> 保存</button>
-                    </div>
-                </div>
-            </div>
-        `);
-    $('body').append(dialog);
-
-    // --- [修复] 自动高度调节逻辑 ---
-    const adjustHeight = el => {
-      // 关键修复：使用 auto 而不是 0px，防止布局塌陷并正确获取 shrinking 时的 scrollHeight
-      el.style.height = 'auto';
-      const contentHeight = el.scrollHeight + 2;
-      const maxHeight = 500;
-      el.style.height = Math.min(contentHeight, maxHeight) + 'px';
-      el.style.overflowY = contentHeight > maxHeight ? 'auto' : 'hidden';
-    };
-
-    // 1. 初始化时：使用 requestAnimationFrame 确保在 DOM 渲染后执行
-    requestAnimationFrame(() => {
-      dialog.find('textarea').each(function () {
-        adjustHeight(this);
-      });
-    });
-
-    // 2. 输入时：实时调整
-    dialog.find('textarea').on('input', function () {
-      adjustHeight(this);
-    });
-    // -----------------------------
-
-    const closeDialog = () => dialog.remove();
-    dialog.find('#dlg-card-cancel').click(closeDialog);
-
-    // 保存逻辑：使用即时保存 + 单行快照更新（保留其他行的AI变更高亮）
-    dialog.find('#dlg-card-save').click(async () => {
-      let rawData = cachedRawData || getTableData() || loadSnapshot();
-      if (rawData && rawData[tableKey]) {
-        const currentRow = rawData[tableKey]?.content?.[rowIndex + 1];
-        if (!currentRow) {
-          closeDialog();
-          return;
-        }
-        const nextRow = [...currentRow];
-        let hasChanges = false;
-        dialog.find('textarea').each(function () {
-          const colIdx = parseInt($(this).data('col'));
-          const newVal = $(this).val();
-          if (String(nextRow[colIdx]) !== String(newVal)) {
-            hasChanges = true;
-            nextRow[colIdx] = newVal;
-          }
-        });
-        if (hasChanges) {
-          try {
-            // 使用 saveRowInstantly 执行即时保存 + 单行快照更新
-            await saveRowInstantly(tableKey, rowIndex, nextRow, {
-              tableName,
-              headers,
-              currentRow,
-              sourceData: rawData,
-              sheet: rawData?.[tableKey],
-            });
-            renderInterface();
-            options?.onSaved?.();
-          } catch (e) {
-            console.error('[DICE]ACU 保存失败:', e);
-            // 保存失败时不关闭对话框，让用户重试
-            return;
-          }
-        }
-      }
-      closeDialog();
-    });
-    // 点击遮罩层关闭
-    setupOverlayClose(dialog, 'acu-edit-overlay', closeDialog);
-    // 点击关闭按钮（双重保险）
-    dialog.on('click', function (e) {
-      if ($(e.target).closest('#dlg-close-x, #dlg-close, .acu-close-btn').length) {
-        closeDialog();
-      }
-    });
-  };
+  const showCardEditModal = createShowCardEditModal({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    renderInterface: (...a: any[]) => renderInterface(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   // [优化] 内存配置缓存
   let _configCache = null;
@@ -18782,200 +18267,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return applyAdvancedPresetOutcomePolicy(preset, matchedOutcome, context);
   };
 
-  const buildCheckSuggestionPresetSide = (
-    preset: AdvancedDicePreset,
-    input: {
-      characterName: string;
-      attributeName: string;
-      params: CheckSuggestionParams;
-      targetValue?: number | null;
-      diceExpression?: string;
-    },
-  ): CheckSuggestionPresetSideResult => {
-    const defaultAttr = resolveCheckSuggestionDefaultValue(preset.attribute?.defaultValue, {});
-    const rawAttrEntry = getAttributeEntryForCharacter(input.characterName, input.attributeName);
-    const mappedTarget = getCheckSuggestionMappedTarget(preset, input.attributeName, rawAttrEntry?.source);
-    const rawAttrValue = rawAttrEntry?.value ?? null;
-    let attrValue = defaultAttr;
-    if (input.params.attr !== undefined) {
-      attrValue = resolveCheckSuggestionNumberParam(input.params.attr, input.characterName, defaultAttr);
-    } else if (input.targetValue !== undefined && input.targetValue !== null) {
-      attrValue = input.targetValue;
-    } else if (mappedTarget !== 'skillMod' && rawAttrValue !== null) {
-      attrValue = rawAttrValue;
-    }
-
-    const dc = resolveCheckSuggestionNumberParam(
-      input.params.dc,
-      input.characterName,
-      resolveCheckSuggestionDefaultValue(preset.dc?.defaultValue, { $attr: attrValue }),
-    );
-    const mod = resolveCheckSuggestionNumberParam(
-      input.params.mod,
-      input.characterName,
-      preset.mod?.hidden && input.params.mod === undefined
-        ? 0
-        : resolveCheckSuggestionDefaultValue(preset.mod?.defaultValue, { $attr: attrValue }),
-      { preferAttribute: false },
-    );
-    let skillMod = resolveCheckSuggestionNumberParam(
-      input.params.skillMod,
-      input.characterName,
-      resolveCheckSuggestionDefaultValue(preset.skillMod?.defaultValue, { $attr: attrValue }),
-    );
-    if (input.params.skillMod === undefined && mappedTarget === 'skillMod' && rawAttrValue !== null) {
-      skillMod = rawAttrValue;
-    }
-
-    let attrMod = 0;
-    if (preset.attribute?.computeModifier) {
-      attrMod = evaluateConditionNumber(preset.attribute.computeModifier, { $attr: attrValue }, 0);
-    }
-
-    const customValues: Record<string, string | number | boolean> = {};
-    if (Array.isArray(preset.customFields)) {
-      preset.customFields.forEach(field => {
-        customValues[`$${field.id}`] = resolveCheckSuggestionFieldValue(field, input.params, input.characterName);
-      });
-    }
-
-    const baseContext: Record<string, string | number | boolean | RollResult> = {
-      $attr: attrValue,
-      $attrMod: attrMod,
-      $skillMod: skillMod,
-      $dc: dc,
-      $mod: mod,
-      $isPushed: 0,
-      ...customValues,
-    };
-
-    const derivedValues: Record<string, number> = {};
-    if (Array.isArray(preset.derivedVars)) {
-      preset.derivedVars.forEach(spec => {
-        const id = spec?.id?.trim();
-        if (!id) return;
-        const varName = id.startsWith('$') ? id : `$${id}`;
-        const evalResult = evaluateCondition(spec.expr, { ...baseContext, ...derivedValues } as Record<string, number>);
-        if (!evalResult.success) {
-          console.warn(`[DICE] 检定建议派生变量 ${varName} 计算失败:`, evalResult.error);
-          derivedValues[varName] = 0;
-          return;
-        }
-        const rawValue = evalResult.value;
-        derivedValues[varName] =
-          typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? 1 : 0;
-      });
-    }
-
-    let diceExpression = input.diceExpression || preset.diceExpression || '1d100';
-    if (Array.isArray(preset.dicePatches)) {
-      const patchContext: Record<string, string | number | boolean | RollResult> = {
-        ...baseContext,
-        ...derivedValues,
-      };
-      preset.dicePatches.forEach(patch => {
-        if (!patch) return;
-        if (patch.when) {
-          const conditionResult = evaluateCondition(patch.when, patchContext as Record<string, number>);
-          if (!conditionResult.success) {
-            console.warn('[DICE] 检定建议 dicePatches 条件评估失败:', conditionResult.error);
-            return;
-          }
-          const shouldApply =
-            typeof conditionResult.value === 'number' ? conditionResult.value !== 0 : Boolean(conditionResult.value);
-          if (!shouldApply) return;
-        }
-        const resolvedTemplate = String(patch.template || '').replace(/\$[a-zA-Z_]\w*/g, match => {
-          const value = patchContext[match];
-          return typeof value === 'number' && Number.isFinite(value) ? String(value) : '0';
-        });
-        if (patch.op === 'append') diceExpression = `${diceExpression}${resolvedTemplate}`;
-        else if (patch.op === 'prepend') diceExpression = `${resolvedTemplate}${diceExpression}`;
-        else if (patch.op === 'replace') diceExpression = resolvedTemplate;
-      });
-    }
-
-    const rollResult = rollComplexDiceExpression(diceExpression);
-    if (Number.isNaN(rollResult.total)) {
-      throw new Error(`无效的骰子公式：${diceExpression}`);
-    }
-
-    const postRollDerivedValues: Record<string, number> = {};
-    if (Array.isArray(preset.derivedVars)) {
-      const postRollContext: Record<string, string | number | boolean | RollResult> = {
-        $roll: rollResult,
-        '$roll.total': rollResult.total,
-        ...baseContext,
-        ...customValues,
-      };
-      preset.derivedVars.forEach(spec => {
-        const id = spec?.id?.trim();
-        if (!id) return;
-        const varName = id.startsWith('$') ? id : `$${id}`;
-        const evalResult = evaluateCondition(spec.expr, { ...postRollContext, ...postRollDerivedValues } as Record<
-          string,
-          number
-        >);
-        if (!evalResult.success) {
-          console.warn(`[DICE] 检定建议派生变量 ${varName} (投骰后) 计算失败:`, evalResult.error);
-          postRollDerivedValues[varName] = 0;
-          return;
-        }
-        const rawValue = evalResult.value;
-        postRollDerivedValues[varName] =
-          typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? 1 : 0;
-      });
-    }
-
-    const context: Record<string, string | number | boolean | RollResult> = {
-      $roll: rollResult,
-      '$roll.total': rollResult.total,
-      ...baseContext,
-      ...postRollDerivedValues,
-    };
-    const outcomeResult = evaluateCheckSuggestionOutcome(preset, context);
-    const outcome = outcomeResult.outcome;
-    const displayOutcome = getAdvancedPresetDisplayOutcome(outcomeResult);
-    const displayExpr = displayOutcome.displayExpr ?? displayOutcome.condition;
-    const conditionExpr = replaceCheckSuggestionConditionVars(displayExpr, context, rollResult);
-    const displayExprResult = evaluateCondition(displayExpr, context as Record<string, number>);
-    const rawDisplayExprValue = displayExprResult.value;
-    const displayValue =
-      typeof rawDisplayExprValue === 'number' && Number.isFinite(rawDisplayExprValue)
-        ? rawDisplayExprValue
-        : conditionExpr;
-    const judgeResultText =
-      displayExprResult.success &&
-      (typeof displayExprResult.value === 'number' ? displayExprResult.value !== 0 : Boolean(displayExprResult.value))
-        ? '成立'
-        : '不成立';
-
-    const outputVars: Record<string, string | number | boolean> = {};
-    Object.entries({ ...customValues, ...postRollDerivedValues }).forEach(([key, value]) => {
-      outputVars[key.startsWith('$') ? key.slice(1) : key] = value;
-    });
-
-    return {
-      characterName: input.characterName,
-      attributeName: input.attributeName,
-      attrValue,
-      attrMod,
-      dc,
-      mod,
-      skillMod,
-      customValues,
-      derivedValues: postRollDerivedValues,
-      diceExpression,
-      rollResult,
-      rollTotal: rollResult.total,
-      context,
-      outcome,
-      conditionExpr,
-      judgeResultText,
-      displayValue,
-      outputVars,
-    };
-  };
+  const buildCheckSuggestionPresetSide = createBuildCheckSuggestionPresetSide({
+    evaluateCheckSuggestionOutcome: (...a: any[]) => evaluateCheckSuggestionOutcome(...a),
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+    evaluateConditionNumber: (...a: any[]) => evaluateConditionNumber(...a),
+    getAdvancedPresetDisplayOutcome: (...a: any[]) => getAdvancedPresetDisplayOutcome(...a),
+    getAttributeEntryForCharacter: (...a: any[]) => getAttributeEntryForCharacter(...a),
+    getCheckSuggestionMappedTarget: (...a: any[]) => getCheckSuggestionMappedTarget(...a),
+    replaceCheckSuggestionConditionVars: (...a: any[]) => replaceCheckSuggestionConditionVars(...a),
+    resolveCheckSuggestionDefaultValue: (...a: any[]) => resolveCheckSuggestionDefaultValue(...a),
+    resolveCheckSuggestionFieldValue: (...a: any[]) => resolveCheckSuggestionFieldValue(...a),
+    resolveCheckSuggestionNumberParam: (...a: any[]) => resolveCheckSuggestionNumberParam(...a),
+  });
 
   const buildCheckSuggestionSideParams = (
     params: CheckSuggestionParams,
@@ -19001,79 +18304,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return result;
   };
 
-  const resolveCheckSuggestionContestWinner = (
-    preset: AdvancedDicePreset,
-    left: CheckSuggestionPresetSideResult,
-    right: CheckSuggestionPresetSideResult,
-    command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>,
-  ): 'initiator' | 'opponent' | 'tie' => {
-    const contestRule = preset.contestRule;
-    let winner: 'initiator' | 'opponent' | 'tie' = 'tie';
-    const leftTotal = left.rollTotal + left.attrMod + left.skillMod + left.mod;
-    const rightTotal = right.rollTotal + right.attrMod + right.skillMod + right.mod;
-
-    switch (contestRule?.mode ?? 'rank') {
-      case 'rank': {
-        const leftRank = left.outcome.contestRank ?? 50;
-        const rightRank = right.outcome.contestRank ?? 50;
-        if (leftRank > rightRank) winner = 'initiator';
-        else if (rightRank > leftRank) winner = 'opponent';
-        break;
-      }
-      case 'value':
-      case 'margin': {
-        if (leftTotal > rightTotal) winner = 'initiator';
-        else if (rightTotal > leftTotal) winner = 'opponent';
-        break;
-      }
-      case 'custom': {
-        if (contestRule?.customExpr) {
-          const conditionResult = evaluateCondition(contestRule.customExpr, {
-            $initValue: leftTotal,
-            $oppValue: rightTotal,
-            $initRank: left.outcome.contestRank ?? 50,
-            $oppRank: right.outcome.contestRank ?? 50,
-          });
-          if (conditionResult.success) {
-            const matched =
-              typeof conditionResult.value === 'number' ? conditionResult.value !== 0 : Boolean(conditionResult.value);
-            winner = matched ? 'initiator' : 'opponent';
-          }
-        }
-        break;
-      }
-    }
-
-    if (winner === 'tie' && command.hasExplicitTieRule) {
-      if (command.tieRule === 'initiator_win') return 'initiator';
-      if (command.tieRule === 'initiator_lose') return 'opponent';
-      return 'tie';
-    }
-
-    const tieBreakers =
-      Array.isArray(contestRule?.tieBreakers) && contestRule.tieBreakers.length > 0
-        ? contestRule.tieBreakers
-        : contestRule?.tieBreaker
-          ? [contestRule.tieBreaker]
-          : [];
-    if (winner === 'tie') {
-      for (const tieBreaker of tieBreakers) {
-        if (tieBreaker === 'higher_attr') {
-          if (left.attrValue > right.attrValue) winner = 'initiator';
-          else if (right.attrValue > left.attrValue) winner = 'opponent';
-        } else if (tieBreaker === 'higher_roll') {
-          if (left.rollTotal > right.rollTotal) winner = 'initiator';
-          else if (right.rollTotal > left.rollTotal) winner = 'opponent';
-        } else if (tieBreaker === 'initiator_wins') {
-          winner = 'initiator';
-        } else if (tieBreaker === 'status_quo') {
-          winner = 'tie';
-        }
-        if (winner !== 'tie') break;
-      }
-    }
-    return winner;
-  };
+  const resolveCheckSuggestionContestWinner = createResolveCheckSuggestionContestWinner({
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+  });
 
   const executeAdvancedCheckSuggestion = createExecuteAdvancedCheckSuggestion({
     buildCheckSuggestionPresetSide: (...a: any[]) => buildCheckSuggestionPresetSide(...a),
@@ -19093,164 +18326,25 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     smartInsertToTextarea: smartInsertToTextarea,
   });
 
-  const executeAdvancedContestCheckSuggestion = (
-    command: Extract<CheckSuggestionParsedCommand, { kind: 'contest' }>,
-  ) => {
-    refreshNameAliasesForCheckSuggestion();
-    const presetId = command.rawParams.preset || null;
-    const preset = getCheckSuggestionPresetById(presetId);
-    if (!preset) throw new Error('未找到可用检定预设');
-    if (!AdvancedDicePresetManager.supportsContest(preset)) {
-      throw new Error(`当前检定预设「${preset.name}」不支持对抗检定`);
-    }
-    const params = normalizeCheckSuggestionParams(command.rawParams, preset);
-    const leftName = resolveCheckSuggestionCharacterName(command.leftName);
-    const rightName = resolveCheckSuggestionCharacterName(command.rightName);
-    const leftParams = buildCheckSuggestionSideParams(params, 'left');
-    const rightParams = buildCheckSuggestionSideParams(params, 'right');
-    const left = buildCheckSuggestionPresetSide(preset, {
-      characterName: leftName,
-      attributeName: command.leftAttribute,
-      params: leftParams,
-      diceExpression: command.hasExplicitDice ? command.diceType : undefined,
-    });
-    const right = buildCheckSuggestionPresetSide(preset, {
-      characterName: rightName,
-      attributeName: command.rightAttribute,
-      params: rightParams,
-      diceExpression: command.hasExplicitDice ? command.diceType : undefined,
-    });
-    const winnerSide = resolveCheckSuggestionContestWinner(preset, left, right, command);
-    const leftDisplayName = replaceUserPlaceholders(leftName);
-    const rightDisplayName = replaceUserPlaceholders(rightName);
-    const winnerText =
-      winnerSide === 'initiator'
-        ? `${leftDisplayName} 胜利`
-        : winnerSide === 'opponent'
-          ? `${rightDisplayName} 胜利`
-          : '平局';
-    const leftTotal = left.rollTotal + left.attrMod + left.skillMod + left.mod;
-    const rightTotal = right.rollTotal + right.attrMod + right.skillMod + right.mod;
-    const margin = leftTotal - rightTotal;
-    const signed = (value: number): string => (value >= 0 ? `+${value}` : String(value));
-    const template = preset.contestOutputTemplate || DEFAULT_CONTEST_OUTPUT_TEMPLATE;
-    const initCheckValueText = buildCheckValueText({
-      preset,
-      characterName: leftName,
-      actionName: command.leftAttribute,
-      attrValue: left.attrValue,
-      attrMod: left.attrMod,
-      skillMod: left.skillMod,
-      mode: 'contest',
-      attrNameOverride: getNamedCheckParamText(leftParams.attr),
-      skillNameOverride: getNamedCheckParamText(leftParams.skillMod),
-    });
-    const oppCheckValueText = buildCheckValueText({
-      preset,
-      characterName: rightName,
-      actionName: command.rightAttribute,
-      attrValue: right.attrValue,
-      attrMod: right.attrMod,
-      skillMod: right.skillMod,
-      mode: 'contest',
-      attrNameOverride: getNamedCheckParamText(rightParams.attr),
-      skillNameOverride: getNamedCheckParamText(rightParams.skillMod),
-    });
-    const contestOutputContext: Record<string, string | number | undefined> = {
-      initiator: leftName,
-      opponent: rightName,
-      initAttrName: command.leftAttribute,
-      oppAttrName: command.rightAttribute,
-      initRoll: left.rollTotal,
-      oppRoll: right.rollTotal,
-      initDisplayValue: left.displayValue,
-      oppDisplayValue: right.displayValue,
-      initTarget: left.dc,
-      oppTarget: right.dc,
-      initSuccessName: left.outcome.name,
-      oppSuccessName: right.outcome.name,
-      winner: winnerText,
-      outcomeText: left.outcome.outputText || left.outcome.name || '判定完成',
-      outcomeName: left.outcome.name,
-      conditionExpr: left.conditionExpr,
-      judgeResult: left.judgeResultText,
-      formula: left.diceExpression,
-      initFormula: left.diceExpression,
-      oppFormula: right.diceExpression,
-      roll: left.rollTotal,
-      dc: left.dc,
-      mod: left.mod,
-      attr: left.attrValue,
-      attrName: `【${command.leftAttribute}】`,
-      initOutcomeText: left.outcome.outputText || left.outcome.name || '判定完成',
-      oppOutcomeText: right.outcome.outputText || right.outcome.name || '判定完成',
-      initConditionExpr: left.conditionExpr,
-      oppConditionExpr: right.conditionExpr,
-      initJudgeResult: left.judgeResultText,
-      oppJudgeResult: right.judgeResultText,
-      initAttrMod: left.attrMod,
-      oppAttrMod: right.attrMod,
-      initSkillMod: left.skillMod,
-      oppSkillMod: right.skillMod,
-      initMod: left.mod,
-      oppMod: right.mod,
-      initAttrModText: left.attrMod !== 0 ? `，调整值${signed(left.attrMod)}` : '',
-      oppAttrModText: right.attrMod !== 0 ? `，调整值${signed(right.attrMod)}` : '',
-      initSkillModText: left.skillMod !== 0 ? `+技能加值${signed(left.skillMod)}` : '',
-      oppSkillModText: right.skillMod !== 0 ? `+技能加值${signed(right.skillMod)}` : '',
-      initModText: left.mod !== 0 ? `+额外加值${signed(left.mod)}` : '',
-      oppModText: right.mod !== 0 ? `+额外加值${signed(right.mod)}` : '',
-      initCheckValueText,
-      oppCheckValueText,
-      initTotal: leftTotal,
-      oppTotal: rightTotal,
-      margin,
-      shifts: margin,
-      initAttr: left.attrValue,
-      oppAttr: right.attrValue,
-    };
-    const contestResultText = formatOutputTemplate(template, contestOutputContext);
-    smartInsertToTextarea(contestResultText, 'dice');
-
-    const contestResult: AcuDice.ContestResult = {
-      left: {
-        name: leftName,
-        attribute: command.leftAttribute,
-        roll: left.rollTotal,
-        target: left.dc || left.attrValue,
-        successLevel: left.outcome.contestRank ?? 0,
-      },
-      right: {
-        name: rightName,
-        attribute: command.rightAttribute,
-        roll: right.rollTotal,
-        target: right.dc || right.attrValue,
-        successLevel: right.outcome.contestRank ?? 0,
-      },
-      winner: winnerSide === 'initiator' ? 'left' : winnerSide === 'opponent' ? 'right' : 'tie',
-      message: winnerText,
-    };
-    const timestamp = Date.now();
-    const contestResultWithTimestamp = {
-      ...contestResult,
-      timestamp,
-      detailId: `contest_${timestamp}_${Math.random().toString(36).slice(2, 8)}`,
-      historyType: 'contest' as const,
-      detailLines: [
-        `发起方: ${leftDisplayName} / 对抗方: ${rightDisplayName}`,
-        `属性: ${command.leftAttribute} vs ${command.rightAttribute}`,
-        `预设: ${preset.name}`,
-        `公式: ${left.diceExpression} vs ${right.diceExpression}`,
-        `掷骰: ${left.rollTotal} vs ${right.rollTotal}`,
-        `总值: ${leftTotal} vs ${rightTotal}`,
-        `判定: ${left.conditionExpr} | ${right.conditionExpr}`,
-        `结果: ${winnerText}`,
-      ],
-    };
-    contestHistory.push(contestResultWithTimestamp);
-    if (contestHistory.length > MAX_HISTORY) contestHistory.shift();
-    emitEvent('contest', contestResultWithTimestamp);
-  };
+  const executeAdvancedContestCheckSuggestion = createExecuteAdvancedContestCheckSuggestion({
+    buildCheckSuggestionPresetSide: (...a: any[]) => buildCheckSuggestionPresetSide(...a),
+    buildCheckSuggestionSideParams: (...a: any[]) => buildCheckSuggestionSideParams(...a),
+    buildCheckValueText: (...a: any[]) => buildCheckValueText(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    formatOutputTemplate: (...a: any[]) => formatOutputTemplate(...a),
+    getCheckSuggestionPresetById: (...a: any[]) => getCheckSuggestionPresetById(...a),
+    getNamedCheckParamText: (...a: any[]) => getNamedCheckParamText(...a),
+    normalizeCheckSuggestionParams: (...a: any[]) => normalizeCheckSuggestionParams(...a),
+    refreshNameAliasesForCheckSuggestion: (...a: any[]) => refreshNameAliasesForCheckSuggestion(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    resolveCheckSuggestionCharacterName: (...a: any[]) => resolveCheckSuggestionCharacterName(...a),
+    resolveCheckSuggestionContestWinner: (...a: any[]) => resolveCheckSuggestionContestWinner(...a),
+    smartInsertToTextarea: (...a: any[]) => smartInsertToTextarea(...a),
+    AdvancedDicePresetManager: AdvancedDicePresetManager,
+    DEFAULT_CONTEST_OUTPUT_TEMPLATE: DEFAULT_CONTEST_OUTPUT_TEMPLATE,
+    getMAX_HISTORY: () => MAX_HISTORY,
+    getContestHistory: () => contestHistory,
+  });
 
   const executeFixedCheckSuggestion = (success: boolean) => {
     const label = success ? '必定成功' : '必定失败';
@@ -19374,112 +18468,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   });
 
   // 收藏卡片编辑弹窗
-  const showFavoriteEditModal = (fav: FavoriteItem, onSave: (updated: Partial<FavoriteItem>) => void) => {
-    const { $ } = getCore();
-    $('.acu-fav-edit-overlay').remove();
-
-    const config = getConfig();
-
-    // 生成编辑行HTML
-    const renderEditRows = (header: string[], rowData: (string | number)[]) => {
-      return header
-        .map(
-          (h, i) => `
-        <div class="acu-fav-edit-row" data-index="${i}">
-          <input type="text" class="acu-fav-edit-header" value="${escapeHtml(h)}" placeholder="列名" />
-          <input type="text" class="acu-fav-edit-value" value="${escapeHtml(String(rowData[i] || ''))}" placeholder="值" />
-          <button class="acu-fav-edit-remove" title="删除列"><i class="fa-solid fa-minus"></i></button>
-        </div>
-      `,
-        )
-        .join('');
-    };
-
-    const overlayHtml = `
-      <div class="acu-fav-edit-overlay acu-theme-${config.theme}">
-        <div class="acu-fav-edit-modal">
-          <div class="acu-fav-edit-modal-header">
-            <h4>编辑收藏</h4>
-            <button class="acu-fav-edit-close"><i class="fa-solid fa-times"></i></button>
-          </div>
-          <div class="acu-fav-edit-modal-body">
-            <div class="acu-fav-edit-tags-section">
-              <label>标签 (逗号分隔):</label>
-              <input type="text" id="acu-fav-edit-tags" value="${escapeHtml(fav.tags.join(', '))}" />
-            </div>
-            <div class="acu-fav-edit-rows">
-              ${renderEditRows(fav.header, fav.rowData)}
-            </div>
-            <button class="acu-fav-edit-add-col"><i class="fa-solid fa-plus"></i> 添加列</button>
-          </div>
-          <div class="acu-fav-edit-modal-footer">
-            <button class="acu-fav-edit-cancel">取消</button>
-            <button class="acu-fav-edit-save">保存</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    $('body').append(overlayHtml);
-
-    const $overlay = $('.acu-fav-edit-overlay');
-    const $modal = $overlay.find('.acu-fav-edit-modal');
-
-    const closeModal = () => $overlay.remove();
-
-    $overlay.on('click', e => {
-      if ($(e.target).hasClass('acu-fav-edit-overlay')) closeModal();
-    });
-
-    $modal.find('.acu-fav-edit-close, .acu-fav-edit-cancel').on('click', closeModal);
-
-    // 删除列
-    $modal.on('click', '.acu-fav-edit-remove', function () {
-      $(this).closest('.acu-fav-edit-row').remove();
-    });
-
-    // 添加列
-    $modal.find('.acu-fav-edit-add-col').on('click', () => {
-      const newIndex = $modal.find('.acu-fav-edit-row').length;
-      const newRowHtml = `
-        <div class="acu-fav-edit-row" data-index="${newIndex}">
-          <input type="text" class="acu-fav-edit-header" value="" placeholder="列名" />
-          <input type="text" class="acu-fav-edit-value" value="" placeholder="值" />
-          <button class="acu-fav-edit-remove" title="删除列"><i class="fa-solid fa-minus"></i></button>
-        </div>
-      `;
-      $modal.find('.acu-fav-edit-rows').append(newRowHtml);
-    });
-
-    // 保存
-    $modal.find('.acu-fav-edit-save').on('click', () => {
-      const newHeader: string[] = [];
-      const newRowData: (string | number)[] = [];
-
-      $modal.find('.acu-fav-edit-row').each(function () {
-        const h = $(this).find('.acu-fav-edit-header').val() as string;
-        const v = $(this).find('.acu-fav-edit-value').val() as string;
-        if (h.trim()) {
-          newHeader.push(h.trim());
-          newRowData.push(v);
-        }
-      });
-
-      const tagsStr = ($modal.find('#acu-fav-edit-tags').val() as string) || '';
-      const newTags = tagsStr
-        .split(',')
-        .map(t => t.trim())
-        .filter(t => t.length > 0);
-
-      onSave({
-        header: newHeader,
-        rowData: newRowData,
-        tags: newTags,
-      });
-
-      closeModal();
-    });
-  };
+  const showFavoriteEditModal = createShowFavoriteEditModal({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // 标签输入弹窗（替代浏览器原生 prompt）
   const showTagInputModal = createShowTagInputModal({
@@ -22037,112 +21030,20 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Array.from(tags);
   };
 
-  const normalizeImportedGachaItem = (
-    rawItem: unknown,
-    index: number,
-    errors: string[],
-    tagAliases: Record<string, GachaPoolTag> = {},
-  ): NormalizedGachaCatalogItem | null => {
-    if (!rawItem || typeof rawItem !== 'object') {
-      errors.push(`第 ${index + 1} 项不是有效对象`);
-      return null;
-    }
-    const record = rawItem as Record<string, unknown>;
-    const name = String(record.name || '').trim();
-    if (!name) {
-      errors.push(`第 ${index + 1} 项缺少 name，已跳过`);
-      return null;
-    }
-    const quality = String(record.quality || '').trim() as GachaRarity;
-    if (!GACHA_RARITY_ORDER.includes(quality)) {
-      errors.push(`「${name}」的 quality 无效，已跳过`);
-      return null;
-    }
-    const legacyPoolTags = Array.isArray(record.tags) ? record.tags : undefined;
-    const poolTags = normalizeImportedGachaPoolTags(
-      record.poolTags ?? record.poolTag ?? record.pools ?? legacyPoolTags ?? record.pool,
-      tagAliases,
-    );
-    if (poolTags.length === 0) {
-      errors.push(`「${name}」没有有效 poolTags，已跳过`);
-      return null;
-    }
-    const weight = Number(record.weight);
-    if (!Number.isFinite(weight) || weight <= 0) {
-      errors.push(`「${name}」的 weight 必须为正数，已跳过`);
-      return null;
-    }
-    const grantQuantity = Math.floor(Number(record.grantQuantity));
-    if (!Number.isFinite(grantQuantity) || grantQuantity <= 0) {
-      errors.push(`「${name}」的 grantQuantity 必须为正整数，已跳过`);
-      return null;
-    }
-    const rewardTarget = GACHA_REWARD_TARGETS.includes(record.rewardTarget as GachaRewardTarget)
-      ? (record.rewardTarget as GachaRewardTarget)
-      : 'inventory';
-    const description = String(record.description || '').trim();
-    const rawCustomFields =
-      record.customFields && typeof record.customFields === 'object' && !Array.isArray(record.customFields)
-        ? (record.customFields as Record<string, unknown>)
-        : {};
-    const readLegacyStandardField = (aliases: readonly string[]): string => {
-      for (const [key, value] of Object.entries(rawCustomFields)) {
-        if (isGachaFieldAlias(key, aliases) && (typeof value === 'string' || typeof value === 'number')) {
-          const text = String(value).trim();
-          if (text) return text;
-        }
-      }
-      return '';
-    };
-    const tags =
-      (typeof record.tags === 'string' ? String(record.tags).trim() : '') ||
-      readLegacyStandardField(GACHA_TAG_FIELD_ALIASES);
-    const effect =
-      String(record.effect ?? record.effects ?? '').trim() || readLegacyStandardField(GACHA_EFFECT_FIELD_ALIASES);
-    const rawType = String(record.type || '').trim();
-    const type =
-      rewardTarget === 'equipment'
-        ? inferEquipmentTableTypeForGachaItem({ id: String(record.id || '').trim(), name, type: rawType, description })
-        : rawType || '道具';
-    const generatedId = !String(record.id || '').trim();
-    const order = Number(record.order);
-    const customFields = normalizeGachaCustomFields(
-      Object.fromEntries(
-        Object.entries(rawCustomFields).filter(
-          ([key]) =>
-            !isGachaFieldAlias(key, GACHA_TAG_FIELD_ALIASES) &&
-            !isGachaFieldAlias(key, GACHA_EFFECT_FIELD_ALIASES),
-        ),
-      ),
-    );
-    const targetTable = normalizeGachaTargetTable(record.targetTable);
-    const targetColumns = normalizeGachaTargetColumns(record.targetColumns);
-    const item: NormalizedGachaCatalogItem = {
-      id: generatedId ? buildStableGachaCustomItemId({ name, quality, type }) : String(record.id || '').trim(),
-      name,
-      type,
-      quality,
-      ...(tags ? { tags } : {}),
-      ...(effect ? { effect } : {}),
-      description,
-      poolTags,
-      icon: String(record.icon || '').trim() || undefined,
-      enabled: normalizeGachaItemEnabled(record.enabled),
-      order: Number.isFinite(order) ? normalizeGachaItemOrder(order) : undefined,
-      createdAt: normalizeGachaTimestamp(record.createdAt || record.created_at),
-      updatedAt: normalizeGachaTimestamp(record.updatedAt || record.updated_at),
-      weight,
-      stackable: record.stackable === true,
-      unique: record.unique === true || quality === GACHA_UNIQUE_RARITY,
-      grantQuantity,
-      rewardTarget,
-      generatedId,
-    };
-    if (targetTable) item.targetTable = targetTable;
-    if (targetColumns) item.targetColumns = targetColumns;
-    if (customFields) item.customFields = customFields;
-    return item;
-  };
+  const normalizeImportedGachaItem = createNormalizeImportedGachaItem({
+    buildStableGachaCustomItemId: (...a: any[]) => buildStableGachaCustomItemId(...a),
+    inferEquipmentTableTypeForGachaItem: (...a: any[]) => inferEquipmentTableTypeForGachaItem(...a),
+    isGachaFieldAlias: (...a: any[]) => isGachaFieldAlias(...a),
+    normalizeGachaCustomFields: (...a: any[]) => normalizeGachaCustomFields(...a),
+    normalizeGachaItemEnabled: (...a: any[]) => normalizeGachaItemEnabled(...a),
+    normalizeGachaItemOrder: (...a: any[]) => normalizeGachaItemOrder(...a),
+    normalizeGachaTargetColumns: (...a: any[]) => normalizeGachaTargetColumns(...a),
+    normalizeGachaTargetTable: (...a: any[]) => normalizeGachaTargetTable(...a),
+    normalizeGachaTimestamp: (...a: any[]) => normalizeGachaTimestamp(...a),
+    normalizeImportedGachaPoolTags: (...a: any[]) => normalizeImportedGachaPoolTags(...a),
+    GACHA_EFFECT_FIELD_ALIASES: GACHA_EFFECT_FIELD_ALIASES,
+    GACHA_TAG_FIELD_ALIASES: GACHA_TAG_FIELD_ALIASES,
+  });
 
   const normalizeImportedGachaPools = (rawPools: unknown): NormalizedImportedGachaPools => {
     const result: NormalizedImportedGachaPools = { pools: [], tagAliases: {} };
