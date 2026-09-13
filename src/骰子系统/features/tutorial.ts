@@ -3214,14 +3214,13 @@ export const createTutorialModule = (options: TutorialModuleOptions): TutorialMo
     const completeWhenMissing = optionsOverride.completeWhenMissing === true;
     const interrupt = optionsOverride.interrupt === true || manual;
     const steps = STEPS[scope] || [];
-    console.info('[tut-debug] tutorial.start scope=', scope, 'steps=', steps.length, 'manual=', manual);
-    if (steps.length === 0) { console.info('[tut-debug] abort: scope has no steps'); return; }
+    if (steps.length === 0) return;
 
     if (activeTutorial && !interrupt) return;
 
     if (!manual) {
       const state = getState();
-      if (state.disabled || hasCompleted(state, scope)) { console.info('[tut-debug] abort: disabled or completed', state.disabled, hasCompleted(state, scope)); return; }
+      if (state.disabled || hasCompleted(state, scope)) return;
     }
 
     closeInternal(false);
@@ -3236,10 +3235,8 @@ export const createTutorialModule = (options: TutorialModuleOptions): TutorialMo
       initialTarget: optionsOverride.target,
     };
     activeTutorial.visibleIndexes = collectVisibleIndexes(activeTutorial);
-    console.info('[tut-debug] visible steps=', activeTutorial.visibleIndexes.length, 'of', steps.length);
     const firstIndex = activeTutorial.visibleIndexes[0] ?? -1;
     if (firstIndex === -1) {
-      console.info('[tut-debug] abort: no visible steps');
       if (!manual && completeWhenMissing) saveState(markCompleted(getState(), scope));
       activeTutorial = null;
       return;

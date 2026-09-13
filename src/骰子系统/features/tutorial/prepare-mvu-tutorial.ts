@@ -5,14 +5,12 @@
  */
 export function createPrepareMvuTutorial(deps: any) {
   const prepareMvuTutorial = (): boolean => {
-    console.info('[tut-debug] prepareMvu entry');
     const { $ } = deps.getCore();
     const doc = deps.getTavernHostDocument();
     const $panel = $(doc).find('#acu-data-area .acu-mvu-panel').first();
     if (!$panel.length) return false;
 
     const isNumericMode = $panel.find('.mvu-numeric-mode').length > 0;
-    console.info('[tut-debug] prepareMvu panel=', $panel.length, 'numeric=', isNumericMode);
     if (!isNumericMode) {
       try {
         localStorage.setItem('acu_mvu_numeric_mode', 'true');

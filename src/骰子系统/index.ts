@@ -9499,13 +9499,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   });
 
   const prepareInventoryTutorial = (button: Element): boolean => {
-    console.info('[tut-debug] prepareInventory entry');
     const { $ } = getCore();
     const $overlay = $(button).closest('.acu-inventory-overlay');
     if (!$overlay.length) return false;
 
     const $filterPanel = $overlay.find('.acu-inventory-filter-collapsible').first();
-    console.info('[tut-debug] prepareInventory overlay=', $overlay.length, 'filterPanel=', $filterPanel.length);
     if ($filterPanel.length) {
       $filterPanel.removeClass('collapsed');
       $filterPanel[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });

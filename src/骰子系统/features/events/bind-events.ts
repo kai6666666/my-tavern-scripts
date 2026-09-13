@@ -18,7 +18,6 @@ export function createBindEvents(deps: any) {
       const bodyEl = $('body')[0] || document.body;
       const rootEl = $wrapper && $wrapper[0];
       const hostDoc = (bodyEl && bodyEl.ownerDocument) || (rootEl && rootEl.ownerDocument) || document;
-      console.info('[tut-debug] installing capture-phase tutorial delegate');
       if (!(hostDoc as any).__acuTutCaptureInstalled) {
         (hostDoc as any).__acuTutCaptureInstalled = true;
         hostDoc.addEventListener('click', function (e) {
@@ -27,7 +26,6 @@ export function createBindEvents(deps: any) {
           if (!btn) return;
           e.stopPropagation();
           e.preventDefault();
-          console.info('[tut-debug] capture delegate hit, scope=', (btn as any).getAttribute && (btn as any).getAttribute('data-tutorial-scope'));
           deps.startTutorialFromButton(btn);
         }, true);
       }
