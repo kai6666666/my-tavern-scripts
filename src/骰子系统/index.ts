@@ -85,6 +85,53 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createUpdateGachaShopProgressUi } from './features/gacha/update-gacha-shop-progress-ui';
+import { createSortGachaPoolDefinitions } from './features/gacha/sort-gacha-pool-definitions';
+import { createShouldSkipAutoRegexTransform } from './features/textarea/should-skip-auto-regex-transform';
+import { createSaveDiceProfileRecord } from './features/dice/save-dice-profile-record';
+import { createSaveConfig } from './features/table/save-config';
+import { createPushDashboardNpcEntry } from './features/dashboard/push-dashboard-npc-entry';
+import { createNormalizeInferredAvatarColor } from './features/avatars/normalize-inferred-avatar-color';
+import { createNormalizeDashboardOptionalStringArray } from './features/dashboard/normalize-dashboard-optional-string-array';
+import { createNormalizeCheckSuggestionSideShorthand } from './features/dice/normalize-check-suggestion-side-shorthand';
+import { createNormalizeCharacterNameForCompare } from './shared/normalize-character-name-for-compare';
+import { createJudgeCrazyRollResult } from './features/dice/judge-crazy-roll-result';
+import { createIsRenderableImageUrlValid } from './shared/is-renderable-image-url-valid';
+import { createIsGachaTargetTableAliasMatch } from './features/gacha/is-gacha-target-table-alias-match';
+import { createGetStringLikeCellText } from './shared/get-string-like-cell-text';
+import { createGetStableRowKeyForCrud } from './features/table/get-stable-row-key-for-crud';
+import { createGetResolvedComposerText } from './features/textarea/get-resolved-composer-text';
+import { createGetLegacyGachaStateFromRawData } from './features/gacha/get-legacy-gacha-state-from-raw-data';
+import { createGetInventoryResult } from './features/gacha/get-inventory-result';
+import { createGetInventoryActionPrompt } from './features/gacha/get-inventory-action-prompt';
+import { createGetImageUrlValidationMessage } from './shared/get-image-url-validation-message';
+import { createGetGachaRewardTargetOptions } from './features/gacha/get-gacha-reward-target-options';
+import { createGetGachaLocalDateKey } from './features/gacha/get-gacha-local-date-key';
+import { createGetFixedWrapperParentMetrics } from './features/ui/get-fixed-wrapper-parent-metrics';
+import { createGetEquipmentResult } from './features/gacha/get-equipment-result';
+import { createGetDiffSheetByKey } from './features/table/get-diff-sheet-by-key';
+import { createGetDiceProfileCharacterContext } from './features/dice/get-dice-profile-character-context';
+import { createGetCurrentChatAvatarNodes } from './features/avatars/get-current-chat-avatar-nodes';
+import { createGetCheckSuggestionPresetById } from './features/dice/get-check-suggestion-preset-by-id';
+import { createGetCheckSuggestionDiceSides } from './features/dice/get-check-suggestion-dice-sides';
+import { createFormatGachaRecentRewardText } from './features/gacha/format-gacha-recent-reward-text';
+import { createFormatGachaDuration } from './features/gacha/format-gacha-duration';
+import { createExtractExplicitHumanInputText } from './features/human-input/extract-explicit-human-input-text';
+import { createEvaluateConditionNumber } from './features/dice/evaluate-condition-number';
+import { createEnsureGachaPoolsForTags } from './features/gacha/ensure-gacha-pools-for-tags';
+import { createEnsureGachaHeartbeat } from './features/gacha/ensure-gacha-heartbeat';
+import { createDrawSingleGachaOutcome } from './features/gacha/draw-single-gacha-outcome';
+import { createCreateDiceProfileRegexId } from './features/dice/create-dice-profile-regex-id';
+import { createConsumePendingHumanInputSnapshot } from './features/human-input/consume-pending-human-input-snapshot';
+import { createClearFixedAnchorResizeObserver } from './features/ui/clear-fixed-anchor-resize-observer';
+import { createBuildGachaSettlementKey } from './features/gacha/build-gacha-settlement-key';
+import { createAreAllTablesReversed } from './features/table/are-all-tables-reversed';
+import { createAddGachaShards } from './features/gacha/add-gacha-shards';
+import { createDefaultGachaSettingsItemFilters } from './features/gacha/default-gacha-settings-item-filters';
+import { createDefaultContestOutputTemplate } from './features/dice/default-contest-output-template';
+import { createCustomTableNameIconDeniedSections } from './features/table/custom-table-name-icon-denied-sections';
+import { createCustomTableNameIconAllowedLocalMimeTypes } from './features/table/custom-table-name-icon-allowed-local-mime-types';
+import { createAcuDatabaseManualUpdateApiMethods } from './features/table/acu-database-manual-update-api-methods';
 import { createWithTableTemplateCheckHint } from './features/table/with-table-template-check-hint';
 import { createShouldTriggerCrazyMode } from './features/dice/should-trigger-crazy-mode';
 import { createSetDiceConfigBackupValue } from './features/dice/set-dice-config-backup-value';
@@ -1002,24 +1049,20 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   const isRemoteImageUrlValid = (url: string): boolean => getRemoteImageUrlValidationError(url) === null;
 
-  const isRenderableImageUrlValid = (url: string): boolean => {
-    const parsedUrl = parseImageUrl(url);
-    if (!parsedUrl) return false;
-    if (INTERNAL_IMAGE_ALLOWED_PROTOCOLS.has(parsedUrl.protocol)) return true;
-    return getRemoteImageUrlValidationError(url) === null;
-  };
+  const isRenderableImageUrlValid = createIsRenderableImageUrlValid({
+    getRemoteImageUrlValidationError: (...a: any[]) => getRemoteImageUrlValidationError(...a),
+    parseImageUrl: (...a: any[]) => parseImageUrl(...a),
+    getINTERNAL_IMAGE_ALLOWED_PROTOCOLS: () => INTERNAL_IMAGE_ALLOWED_PROTOCOLS,
+  });
 
   const normalizeStorableImageUrl = (url: unknown): string => {
     const normalizedUrl = normalizeImageUrlInput(url);
     return normalizedUrl && isRemoteImageUrlValid(normalizedUrl) ? normalizedUrl : '';
   };
 
-  const getImageUrlValidationMessage = (label: string, reason: ImageUrlValidationReason | null): string => {
-    if (reason === 'svg_url') return `${label}不支持 SVG 图片，请使用 PNG、JPEG、WebP 或 GIF。`;
-    if (reason === 'invalid_protocol')
-      return `${label}仅支持 http/https 或当前站点相对路径，不支持 data:、file:、javascript: 等协议。`;
-    return `${label}格式不正确，请填写完整图片链接。`;
-  };
+  const getImageUrlValidationMessage = createGetImageUrlValidationMessage({
+
+  });
 
   const escapeCssString = (value: string): string =>
     normalizeImageUrlInput(value)
@@ -1207,12 +1250,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return normalizeTrackedText(text.replace(new RegExp(escapeRegExpLiteral(normalizedAction), 'g'), ' '));
   };
 
-  const extractExplicitHumanInputText = (text: string): string => {
-    const matches = Array.from(text.matchAll(/<本轮用户输入>([\s\S]*?)<\/本轮用户输入>/gi))
-      .map(match => normalizeTrackedText(match[1]))
-      .filter(Boolean);
-    return normalizeTrackedText(matches.join('\n'));
-  };
+  const extractExplicitHumanInputText = createExtractExplicitHumanInputText({
+    normalizeTrackedText: (...a: any[]) => normalizeTrackedText(...a),
+  });
 
   const stripSystemInjectedContent = (text: unknown, systemActionText?: unknown): string => {
     const normalized = normalizeTrackedText(text);
@@ -1247,12 +1287,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setLastHumanInputCaptureAt: (v: any) => { lastHumanInputCaptureAt = v; },
   });
 
-  const consumePendingHumanInputSnapshot = (): string => {
-    if (humanInputSendQueue.length > 0) {
-      return String(humanInputSendQueue.shift() || '');
-    }
-    return String(lastHumanInputSnapshot || '');
-  };
+  const consumePendingHumanInputSnapshot = createConsumePendingHumanInputSnapshot({
+    getHumanInputSendQueue: () => humanInputSendQueue,
+    getLastHumanInputSnapshot: () => lastHumanInputSnapshot,
+  });
 
   const bindHumanInputTracking = createBindHumanInputTracking({
     getCore: (...a: any[]) => getCore(...a),
@@ -1327,12 +1365,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return $ta.length ? ($ta[0] as AcuDiceTextareaElement) : null;
   };
 
-  const getResolvedComposerText = (): string => {
-    const textarea = getComposerTextarea();
-    if (!textarea) return '';
-    const visibleText = readTextareaVisibleValue(textarea);
-    return syncTextareaDiceCacheFromVisibleText(textarea, visibleText).trim();
-  };
+  const getResolvedComposerText = createGetResolvedComposerText({
+    getComposerTextarea: (...a: any[]) => getComposerTextarea(...a),
+    readTextareaVisibleValue: (...a: any[]) => readTextareaVisibleValue(...a),
+    syncTextareaDiceCacheFromVisibleText: (...a: any[]) => syncTextareaDiceCacheFromVisibleText(...a),
+  });
 
   const clearComposerIfCurrentText = (sentText: string) => {
     const textarea = getComposerTextarea();
@@ -2137,12 +2174,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return h >= 16 && h <= 52 && s >= 0.18 && s <= 0.72 && l >= 0.34 && l <= 0.84;
   };
 
-  const normalizeInferredAvatarColor = (r: number, g: number, b: number): string => {
-    const hsl = rgbToAvatarHsl(r, g, b);
-    const s = Math.max(0.28, Math.min(0.72, hsl.s));
-    const l = Math.max(0.34, Math.min(0.66, hsl.l));
-    return hslToAvatarHex(hsl.h, s, l);
-  };
+  const normalizeInferredAvatarColor = createNormalizeInferredAvatarColor({
+    hslToAvatarHex: (...a: any[]) => hslToAvatarHex(...a),
+    rgbToAvatarHsl: (...a: any[]) => rgbToAvatarHsl(...a),
+  });
 
   const loadAvatarImageForColor = createLoadAvatarImageForColor({
 
@@ -2204,12 +2239,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isUser: boolean;
   }
 
-  const normalizeCharacterNameForCompare = (value: unknown): string => {
-    return getDisplayName(String(value ?? '').trim())
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .replace(/\s+/g, '')
-      .toLowerCase();
-  };
+  const normalizeCharacterNameForCompare = createNormalizeCharacterNameForCompare({
+
+  });
 
   const pushUniqueNameCandidate = (candidates: string[], value: unknown): void => {
     const name = String(value ?? '').trim();
@@ -3674,12 +3706,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return text.replace(regex, `<${tag}>\n${content}\n</${tag}>`);
   };
 
-  const getCheckSuggestionPresetById = (presetId: string | null | undefined): AdvancedDicePreset | null => {
-    const presets = AdvancedDicePresetManager.getAllPresets() as AdvancedDicePreset[];
-    const fallback = presets.find(preset => preset.id === 'coc7_check') || null;
-    if (!presetId) return AdvancedDicePresetManager.getActivePreset() || fallback;
-    return presets.find(preset => preset.id === presetId) || fallback;
-  };
+  const getCheckSuggestionPresetById = createGetCheckSuggestionPresetById({
+    getAdvancedDicePresetManager: () => AdvancedDicePresetManager,
+  });
 
   const buildAutoCheckSuggestionGuide = createBuildAutoCheckSuggestionGuide({
     AdvancedDicePresetManager: AdvancedDicePresetManager,
@@ -3890,12 +3919,9 @@ ${examples}`;
   });
 
   // 判断检定结果 (保留用于无预设时的兼容)
-  const judgeCrazyRollResult = (roll, target) => {
-    if (roll <= 5) return '大成功';
-    if (roll >= 96) return '大失败';
-    if (roll <= target) return '成功';
-    return '失败';
-  };
+  const judgeCrazyRollResult = createJudgeCrazyRollResult({
+
+  });
 
   // 生成疯狂骰子结果
   const generateCrazyRoll = createGenerateCrazyRoll({
@@ -3928,12 +3954,9 @@ ${examples}`;
     evaluateFormula: (...a: any[]) => evaluateFormula(...a),
   });
 
-  const evaluateConditionNumber = (formula: string, context: Record<string, number>, fallback = 0): number => {
-    const result = evaluateCondition(formula, context);
-    if (!result.success) return fallback;
-    if (typeof result.value === 'number' && Number.isFinite(result.value)) return result.value;
-    return result.value ? 1 : 0;
-  };
+  const evaluateConditionNumber = createEvaluateConditionNumber({
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+  });
 
   /**
    * 判断条件表达式是否为复杂条件 (包含 && 或 ||)
@@ -3961,12 +3984,9 @@ $outcomeText
 </meta:检定结果>`;
 
   // 默认对抗检定输出模板
-  const DEFAULT_CONTEST_OUTPUT_TEMPLATE = `<meta:检定结果>
-元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。
-$initiator $initAttrName：$initFormula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；
-$opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。
-最终结果：【$winner】
-</meta:检定结果>`;
+  const DEFAULT_CONTEST_OUTPUT_TEMPLATE = createDefaultContestOutputTemplate({
+
+  });
 
   /**
    * 格式化输出模板
@@ -4090,12 +4110,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const normalizeDashboardOptionalStringArray = (value: unknown, label: string): string[] => {
-    if (!Array.isArray(value)) {
-      throw new Error(`${label} 必须是字符串数组`);
-    }
-    return value.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
-  };
+  const normalizeDashboardOptionalStringArray = createNormalizeDashboardOptionalStringArray({
+
+  });
 
   const normalizeDashboardPresetFilters = createNormalizeDashboardPresetFilters({
     isRecordValue: (...a: any[]) => isRecordValue(...a),
@@ -4448,12 +4465,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return result;
   };
 
-  const getStringLikeCellText = (value: unknown): string => {
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      return String(value).trim();
-    }
-    return '';
-  };
+  const getStringLikeCellText = createGetStringLikeCellText({
+
+  });
 
   const isPureIndexCell = createIsPureIndexCell({
     getStringLikeCellText: (...a: any[]) => getStringLikeCellText(...a),
@@ -4717,12 +4731,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     if (!dataFingerprint) return '';
     return `${dataFingerprint}\n${createRegexRuleSignature(rules)}`;
   };
-  const shouldSkipAutoRegexTransform = (key: string): boolean =>
-    Boolean(
-      key &&
-      key === lastAutoRegexTransformKey &&
-      Date.now() - lastAutoRegexTransformAt < AUTO_REGEX_TRANSFORM_COOLDOWN_MS,
-    );
+  const shouldSkipAutoRegexTransform = createShouldSkipAutoRegexTransform({
+    getLastAutoRegexTransformAt: () => lastAutoRegexTransformAt,
+    getLastAutoRegexTransformKey: () => lastAutoRegexTransformKey,
+    getAUTO_REGEX_TRANSFORM_COOLDOWN_MS: () => AUTO_REGEX_TRANSFORM_COOLDOWN_MS,
+  });
+
   const rememberAutoRegexTransform = (key: string): void => {
     if (!key) return;
     lastAutoRegexTransformKey = key;
@@ -4846,12 +4860,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const ACU_DATABASE_NEW_UI_API_METHODS = createAcuDatabaseNewUiApiMethods({
 
   });
-  const ACU_DATABASE_MANUAL_UPDATE_API_METHODS = [
-    'manualUpdate',
-    'runManualUpdate',
-    'startManualUpdate',
-    'triggerManualUpdate',
-  ];
+  const ACU_DATABASE_MANUAL_UPDATE_API_METHODS = createAcuDatabaseManualUpdateApiMethods({
+
+  });
   const ACU_DATABASE_V2_ROOT_SELECTOR = '#acu-app-v2, .acu-v2-app';
   const ACU_DATABASE_FORM_FILL_NAV_SELECTOR = '[data-page-id="form-fill"]';
   const ACU_DATABASE_MANUAL_UPDATE_PANEL_SELECTOR = '#form-fill-manual-panel';
@@ -5352,12 +5363,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const CUSTOM_TABLE_NAME_ICON_DENIED_MODULES = createCustomTableNameIconDeniedModules({
 
   });
-  const CUSTOM_TABLE_NAME_ICON_DENIED_SECTIONS = new Set<CustomTableNameIconSection>([
-    'character',
-    'relationship',
-    'alias',
-    'user',
-  ]);
+  const CUSTOM_TABLE_NAME_ICON_DENIED_SECTIONS = createCustomTableNameIconDeniedSections({
+
+  });
   const CUSTOM_TABLE_NAME_ICON_DENIED_TABLE_NAMES = new Set<string>([
     '全局数据表',
     '纪要表',
@@ -5413,12 +5421,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     normalizeCustomTableNameIconContext: (...a: any[]) => normalizeCustomTableNameIconContext(...a),
   });
 
-  const CUSTOM_TABLE_NAME_ICON_ALLOWED_LOCAL_MIME_TYPES = new Set([
-    'image/png',
-    'image/jpeg',
-    'image/webp',
-    'image/gif',
-  ]);
+  const CUSTOM_TABLE_NAME_ICON_ALLOWED_LOCAL_MIME_TYPES = createCustomTableNameIconAllowedLocalMimeTypes({
+
+  });
   const CUSTOM_TABLE_NAME_ICON_MAX_LOCAL_FILE_SIZE = 1024 * 1024;
 
   const isCustomTableNameIconSvgMimeType = (value: string): boolean =>
@@ -5981,12 +5986,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return getNormalizedReverseTables().includes(tableName);
   };
 
-  const areAllTablesReversed = tableNames => {
-    const names = normalizeTableNameList(tableNames);
-    if (names.length === 0) return false;
-    const reverseSet = new Set(getNormalizedReverseTables());
-    return names.every(name => reverseSet.has(name));
-  };
+  const areAllTablesReversed = createAreAllTablesReversed({
+    getNormalizedReverseTables: (...a: any[]) => getNormalizedReverseTables(...a),
+    normalizeTableNameList: (...a: any[]) => normalizeTableNameList(...a),
+  });
 
   const setAllTablesReverse = createSetAllTablesReverse({
     getNormalizedReverseTables: (...a: any[]) => getNormalizedReverseTables(...a),
@@ -6543,12 +6546,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const pushDashboardNpcEntry = (entries, entry): void => {
-    const name = String(entry.name || '').trim();
-    if (!name) return;
-    if (entries.some(existing => characterNamesMatch(existing.name, name))) return;
-    entries.push({ ...entry, name });
-  };
+  const pushDashboardNpcEntry = createPushDashboardNpcEntry({
+    characterNamesMatch: (...a: any[]) => characterNamesMatch(...a),
+  });
 
   const findDashboardNpcNameColumnIndex = createFindDashboardNpcNameColumnIndex({
     findRelationGraphColumnIndex: (...a: any[]) => findRelationGraphColumnIndex(...a),
@@ -6604,12 +6604,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     DashboardDataParser: DashboardDataParser,
   });
 
-  const getCurrentChatAvatarNodes = (): AvatarManagerNode[] => {
-    const rawData = cachedRawData || getTableData();
-    const allTables = processJsonData(rawData);
-    if (!allTables || allTables.length === 0) return [];
-    return collectCurrentChatAvatarNodes(allTables as Record<string, RelationGraphTableInput>);
-  };
+  const getCurrentChatAvatarNodes = createGetCurrentChatAvatarNodes({
+    collectCurrentChatAvatarNodes: (...a: any[]) => collectCurrentChatAvatarNodes(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   interface RelationGraphLayoutPosition {
     x: number;
@@ -6745,12 +6745,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
     return _configCache;
   };
-  const saveConfig = newCfg => {
-    _configCache = sanitizeUiConfig({ ...getConfig(), ...newCfg });
-    Store.set(STORAGE_KEY_UI_CONFIG, _configCache);
-    applyConfigStyles(_configCache);
-    setDatabaseToastMute(_configCache.muteDatabaseToasts === true);
-  };
+  const saveConfig = createSaveConfig({
+    getConfig: (...a: any[]) => getConfig(...a),
+    applyConfigStyles: (...a: any[]) => applyConfigStyles(...a),
+    sanitizeUiConfig: (...a: any[]) => sanitizeUiConfig(...a),
+    get_configCache: () => _configCache,
+    set_configCache: (v: any) => { _configCache = v; },
+  });
 
   const DICE_CONFIG_BACKUP_FORMAT = 'acu_dice_config_backup_v1' as const;
   const DICE_CONFIG_BACKUP_SCHEMA_VERSION = 1;
@@ -7583,12 +7584,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     parseJsoncDocument: (...a: any[]) => parseJsoncDocument(...a),
   });
 
-  const saveDiceProfileRecord = async (record: DiceProfileRecord): Promise<DiceProfileRecord> => {
-    const saved = await DiceProfileDB.put(record);
-    if (!saved) throw new Error('配置方案保存失败，IndexedDB 写入未完成');
-    await refreshDiceProfileIndex();
-    return record;
-  };
+  const saveDiceProfileRecord = createSaveDiceProfileRecord({
+    refreshDiceProfileIndex: (...a: any[]) => refreshDiceProfileIndex(...a),
+  });
 
   const upsertDiceProfileRecord = createUpsertDiceProfileRecord({
     getDiceProfileRecords: (...a: any[]) => getDiceProfileRecords(...a),
@@ -7665,12 +7663,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     downloadJsonFile(JSON.stringify(profile, null, 2), `${safeName}_${timestamp}.json`);
   };
 
-  const createDiceProfileRegexId = (): string => {
-    const randomUUID = globalThis.crypto?.randomUUID;
-    return typeof randomUUID === 'function'
-      ? randomUUID.call(globalThis.crypto)
-      : createDiceProfileRuntimeId('character_profile_regex');
-  };
+  const createDiceProfileRegexId = createCreateDiceProfileRegexId({
+    createDiceProfileRuntimeId: (...a: any[]) => createDiceProfileRuntimeId(...a),
+  });
 
   const createDiceProfileTavernRegexReplaceString = (profile: DiceProfileRecord): string =>
     [
@@ -7715,40 +7710,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const getDiceProfileSillyTavern = (): any => window.SillyTavern || window.parent?.SillyTavern || null;
 
-  const getDiceProfileCharacterContext = (): {
-    chatId: string;
-    characterId: string;
-    characterName: string;
-    fields: Record<string, unknown> | null;
-  } => {
-    const statsContext = getDiceStatsContext();
-    const ST = getDiceProfileSillyTavern();
-    let fields: Record<string, unknown> | null = null;
-    try {
-      const rawFields = ST?.getCharacterCardFields?.({});
-      if (isDiceConfigBackupRecord(rawFields)) fields = rawFields;
-    } catch {
-      // ignore
-    }
-    let characterName =
-      getDiceConfigBackupRecordString(fields || {}, 'name') ||
-      getDiceConfigBackupRecordString((fields?.data as Record<string, unknown>) || {}, 'name');
-    try {
-      if (!characterName && typeof getCharData === 'function') {
-        const currentChar = getCharData('current', true);
-        characterName = String(currentChar?.name || currentChar?.avatar || '').trim();
-      }
-    } catch {
-      // ignore
-    }
-    if (!characterName) characterName = statsContext.characterId;
-    return {
-      chatId: statsContext.chatId,
-      characterId: statsContext.characterId,
-      characterName: characterName || '未知角色卡',
-      fields,
-    };
-  };
+  const getDiceProfileCharacterContext = createGetDiceProfileCharacterContext({
+    getDiceStatsContext: (...a: any[]) => getDiceStatsContext(...a),
+    getDiceProfileSillyTavern: (...a: any[]) => getDiceProfileSillyTavern(...a),
+    getDiceConfigBackupRecordString: (...a: any[]) => getDiceConfigBackupRecordString(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const getDiceProfileCurrentCharacterRecords = createGetDiceProfileCurrentCharacterRecords({
     getDiceConfigBackupRecordString: (...a: any[]) => getDiceConfigBackupRecordString(...a),
@@ -8113,12 +8080,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const normalizeDiffRow = (row: unknown): DiffRow => (Array.isArray(row) ? row : []);
 
-  const getDiffSheetByKey = (data: unknown, sheetId: string): DiffSheet | null => {
-    const record = asDiffRecord(data);
-    if (!record) return null;
-    const sheet = record[sheetId];
-    return isDiffSheet(sheet) ? sheet : null;
-  };
+  const getDiffSheetByKey = createGetDiffSheetByKey({
+    asDiffRecord: (...a: any[]) => asDiffRecord(...a),
+    isDiffSheet: (...a: any[]) => isDiffSheet(...a),
+  });
 
   const getDiffDataRow = (sheet: DiffSheet | null | undefined, rowIndex: number): DiffRow | null => {
     const row = sheet?.content?.[rowIndex + 1];
@@ -8433,12 +8398,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const sameRow = (left, right): boolean => JSON.stringify(left || []) === JSON.stringify(right || []);
   const sameHeaders = (left, right): boolean =>
     JSON.stringify(getSheetHeaders(left)) === JSON.stringify(getSheetHeaders(right));
-  const getStableRowKeyForCrud = row => {
-    if (!Array.isArray(row)) return '';
-    const primary = String(row[1] ?? '').trim();
-    if (primary) return `title:${primary}`;
-    return `row:${JSON.stringify(row)}`;
-  };
+  const getStableRowKeyForCrud = createGetStableRowKeyForCrud({
+
+  });
 
   const getCrudSheetDdl = (sheet: unknown): string => {
     const sheetRecord = asDiffRecord(sheet);
@@ -9728,12 +9690,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const normalizeCheckSuggestionSideShorthand = (text: string): string => {
-    const trimmed = String(text || '').trim();
-    const match = trimmed.match(/^([^=\s]+)[.。:：/]([^=\s]+)$/);
-    if (!match) return trimmed;
-    return `${match[1]} ${match[2]}`;
-  };
+  const normalizeCheckSuggestionSideShorthand = createNormalizeCheckSuggestionSideShorthand({
+
+  });
 
   const normalizeLeadingCheckSuggestionSideShorthand = createNormalizeLeadingCheckSuggestionSideShorthand({
     normalizeCheckSuggestionSideShorthand: (...a: any[]) => normalizeCheckSuggestionSideShorthand(...a),
@@ -9776,12 +9735,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return resolveCanonicalCharacterName(trimmed);
   };
 
-  const getCheckSuggestionDiceSides = (formula: string): number => {
-    const match = String(formula || '').match(/\d*d(\d+)/i);
-    if (!match) return 100;
-    const sides = parseInt(match[1], 10);
-    return Number.isNaN(sides) ? 100 : sides;
-  };
+  const getCheckSuggestionDiceSides = createGetCheckSuggestionDiceSides({
+
+  });
 
   const buildCheckSuggestionMetaBlock = (line: string): string => `<meta:检定结果>\n${line}\n</meta:检定结果>`;
 
@@ -10328,29 +10284,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
   });
 
-  const getFixedWrapperParentMetrics = (
-    parent: HTMLElement | null,
-    targetWindow: Window,
-    fallbackWidth: number,
-    fallbackLeft: number,
-  ): { contentWidth: number; contentLeft: number } | null => {
-    const parentRect = parent?.getBoundingClientRect();
-    const rectWidth = parentRect && parentRect.width > 0 ? parentRect.width : 0;
-    const clientWidth = parent && parent.clientWidth > 0 ? parent.clientWidth : 0;
-    const fallbackContentWidth = fallbackWidth > 0 ? fallbackWidth : 0;
-    const contentWidthCandidates = [clientWidth, rectWidth, fallbackContentWidth].filter(width => width > 0);
-    const contentWidth = contentWidthCandidates.length > 0 ? Math.min(...contentWidthCandidates) : 0;
-    if (contentWidth <= 0) return null;
+  const getFixedWrapperParentMetrics = createGetFixedWrapperParentMetrics({
 
-    const style = parent ? targetWindow.getComputedStyle(parent) : null;
-    const borderLeft = style ? Number.parseFloat(style.borderLeftWidth) || 0 : 0;
-    const contentLeft = (parentRect?.left ?? fallbackLeft) + borderLeft;
-
-    return {
-      contentWidth,
-      contentLeft,
-    };
-  };
+  });
 
   const getFixedModeAnchorRect = createGetFixedModeAnchorRect({
     getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
@@ -10397,12 +10333,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setFixedWrapperBoundsRaf: (v: any) => { fixedWrapperBoundsRaf = v; },
   });
 
-  const clearFixedAnchorResizeObserver = () => {
-    if (fixedAnchorResizeObserver) {
-      fixedAnchorResizeObserver.disconnect();
-      fixedAnchorResizeObserver = null;
-    }
-  };
+  const clearFixedAnchorResizeObserver = createClearFixedAnchorResizeObserver({
+    getFixedAnchorResizeObserver: () => fixedAnchorResizeObserver,
+    setFixedAnchorResizeObserver: (v: any) => { fixedAnchorResizeObserver = v; },
+  });
 
   const refreshFixedAnchorResizeObserver = createRefreshFixedAnchorResizeObserver({
     clearFixedAnchorResizeObserver: (...a: any[]) => clearFixedAnchorResizeObserver(...a),
@@ -11102,12 +11036,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   type InventoryMetadataScope = Record<string, InventoryMetadataRecord>;
   type InventoryMetadataRoot = Record<string, InventoryMetadataScope>;
   type InventoryMetadataStore = Record<string, InventoryMetadataRoot>;
-  const DEFAULT_GACHA_SETTINGS_ITEM_FILTERS: GachaSettingsItemFilterState = {
-    search: '',
-    source: 'all',
-    status: 'all',
-    sort: 'default',
-  };
+  const DEFAULT_GACHA_SETTINGS_ITEM_FILTERS = createDefaultGachaSettingsItemFilters({
+
+  });
   const GACHA_SETTINGS_SOURCE_FILTER_OPTIONS: readonly GachaSettingsFilterOption<GachaSettingsItemSourceFilter>[] = [
     { value: 'all', label: '全部来源', iconClass: 'fa-layer-group' },
     { value: 'custom', label: '自定义', iconClass: 'fa-pen-nib' },
@@ -11204,12 +11135,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     cloneGachaPoolDefinitions: (...a: any[]) => cloneGachaPoolDefinitions(...a),
   });
 
-  const sortGachaPoolDefinitions = (pools: GachaPoolDefinition[]): GachaPoolDefinition[] =>
-    pools.sort((a, b) => {
-      if (a.id === GACHA_ALL_POOL_TAG) return -1;
-      if (b.id === GACHA_ALL_POOL_TAG) return 1;
-      return (a.order ?? 999) - (b.order ?? 999) || a.name.localeCompare(b.name, 'zh-Hans-CN');
-    });
+  const sortGachaPoolDefinitions = createSortGachaPoolDefinitions({
+
+  });
 
   const getConfiguredGachaPoolDefinitions = createGetConfiguredGachaPoolDefinitions({
     buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
@@ -11234,12 +11162,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Array.from(tags);
   };
 
-  const ensureGachaPoolsForTags = (tags: readonly GachaPoolTag[]): GachaPoolDefinition[] => {
-    const pools = getConfiguredGachaPoolDefinitions();
-    const nextPools = getGachaPoolDefinitionsWithVirtualTags(tags, pools);
-    if (nextPools.length !== pools.length) saveGachaPoolSettings(nextPools);
-    return getConfiguredGachaPoolDefinitions();
-  };
+  const ensureGachaPoolsForTags = createEnsureGachaPoolsForTags({
+    getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
+    getGachaPoolDefinitionsWithVirtualTags: (...a: any[]) => getGachaPoolDefinitionsWithVirtualTags(...a),
+    saveGachaPoolSettings: (...a: any[]) => saveGachaPoolSettings(...a),
+  });
 
   const getGachaPoolDefinitionsWithVirtualTags = createGetGachaPoolDefinitionsWithVirtualTags({
     buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
@@ -11828,12 +11755,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     showGachaCatalogImportConfirm: (...a: any[]) => showGachaCatalogImportConfirm(...a),
   });
 
-  const getLegacyGachaStateFromRawData = (rawData?: unknown): GachaState | null => {
-    if (!rawData || typeof rawData !== 'object') return null;
-    const mate = (rawData as Record<string, unknown>).mate;
-    if (!mate || typeof mate !== 'object') return null;
-    return normalizeGachaStateRecord((mate as Record<string, unknown>).gacha);
-  };
+  const getLegacyGachaStateFromRawData = createGetLegacyGachaStateFromRawData({
+    normalizeGachaStateRecord: (...a: any[]) => normalizeGachaStateRecord(...a),
+  });
 
   const getGachaState = (rawData?: unknown, createIfMissing = false): GachaState | null => {
     const storedState = normalizeGachaStateRecord(getStoredGachaStateSnapshot());
@@ -11908,12 +11832,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getGachaRarityRank(b.quality) - getGachaRarityRank(a.quality) ||
     a.name.localeCompare(b.name, 'zh-Hans-CN');
 
-  const addGachaShards = (state: GachaState, rarity: GachaRarity, amount: number) => {
-    const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
-    if (safeAmount <= 0) return 0;
-    state.wallet.shards[rarity] = Math.max(0, Math.floor(Number(state.wallet.shards[rarity] || 0))) + safeAmount;
-    return safeAmount;
-  };
+  const addGachaShards = createAddGachaShards({
+
+  });
 
   const getGachaRewardTargetTableLabel = (target: GachaRewardTarget): string =>
     target === 'equipment' ? '装备表' : '物品表';
@@ -11931,11 +11852,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const getGachaRewardTargetOptions = (
-    item: Pick<GachaItemDefinition, 'targetTable' | 'targetColumns'>,
-  ): GachaRewardParseOptions => ({
-    targetTable: normalizeGachaTargetTable(item.targetTable),
-    targetColumns: normalizeGachaTargetColumns(item.targetColumns),
+  const getGachaRewardTargetOptions = createGetGachaRewardTargetOptions({
+    normalizeGachaTargetColumns: (...a: any[]) => normalizeGachaTargetColumns(...a),
+    normalizeGachaTargetTable: (...a: any[]) => normalizeGachaTargetTable(...a),
   });
 
   const getGachaRewardParseResult = (
@@ -12029,12 +11948,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const getGachaLocalDateKey = (): string => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${now.getFullYear()}-${month}-${day}`;
-  };
+  const getGachaLocalDateKey = createGetGachaLocalDateKey({
+
+  });
 
   const hashGachaSeed = createHashGachaSeed({
 
@@ -12274,31 +12190,20 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     state.recentRewards = state.recentRewards.slice(0, GACHA_RECENT_REWARD_LIMIT);
   };
 
-  const drawSingleGachaOutcome = (
-    rawData,
-    state: GachaState,
-    availableTargets: ReadonlySet<GachaRewardTarget> = getAvailableGachaRewardTargets(rawData),
-    snapshots?: Map<string, unknown>,
-  ): { outcome: GachaDrawOutcome; modifiedSheetKey?: string } | null => {
-    const poolTag = state.activePoolTag;
-    const minimumRarity = getGachaMinimumRarity(state);
-    const rarity = pickGachaRarity(poolTag, minimumRarity, rawData, availableTargets);
-    if (!rarity) return null;
-    const item = pickGachaItemDefinition(poolTag, rarity, undefined, rawData, availableTargets);
-    if (!item) return null;
-    const result = grantGachaReward(rawData, state, item, getGachaItemGrantQuantity(item), snapshots);
-    if (!result) return null;
-    applyGachaPityAfterDraw(state, item.quality);
-    pushRecentGachaReward(state, result.outcome, poolTag);
-    return result;
-  };
+  const drawSingleGachaOutcome = createDrawSingleGachaOutcome({
+    getAvailableGachaRewardTargets: (...a: any[]) => getAvailableGachaRewardTargets(...a),
+    getGachaMinimumRarity: (...a: any[]) => getGachaMinimumRarity(...a),
+    pickGachaRarity: (...a: any[]) => pickGachaRarity(...a),
+    pickGachaItemDefinition: (...a: any[]) => pickGachaItemDefinition(...a),
+    getGachaItemGrantQuantity: (...a: any[]) => getGachaItemGrantQuantity(...a),
+    grantGachaReward: (...a: any[]) => grantGachaReward(...a),
+    applyGachaPityAfterDraw: (...a: any[]) => applyGachaPityAfterDraw(...a),
+    pushRecentGachaReward: (...a: any[]) => pushRecentGachaReward(...a),
+  });
 
-  const formatGachaRecentRewardText = (reward: GachaRecentRewardRecord): string => {
-    if (reward.duplicateConverted) {
-      return `${reward.name} → ${reward.shardGain}${getGachaShardLabel(reward.quality)}`;
-    }
-    return `${reward.name} ×${reward.quantity}`;
-  };
+  const formatGachaRecentRewardText = createFormatGachaRecentRewardText({
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+  });
 
   const renderGachaPickupHtml = createRenderGachaPickupHtml({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -12311,12 +12216,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
   });
 
-  const formatGachaDuration = (ms: number): string => {
-    const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
+  const formatGachaDuration = createFormatGachaDuration({
+
+  });
 
   const formatGachaRelativeTime = createFormatGachaRelativeTime({
 
@@ -12397,12 +12299,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getGachaShopProgressContainers: (...a: any[]) => getGachaShopProgressContainers(...a),
   });
 
-  const updateGachaShopProgressUi = (): boolean => {
-    if (!getGachaShopProgressContainers().length) return false;
-    const state = getGachaState(undefined, true);
-    if (!state) return false;
-    return updateGachaFortuneProgressDom(state, true);
-  };
+  const updateGachaShopProgressUi = createUpdateGachaShopProgressUi({
+    getGachaShopProgressContainers: (...a: any[]) => getGachaShopProgressContainers(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    updateGachaFortuneProgressDom: (...a: any[]) => updateGachaFortuneProgressDom(...a),
+  });
 
   const clearGachaFortune = createClearGachaFortune({
     assertSaveStoredGachaStateSnapshot: (...a: any[]) => assertSaveStoredGachaStateSnapshot(...a),
@@ -12737,12 +12638,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     normalizeGachaMessageId: (...a: any[]) => normalizeGachaMessageId(...a),
   });
 
-  const buildGachaSettlementKey = (messageId: string, messageText: string): string => {
-    if (messageId) return `id:${messageId}`;
-    const normalizedText = stripSystemInjectedContent(messageText);
-    if (!normalizedText) return `empty:${Math.floor(Date.now() / 2000)}`;
-    return `text:${countUnicodeCharacters(normalizedText)}:${normalizedText.slice(0, 80)}:${normalizedText.slice(-80)}`;
-  };
+  const buildGachaSettlementKey = createBuildGachaSettlementKey({
+    countUnicodeCharacters: (...a: any[]) => countUnicodeCharacters(...a),
+    stripSystemInjectedContent: (...a: any[]) => stripSystemInjectedContent(...a),
+  });
 
   const settleGachaFortuneForMessage = createSettleGachaFortuneForMessage({
     buildGachaSettlementKey: (...a: any[]) => buildGachaSettlementKey(...a),
@@ -12766,12 +12665,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getLastHumanInputActivityAt: () => lastHumanInputActivityAt,
   });
 
-  const ensureGachaHeartbeat = () => {
-    if (gachaHeartbeatTimer) return;
-    gachaHeartbeatTimer = setInterval(() => {
-      void flushGachaHeartbeatProgress(false);
-    }, GACHA_ACTIVE_HEARTBEAT_MS);
-  };
+  const ensureGachaHeartbeat = createEnsureGachaHeartbeat({
+    flushGachaHeartbeatProgress: (...a: any[]) => flushGachaHeartbeatProgress(...a),
+    getGachaHeartbeatTimer: () => gachaHeartbeatTimer,
+    setGachaHeartbeatTimer: (v: any) => { gachaHeartbeatTimer = v; },
+  });
 
   const startGachaShopUiRefresh = () => {
     if (gachaShopUiRefreshTimer) return;
@@ -12873,12 +12771,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const getGachaRewardTargetModuleName = (target: GachaRewardTarget): string =>
     target === 'equipment' ? '装备' : '物品';
 
-  const isGachaTargetTableAliasMatch = (candidate: unknown, targetTable: string): boolean => {
-    const normalizedCandidate = normalizeDiffText(candidate);
-    const normalizedTarget = normalizeDiffText(targetTable);
-    if (!normalizedCandidate || !normalizedTarget) return false;
-    return normalizedCandidate === normalizedTarget || normalizedCandidate.toLowerCase() === normalizedTarget.toLowerCase();
-  };
+  const isGachaTargetTableAliasMatch = createIsGachaTargetTableAliasMatch({
+    normalizeDiffText: (...a: any[]) => normalizeDiffText(...a),
+  });
 
   const getGachaTargetTableMatches = (rawData, targetTable: string): Array<{ key: string; sheet: any }> => {
     const tableName = normalizeGachaTargetTable(targetTable);
@@ -12926,12 +12821,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     withTableTemplateCheckHint: (...a: any[]) => withTableTemplateCheckHint(...a),
   });
 
-  const getInventoryResult = (rawData, options: GachaRewardParseOptions = {}) => {
-    const targetOverride = resolveGachaTargetTableOverride(rawData, 'inventory', options);
-    if (targetOverride) return targetOverride;
-    const tables = processJsonData(rawData || {});
-    return DashboardDataParser.findTable(tables, 'bag');
-  };
+  const getInventoryResult = createGetInventoryResult({
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    resolveGachaTargetTableOverride: (...a: any[]) => resolveGachaTargetTableOverride(...a),
+    getDashboardDataParser: () => DashboardDataParser,
+  });
 
   const findGachaColumnByKeywords = (headers: unknown[], keywords: readonly string[], fallbackIndex = -1): number => {
     const normalizedHeaders = headers.map(header => String(header || '').trim().toLowerCase());
@@ -12964,12 +12858,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getCurrentDiffMap: () => currentDiffMap,
   });
 
-  const getEquipmentResult = (rawData, options: GachaRewardParseOptions = {}) => {
-    const targetOverride = resolveGachaTargetTableOverride(rawData, 'equipment', options);
-    if (targetOverride) return targetOverride;
-    const tables = processJsonData(rawData || {});
-    return DashboardDataParser.findTable(tables, 'equip');
-  };
+  const getEquipmentResult = createGetEquipmentResult({
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    resolveGachaTargetTableOverride: (...a: any[]) => resolveGachaTargetTableOverride(...a),
+    getDashboardDataParser: () => DashboardDataParser,
+  });
 
   const getEquipmentColumnMap = createGetEquipmentColumnMap({
     applyGachaTargetColumnOverrides: (...a: any[]) => applyGachaTargetColumnOverrides(...a),
@@ -13107,12 +13000,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return '使用';
   };
 
-  const getInventoryActionPrompt = item => {
-    const action = getInventoryActionLabel(item.type);
-    if (action === '检查') return `<user>检查${item.name}。`;
-    if (action === '查看') return `<user>查看${item.name}。`;
-    return `<user>使用${item.name}。`;
-  };
+  const getInventoryActionPrompt = createGetInventoryActionPrompt({
+    getInventoryActionLabel: (...a: any[]) => getInventoryActionLabel(...a),
+  });
 
   const getInventoryCharacters = createGetInventoryCharacters({
     getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
