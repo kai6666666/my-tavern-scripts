@@ -85,6 +85,29 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createIsRecord } from './shared/is-record';
+import { createGetFloatingCollapsePosition } from './features/ui/get-floating-collapse-position';
+import { createGetDiceConfigBackupWarningCount } from './features/dice/get-dice-config-backup-warning-count';
+import { createGetDiceConfigBackupRegexRuleKey } from './features/dice/get-dice-config-backup-regex-rule-key';
+import { createGetDiceConfigBackupModuleDefinition } from './features/dice/get-dice-config-backup-module-definition';
+import { createGetDiceConfigBackupKeyStrategy } from './features/dice/get-dice-config-backup-key-strategy';
+import { createGetDiceConfigBackupGachaItemNameKey } from './features/dice/get-dice-config-backup-gacha-item-name-key';
+import { createGetDiceConfigBackupGachaCatalogItemCount } from './features/dice/get-dice-config-backup-gacha-catalog-item-count';
+import { createGetDashboardModuleConfig } from './features/dashboard/get-dashboard-module-config';
+import { createGetCustomTableNameIconManagerSectionLabel } from './features/table/get-custom-table-name-icon-manager-section-label';
+import { createGetCustomTableNameIconManagerModuleLabel } from './features/table/get-custom-table-name-icon-manager-module-label';
+import { createGetCustomTableNameIconManagerLocalKey } from './features/table/get-custom-table-name-icon-manager-local-key';
+import { createGetCustomGachaItemDefinitions } from './features/gacha/get-custom-gacha-item-definitions';
+import { createGetCrudTableIdentifier } from './features/table/get-crud-table-identifier';
+import { createGetAvailableGachaRewardTargets } from './features/gacha/get-available-gacha-reward-targets';
+import { createGetAllDiceConfigBackupModuleIds } from './features/dice/get-all-dice-config-backup-module-ids';
+import { createGetAdvancedPresetErrorMessage } from './features/presets/get-advanced-preset-error-message';
+import { createGetAdvancedPresetDisplayOutcome } from './features/presets/get-advanced-preset-display-outcome';
+import { createFormatGachaPoolTags } from './features/gacha/format-gacha-pool-tags';
+import { createFormatGachaCatalogImportStatsText } from './features/gacha/format-gacha-catalog-import-stats-text';
+import { createCreateDiceProfileRuntimeId } from './features/dice/create-dice-profile-runtime-id';
+import { createCloneGachaPoolDefinitions } from './features/gacha/clone-gacha-pool-definitions';
+import { createCloneGachaCatalogItems } from './features/gacha/clone-gacha-catalog-items';
 import { createCloseInventoryVisualization } from './features/gacha/close-inventory-visualization';
 import { createClearPendingDeletions } from './features/table/clear-pending-deletions';
 import { createClearModalStack } from './features/ui/clear-modal-stack';
@@ -3767,8 +3790,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     readAdvancedPresetPolicyNumber: (...a: any[]) => readAdvancedPresetPolicyNumber(...a),
   });
 
-  const getAdvancedPresetDisplayOutcome = (policyResult: AdvancedPresetOutcomePolicyResult): OutcomeLevel =>
-    policyResult.isUnmet && policyResult.requiredOutcome ? policyResult.requiredOutcome : policyResult.outcome;
+  const getAdvancedPresetDisplayOutcome = createGetAdvancedPresetDisplayOutcome({
+
+  });
 
   const validateAdvancedPresetOutcomes = createValidateAdvancedPresetOutcomes({
     buildAdvancedPresetEvaluationContext: (...a: any[]) => buildAdvancedPresetEvaluationContext(...a),
@@ -3823,10 +3847,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     ADVANCED_PRESET_AGENT_FORMAT: ADVANCED_PRESET_AGENT_FORMAT,
   });
 
-  const getAdvancedPresetErrorMessage = (error: unknown): string =>
-    error instanceof Error ? error.message : String(error || '未知错误');
+  const getAdvancedPresetErrorMessage = createGetAdvancedPresetErrorMessage({
 
-  const buildAdvancedPresetAgentPrompt = (): string => advancedPresetAgentPromptTemplate;
+  });
 
   const buildDashboardPresetAgentPrompt = (): string => dashboardPresetAgentPromptTemplate;
 
@@ -4503,8 +4526,9 @@ ${examples}`;
     setDashboardRuntimeConfigCache: (v: any) => { dashboardRuntimeConfigCache = v; },
   });
 
-  const getDashboardModuleConfig = (moduleKey: string): DashboardModuleConfig | null =>
-    getDashboardRuntimeConfig()[moduleKey] || null;
+  const getDashboardModuleConfig = createGetDashboardModuleConfig({
+    getDashboardRuntimeConfig: (...a: any[]) => getDashboardRuntimeConfig(...a),
+  });
 
   // 仪表盘数据解析器
   const DashboardDataParser = createDashboardDataParser({
@@ -4641,8 +4665,9 @@ ${examples}`;
     getGLOBAL_INTERACTION_DEBUG_PREFIX: () => GLOBAL_INTERACTION_DEBUG_PREFIX,
   });
 
-  const isRecord = (value: unknown): value is Record<string, unknown> =>
-    Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  const isRecord = createIsRecord({
+
+  });
 
   const isTwoDimensionalArray = createIsTwoDimensionalArray({
 
@@ -5716,11 +5741,13 @@ ${examples}`;
 
   });
 
-  const getCustomTableNameIconManagerModuleLabel = (moduleId: CustomTableNameIconModuleId): string =>
-    CUSTOM_TABLE_NAME_ICON_MANAGER_MODULE_LABELS[moduleId] || moduleId;
+  const getCustomTableNameIconManagerModuleLabel = createGetCustomTableNameIconManagerModuleLabel({
+    getCUSTOM_TABLE_NAME_ICON_MANAGER_MODULE_LABELS: () => CUSTOM_TABLE_NAME_ICON_MANAGER_MODULE_LABELS,
+  });
 
-  const getCustomTableNameIconManagerSectionLabel = (section: CustomTableNameIconSection): string =>
-    CUSTOM_TABLE_NAME_ICON_MANAGER_SECTION_LABELS[section] || section;
+  const getCustomTableNameIconManagerSectionLabel = createGetCustomTableNameIconManagerSectionLabel({
+    getCUSTOM_TABLE_NAME_ICON_MANAGER_SECTION_LABELS: () => CUSTOM_TABLE_NAME_ICON_MANAGER_SECTION_LABELS,
+  });
 
   const getCustomTableNameIconManagerSourceLabel = createGetCustomTableNameIconManagerSourceLabel({
 
@@ -5732,8 +5759,9 @@ ${examples}`;
     normalizeGlobalInteractionCategoryText: (...a: any[]) => normalizeGlobalInteractionCategoryText(...a),
   });
 
-  const getCustomTableNameIconManagerLocalKey = (context: CustomTableNameIconContext): string =>
-    `custom-table-name-icon::${getCustomTableNameIconContextKey(context)}`;
+  const getCustomTableNameIconManagerLocalKey = createGetCustomTableNameIconManagerLocalKey({
+    getCustomTableNameIconContextKey: (...a: any[]) => getCustomTableNameIconContextKey(...a),
+  });
 
   const getCustomTableNameIconManagerRawSheets = (): CustomTableNameIconManagerRawSheet[] => {
     const rawData = getTableData({ silent: true }) as unknown;
@@ -7029,15 +7057,17 @@ ${examples}`;
   });
   const cloneDiceConfigBackupValue = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-  const getDiceConfigBackupModuleDefinition = (moduleId: DiceConfigBackupModuleId) =>
-    DICE_CONFIG_BACKUP_MODULES.find(module => module.id === moduleId) || null;
+  const getDiceConfigBackupModuleDefinition = createGetDiceConfigBackupModuleDefinition({
+    getDICE_CONFIG_BACKUP_MODULES: () => DICE_CONFIG_BACKUP_MODULES,
+  });
 
   const isDiceConfigBackupModuleId = createIsDiceConfigBackupModuleId({
 
   });
 
-  const getDiceConfigBackupWarningCount = (backup: DiceConfigBackupDocument): number =>
-    Object.values(backup.modules).reduce((count, payload) => count + (payload?.warnings?.length || 0), 0);
+  const getDiceConfigBackupWarningCount = createGetDiceConfigBackupWarningCount({
+
+  });
 
   const formatDiceConfigBackupSelectedModuleRiskLines = createFormatDiceConfigBackupSelectedModuleRiskLines({
     getDiceConfigBackupModuleDefinition: (...a: any[]) => getDiceConfigBackupModuleDefinition(...a),
@@ -7068,8 +7098,9 @@ ${examples}`;
     isDiceConfigBackupModuleId: (...a: any[]) => isDiceConfigBackupModuleId(...a),
   });
 
-  const getDiceConfigBackupKeyStrategy = (key: string): DiceConfigBackupKeyStrategy =>
-    DICE_CONFIG_BACKUP_KEY_STRATEGIES[key] || 'raw';
+  const getDiceConfigBackupKeyStrategy = createGetDiceConfigBackupKeyStrategy({
+    getDICE_CONFIG_BACKUP_KEY_STRATEGIES: () => DICE_CONFIG_BACKUP_KEY_STRATEGIES,
+  });
 
   const getDiceConfigBackupRecordString = createGetDiceConfigBackupRecordString({
 
@@ -7079,8 +7110,9 @@ ${examples}`;
     getDiceConfigBackupRecordString: (...a: any[]) => getDiceConfigBackupRecordString(...a),
   });
 
-  const getDiceConfigBackupRegexRuleKey = (rule: Record<string, unknown>): string =>
-    getDiceConfigBackupRecordString(rule, 'id');
+  const getDiceConfigBackupRegexRuleKey = createGetDiceConfigBackupRegexRuleKey({
+    getDiceConfigBackupRecordString: (...a: any[]) => getDiceConfigBackupRecordString(...a),
+  });
 
   const copyDiceConfigBackupExistingFields = (
     source: Record<string, unknown>,
@@ -7224,8 +7256,9 @@ ${examples}`;
     }
   };
 
-  const getDiceConfigBackupGachaCatalogItemCount = (records: readonly GachaCatalogRecord[]): number =>
-    records.reduce((count, record) => count + (Array.isArray(record.items) ? record.items.length : 0), 0);
+  const getDiceConfigBackupGachaCatalogItemCount = createGetDiceConfigBackupGachaCatalogItemCount({
+
+  });
 
   const getDiceConfigBackupModuleResourceCount = createGetDiceConfigBackupModuleResourceCount({
     getDiceConfigBackupGachaCatalogItemCount: (...a: any[]) => getDiceConfigBackupGachaCatalogItemCount(...a),
@@ -7507,8 +7540,9 @@ ${examples}`;
     normalizeDiceConfigBackupGachaCatalogItems: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogItems(...a),
   });
 
-  const getDiceConfigBackupGachaItemNameKey = (item: Pick<GachaItemDefinition, 'name' | 'type' | 'quality'>): string =>
-    `${String(item.name || '').trim()}|${String(item.type || '').trim()}|${String(item.quality || '').trim()}`.toLowerCase();
+  const getDiceConfigBackupGachaItemNameKey = createGetDiceConfigBackupGachaItemNameKey({
+
+  });
 
   const mergeDiceConfigBackupGachaCatalogItems = createMergeDiceConfigBackupGachaCatalogItems({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -7625,8 +7659,9 @@ ${examples}`;
     setCachedRawData: (v: any) => { cachedRawData = v; },
   });
 
-  const getAllDiceConfigBackupModuleIds = (): DiceConfigBackupModuleId[] =>
-    DICE_CONFIG_BACKUP_MODULES.map(module => module.id);
+  const getAllDiceConfigBackupModuleIds = createGetAllDiceConfigBackupModuleIds({
+
+  });
 
   const normalizeDiceProfileModuleIds = createNormalizeDiceProfileModuleIds({
     getAllDiceConfigBackupModuleIds: (...a: any[]) => getAllDiceConfigBackupModuleIds(...a),
@@ -7642,8 +7677,9 @@ ${examples}`;
 
   });
 
-  const createDiceProfileRuntimeId = (prefix = 'profile'): string =>
-    `acu_${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const createDiceProfileRuntimeId = createCreateDiceProfileRuntimeId({
+
+  });
 
   const getDiceProfileIndex = createGetDiceProfileIndex({
     isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
@@ -8501,23 +8537,10 @@ ${examples}`;
     getCRUD_SQL_IDENTIFIER_PATTERN: () => CRUD_SQL_IDENTIFIER_PATTERN,
   });
 
-  const getCrudTableIdentifier = (sheet: unknown, fallbackName: string): string =>
-    getCrudSqlTableName(sheet) || normalizeDiffText(fallbackName);
-
-  const buildCrudColumnAliasMap = (sheet: unknown): Record<string, string> => {
-    const ddl = stripCrudSqlNonStructuralComments(getCrudSheetDdl(sheet));
-    const aliases: Record<string, string> = {};
-    if (!ddl) return aliases;
-
-    ddl.split(/\r?\n/).forEach(line => {
-      const parsed = parseCrudColumnDefinitionLine(line);
-      if (!parsed) return;
-      const { columnName, comment } = parsed;
-      getCrudSqlCommentAliases(comment).forEach(alias => addCrudColumnAlias(aliases, alias, columnName));
-    });
-
-    return aliases;
-  };
+  const getCrudTableIdentifier = createGetCrudTableIdentifier({
+    getCrudSqlTableName: (...a: any[]) => getCrudSqlTableName(...a),
+    normalizeDiffText: (...a: any[]) => normalizeDiffText(...a),
+  });
 
   const parseSqlQuotedValues = createParseSqlQuotedValues({
 
@@ -10184,8 +10207,10 @@ ${examples}`;
     FLOATING_COLLAPSE_SIZE: FLOATING_COLLAPSE_SIZE,
   });
 
-  const getFloatingCollapsePosition = (config = getConfig()): FloatingCollapsePosition | null =>
-    normalizeFloatingCollapsePosition(config.floatingCollapsePosition);
+  const getFloatingCollapsePosition = createGetFloatingCollapsePosition({
+    getConfig: (...a: any[]) => getConfig(...a),
+    normalizeFloatingCollapsePosition: (...a: any[]) => normalizeFloatingCollapsePosition(...a),
+  });
 
   const updateFloatingCollapseBounds = createUpdateFloatingCollapseBounds({
     clampFloatingCollapsePosition: (...a: any[]) => clampFloatingCollapsePosition(...a),
@@ -11025,8 +11050,9 @@ ${examples}`;
 
   });
 
-  const cloneGachaPoolDefinitions = (pools: readonly GachaPoolDefinition[]): GachaPoolDefinition[] =>
-    JSON.parse(JSON.stringify(pools)) as GachaPoolDefinition[];
+  const cloneGachaPoolDefinitions = createCloneGachaPoolDefinitions({
+
+  });
 
   const buildDefaultGachaPoolDefinition = (
     id: GachaPoolTag,
@@ -11074,6 +11100,23 @@ ${examples}`;
     sortGachaPoolDefinitions: (...a: any[]) => sortGachaPoolDefinitions(...a),
   });
 
+  const getRuntimeGachaRawData = () => cachedRawData || getTableData();
+  const getGachaCatalogScopeKey = (): string => GACHA_CATALOG_GLOBAL_SCOPE_KEY;
+  const buildCrudColumnAliasMap = (sheet: unknown): Record<string, string> => {
+    const ddl = stripCrudSqlNonStructuralComments(getCrudSheetDdl(sheet));
+    const aliases: Record<string, string> = {};
+    if (!ddl) return aliases;
+
+    ddl.split(/\r?\n/).forEach(line => {
+      const parsed = parseCrudColumnDefinitionLine(line);
+      if (!parsed) return;
+      const { columnName, comment } = parsed;
+      getCrudSqlCommentAliases(comment).forEach(alias => addCrudColumnAlias(aliases, alias, columnName));
+    });
+
+    return aliases;
+  };
+  const buildAdvancedPresetAgentPrompt = (): string => advancedPresetAgentPromptTemplate;
   const collectGachaPoolTagsFromItems = (rawData = getRuntimeGachaRawData()): GachaPoolTag[] => {
     const tags = new Set<GachaPoolTag>();
     try {
@@ -11131,8 +11174,10 @@ ${examples}`;
     getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
   });
 
-  const formatGachaPoolTags = (poolTags: readonly GachaPoolTag[], rawData = getRuntimeGachaRawData()): string =>
-    poolTags.map(tag => getGachaPoolDisplayName(tag, rawData)).join('、');
+  const formatGachaPoolTags = createFormatGachaPoolTags({
+    getGachaPoolDisplayName: (...a: any[]) => getGachaPoolDisplayName(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+  });
 
   const updateGachaPoolConfig = createUpdateGachaPoolConfig({
     getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
@@ -11356,10 +11401,9 @@ ${examples}`;
   let gachaCatalogCache: GachaCatalogCache | null = null;
   let gachaCatalogLoadTask: GachaCatalogLoadTask | null = null;
 
-  const cloneGachaCatalogItems = (items: readonly GachaItemDefinition[]): GachaItemDefinition[] =>
-    JSON.parse(JSON.stringify(items)) as GachaItemDefinition[];
+  const cloneGachaCatalogItems = createCloneGachaCatalogItems({
 
-  const getGachaCatalogScopeKey = (): string => GACHA_CATALOG_GLOBAL_SCOPE_KEY;
+  });
 
   const createEmptyGachaCatalog = createCreateEmptyGachaCatalog({
 
@@ -11442,10 +11486,9 @@ ${examples}`;
     setGachaCatalogLoadTask: (v: any) => { gachaCatalogLoadTask = v; },
   });
 
-  const getCustomGachaItemDefinitions = (rawData): GachaItemDefinition[] =>
-    getStoredGachaCatalog(rawData, false)?.items || [];
-
-  const getRuntimeGachaRawData = () => cachedRawData || getTableData();
+  const getCustomGachaItemDefinitions = createGetCustomGachaItemDefinitions({
+    getStoredGachaCatalog: (...a: any[]) => getStoredGachaCatalog(...a),
+  });
 
   const getAllGachaItemDefinitions = createGetAllGachaItemDefinitions({
     getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
@@ -11646,10 +11689,9 @@ ${examples}`;
     getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
   });
 
-  const formatGachaCatalogImportStatsText = (stats: GachaCatalogImportStats): string =>
-    `新增 ${stats.added}，更新 ${stats.updated}，重命名 ${stats.renamed}，跳过 ${stats.skipped}${
-      stats.warnings.length > 0 ? `，提示 ${stats.warnings.length}` : ''
-    }`;
+  const formatGachaCatalogImportStatsText = createFormatGachaCatalogImportStatsText({
+
+  });
 
   const showGachaCatalogImportConfirm = createShowGachaCatalogImportConfirm({
     analyzeGachaCatalogImport: (...a: any[]) => analyzeGachaCatalogImport(...a),
@@ -11801,8 +11843,9 @@ ${examples}`;
     getGachaRewardParseResultForItem: (...a: any[]) => getGachaRewardParseResultForItem(...a),
   });
 
-  const getAvailableGachaRewardTargets = (rawData): Set<GachaRewardTarget> =>
-    new Set(GACHA_REWARD_TARGETS.filter(target => hasGachaRewardTable(rawData, target)));
+  const getAvailableGachaRewardTargets = createGetAvailableGachaRewardTargets({
+    hasGachaRewardTable: (...a: any[]) => hasGachaRewardTable(...a),
+  });
 
   const getGachaMinimumRarity = createGetGachaMinimumRarity({
 
