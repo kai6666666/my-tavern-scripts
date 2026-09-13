@@ -102,6 +102,19 @@ import { createGetCrudTableIdentifier } from './features/table/get-crud-table-id
 import { createGetAvailableGachaRewardTargets } from './features/gacha/get-available-gacha-reward-targets';
 import { createGetAllDiceConfigBackupModuleIds } from './features/dice/get-all-dice-config-backup-module-ids';
 import { createGetAdvancedPresetErrorMessage } from './features/presets/get-advanced-preset-error-message';
+import { createWaitForDatabaseUiTick } from './features/table/wait-for-database-ui-tick';
+import { createSharedHistoryStore } from './features/dice/shared-history-store';
+import { createScheduleDialogueIndentRender } from './features/ui/schedule-dialogue-indent-render';
+import { createSaveTableStyles } from './features/table/save-table-styles';
+import { createSaveTableOrder } from './features/table/save-table-order';
+import { createSaveTableHeights } from './features/table/save-table-heights';
+import { createSaveStoredGachaStateSnapshot } from './features/gacha/save-stored-gacha-state-snapshot';
+import { createSaveReverseTables } from './features/table/save-reverse-tables';
+import { createSaveOptionsCollapsedState } from './features/table/save-options-collapsed-state';
+import { createSaveHiddenTables } from './features/table/save-hidden-tables';
+import { createSaveCollapsedState } from './features/table/save-collapsed-state';
+import { createSaveActiveTabState } from './features/table/save-active-tab-state';
+import { createSameRow } from './features/table/same-row';
 import { createGetAdvancedPresetDisplayOutcome } from './features/presets/get-advanced-preset-display-outcome';
 import { createFormatGachaPoolTags } from './features/gacha/format-gacha-pool-tags';
 import { createFormatGachaCatalogImportStatsText } from './features/gacha/format-gacha-catalog-import-stats-text';
@@ -2625,7 +2638,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     warn: (message, error) => console.warn(`[DICE]${message}:`, error),
   });
 
-  const scheduleDialogueIndentRender = (): void => dialogueIndentRenderer.schedule();
+  const scheduleDialogueIndentRender = createScheduleDialogueIndentRender({
+    getDialogueIndentRenderer: () => dialogueIndentRenderer,
+  });
   const refreshDialogueIndentRender = (): void => dialogueIndentRenderer.refreshNow();
 
   const isPlayerTableName = createIsPlayerTableName({
@@ -5186,7 +5201,8 @@ ${examples}`;
     | { status: 'unavailable' }
     | { status: 'failed'; error?: unknown; source?: string };
 
-  const waitForDatabaseUiTick = (ms = 120): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+  const waitForDatabaseUiTick = createWaitForDatabaseUiTick({
+  });
 
   const isElementVisibleInLayout = createIsElementVisibleInLayout({
 
@@ -6003,7 +6019,8 @@ ${examples}`;
   // [优化] 统一存储封装 (带静默自动清理)
 
   const getActiveTabState = () => Store.get(STORAGE_KEY_ACTIVE_TAB);
-  const saveActiveTabState = v => Store.set(STORAGE_KEY_ACTIVE_TAB, v);
+  const saveActiveTabState = createSaveActiveTabState({
+  });
 
   let cleanupGlobalInteractionOutsideCapture: (() => void) | null = null;
 
@@ -6039,12 +6056,15 @@ ${examples}`;
   });
 
   const getSavedTableOrder = () => Store.get(STORAGE_KEY_TABLE_ORDER);
-  const saveTableOrder = v => Store.set(STORAGE_KEY_TABLE_ORDER, v);
+  const saveTableOrder = createSaveTableOrder({
+  });
   const getCollapsedState = () => Store.get(STORAGE_KEY_IS_COLLAPSED, false);
-  const saveCollapsedState = v => Store.set(STORAGE_KEY_IS_COLLAPSED, v);
+  const saveCollapsedState = createSaveCollapsedState({
+  });
   // [新增] 选项面板独立折叠状态管理
   const getOptionsCollapsedState = () => Store.get(STORAGE_KEY_OPTIONS_COLLAPSED, false);
-  const saveOptionsCollapsedState = v => Store.set(STORAGE_KEY_OPTIONS_COLLAPSED, v);
+  const saveOptionsCollapsedState = createSaveOptionsCollapsedState({
+  });
   // [修改] 读取快照时，严格核对身份证 (Chat ID)
   const loadSnapshot = createLoadSnapshot({
     getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
@@ -6063,7 +6083,8 @@ ${examples}`;
 
   // --- [新增] 移植的辅助函数 ---
   const getTableHeights = () => Store.get(STORAGE_KEY_TABLE_HEIGHTS, {});
-  const saveTableHeights = v => Store.set(STORAGE_KEY_TABLE_HEIGHTS, v);
+  const saveTableHeights = createSaveTableHeights({
+  });
   const normalizePanelHeightValue = createNormalizePanelHeightValue({
     getMAX_PANEL_HEIGHT: () => MAX_PANEL_HEIGHT,
     getMIN_PANEL_HEIGHT: () => MIN_PANEL_HEIGHT,
@@ -6158,11 +6179,14 @@ ${examples}`;
   });
 
   const getTableStyles = () => Store.get(STORAGE_KEY_TABLE_STYLES, {});
-  const saveTableStyles = v => Store.set(STORAGE_KEY_TABLE_STYLES, v);
+  const saveTableStyles = createSaveTableStyles({
+  });
   const getHiddenTables = () => Store.get(STORAGE_KEY_HIDDEN_TABLES, []);
-  const saveHiddenTables = v => Store.set(STORAGE_KEY_HIDDEN_TABLES, v);
+  const saveHiddenTables = createSaveHiddenTables({
+  });
   const getReverseTables = () => Store.get(STORAGE_KEY_REVERSE_TABLES, []);
-  const saveReverseTables = v => Store.set(STORAGE_KEY_REVERSE_TABLES, v);
+  const saveReverseTables = createSaveReverseTables({
+  });
 
   const normalizeTableNameList = createNormalizeTableNameList({
 
@@ -8469,7 +8493,8 @@ ${examples}`;
 
   const getSheetRows = sheet => (Array.isArray(sheet?.content) ? sheet.content.slice(1) : []);
   const getSheetHeaders = sheet => (Array.isArray(sheet?.content?.[0]) ? sheet.content[0] : []);
-  const sameRow = (left, right): boolean => JSON.stringify(left || []) === JSON.stringify(right || []);
+  const sameRow = createSameRow({
+  });
   const sameHeaders = createSameHeaders({
     getSheetHeaders: (...a: any[]) => getSheetHeaders(...a),
   });
@@ -9528,7 +9553,9 @@ ${examples}`;
       maxHistory: 100,
     };
   }
-  const sharedHistoryStore = rootWindowWithHistory.__AcuDiceHistoryStore__;
+  const sharedHistoryStore = createSharedHistoryStore({
+    getRootWindowWithHistory: () => rootWindowWithHistory,
+  });
   const checkHistory: CheckHistoryEntry[] = sharedHistoryStore.checkHistory;
   const contestHistory: ContestHistoryEntry[] = sharedHistoryStore.contestHistory;
   const acuDiceHistory = createAcuDiceHistoryInstance({
@@ -11393,7 +11420,9 @@ ${examples}`;
   const hasMigratedLegacyGachaState = (): boolean => gachaStore.hasMigrated();
   const markLegacyGachaStateMigrated = () => gachaStore.markMigrated();
   const getStoredGachaStateSnapshot = (): Record<string, unknown> | null => gachaStore.load();
-  const saveStoredGachaStateSnapshot = (state: GachaState): boolean => gachaStore.save(state);
+  const saveStoredGachaStateSnapshot = createSaveStoredGachaStateSnapshot({
+    getGachaStore: () => gachaStore,
+  });
   const assertSaveStoredGachaStateSnapshot = (state: GachaState): void => gachaStore.assertSave(state);
 
   const normalizeGachaStateRecord = (rawValue: unknown): GachaState | null => gachaStateCore.normalizeRecord(rawValue);
