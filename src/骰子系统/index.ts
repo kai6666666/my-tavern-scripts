@@ -9394,7 +9394,7 @@ ${examples}`;
     getContestHistory: () => contestHistory,
   });
   const notifyReady = createNotifyReady({
-    acuDiceReady: (...a: any[]) => acuDiceReady(...a),
+    acuDiceReady: acuDiceReady,
   });
 
   const defineAcuDiceOnWindow = createDefineAcuDiceOnWindow({
@@ -9468,7 +9468,7 @@ ${examples}`;
   });
 
   const emitEvent = createEmitEvent({
-    acuDiceEvents: (...a: any[]) => acuDiceEvents(...a),
+    acuDiceEvents: acuDiceEvents,
   });
 
   type CheckSuggestionTieRule = 'initiator_win' | 'initiator_lose' | 'tie';
@@ -13809,7 +13809,7 @@ ${examples}`;
   });
 
   const bindAcuDiceGachaRegexActions = createBindAcuDiceGachaRegexActions({
-    gachaRegexActions: (...a: any[]) => gachaRegexActions(...a),
+    gachaRegexActions: gachaRegexActions,
   });
 
   (AcuDiceAPI as Record<string, unknown>).gacha = acuDiceGachaApi;
