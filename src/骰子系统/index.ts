@@ -352,6 +352,10 @@ import { BUILTIN_ACTION_PRESETS } from './features/presets/builtin-action-preset
 import { GLOBAL_INTERACTION_SECTION_METAS } from './features/interactions/global-interaction-section-metas';
 import { BUILTIN_REGEX_RULES } from './features/regex/builtin-regex-rules';
 import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
+import { DICE_CONFIG_BACKUP_MODULES } from './features/dice/dice-config-backup-modules';
+import { DICE_CONFIG_BACKUP_KEY_STRATEGIES } from './features/dice/dice-config-backup-key-strategies';
+import { STORAGE_KEY_ACTION_ORDER, STORAGE_KEY_ACTION_PRESETS, STORAGE_KEY_ACTIVE_ACTION_PRESET, STORAGE_KEY_ACTIVE_ADVANCED_PRESET, STORAGE_KEY_ACTIVE_ATTR_PRESET, STORAGE_KEY_ACTIVE_DASHBOARD_PRESET, STORAGE_KEY_ACTIVE_PRESET, STORAGE_KEY_ACTIVE_RENDER_PRESET, STORAGE_KEY_ACTIVE_TAB, STORAGE_KEY_ACTIVE_TABLE_TEMPLATE_REQUIREMENT_PRESET, STORAGE_KEY_ADVANCED_PRESETS, STORAGE_KEY_ATTRIBUTE_PRESETS, STORAGE_KEY_AVATAR_MAP, STORAGE_KEY_BLACKLIST, STORAGE_KEY_BUILTIN_PRESET_ORDER, STORAGE_KEY_BUILTIN_PRESET_VISIBILITY, STORAGE_KEY_CRAZY_MODE, STORAGE_KEY_CUSTOM_TABLE_NAME_ICONS, STORAGE_KEY_DASHBOARD_ACTIVE, STORAGE_KEY_DASHBOARD_PRESETS, STORAGE_KEY_DICE_CONFIG, STORAGE_KEY_GACHA_ACTIVE_POOL_TAG, STORAGE_KEY_GACHA_ITEM_SETTINGS, STORAGE_KEY_GACHA_POOL_SETTINGS, STORAGE_KEY_GACHA_SETTINGS_POOL_TAG, STORAGE_KEY_GACHA_SHARD_SHOP_RARITY, STORAGE_KEY_GACHA_STATE, STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE, STORAGE_KEY_GLOBAL_INTERACTION_COLLAPSED_SECTIONS, STORAGE_KEY_GM_CONFIG, STORAGE_KEY_HIDDEN_TABLES, STORAGE_KEY_INVENTORY_FILTERS, STORAGE_KEY_INVENTORY_FILTERS_COLLAPSED, STORAGE_KEY_INVENTORY_METADATA, STORAGE_KEY_IS_COLLAPSED, STORAGE_KEY_LAST_PRESET, STORAGE_KEY_MAP_FOCUS, STORAGE_KEY_OPTIONS_COLLAPSED, STORAGE_KEY_PRESETS, STORAGE_KEY_REGEX_ACTIVE_PRESET, STORAGE_KEY_REGEX_ENABLED, STORAGE_KEY_REGEX_PRESETS, STORAGE_KEY_REGEX_RULES, STORAGE_KEY_RENDER_PRESETS, STORAGE_KEY_RENDER_PRESET_BLACKLIST_MIGRATED, STORAGE_KEY_REVERSE_TABLES, STORAGE_KEY_SCROLL, STORAGE_KEY_TABLE_HEIGHTS, STORAGE_KEY_TABLE_ORDER, STORAGE_KEY_TABLE_STYLES, STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS, STORAGE_KEY_UI_CONFIG, STORAGE_KEY_VALIDATION_ENABLED, STORAGE_KEY_VALIDATION_MODE, STORAGE_KEY_VALIDATION_RULES } from './shared/storage-keys';
+import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-validation-deprecated-meta';
 
 (function () {
   'use strict';
@@ -747,10 +751,7 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
     return `background-image:${cssImageUrl};background-size:${Number.isFinite(normalizedScale) ? normalizedScale : 150}%;background-position:${Number.isFinite(normalizedOffsetX) ? normalizedOffsetX : 50}% ${Number.isFinite(normalizedOffsetY) ? normalizedOffsetY : 50}%;`;
   };
 
-  const DATA_VALIDATION_DEPRECATED_META = {
-    deprecated: true,
-    deprecatedReason: '旧版兼容保留，不建议新增使用',
-  } as const;
+
   const renderDeprecatedBadge = (reason: string): string =>
     `<span class="acu-deprecated-badge" title="${escapeHtml(reason)}" aria-label="${escapeHtml(reason)}">旧</span>`;
 
@@ -1010,11 +1011,11 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   let gachaShopRootElement: HTMLElement | null = null;
   const GACHA_TEST_DEFAULT_FORTUNE = 0;
   const GACHA_SHARD_EXCHANGE_COST = 10;
-  const STORAGE_KEY_GACHA_STATE = 'acu_gacha_state_v1';
-  const STORAGE_KEY_GACHA_SHARD_SHOP_RARITY = 'acu_gacha_shard_shop_rarity_v1';
-  const STORAGE_KEY_GACHA_POOL_SETTINGS = 'acu_gacha_pool_settings_v1';
-  const STORAGE_KEY_GACHA_SETTINGS_POOL_TAG = 'acu_gacha_settings_pool_tag_v1';
-  const STORAGE_KEY_GACHA_ITEM_SETTINGS = 'acu_gacha_item_settings_v1';
+
+
+
+
+
   const GACHA_CATALOG_GLOBAL_SCOPE_KEY = 'global';
   const GACHA_SHOP_UI_REFRESH_MS = 250;
   const GACHA_CATALOG_RAW_ROW_INDEX_PROP = '__acuRawRowIndex';
@@ -1308,46 +1309,46 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
     scheduleViewportBoundsRefresh: (...a: any[]) => scheduleViewportBoundsRefresh(...a),
     DICE_RESULT_PLACEHOLDER: DICE_RESULT_PLACEHOLDER,
   });
-  const STORAGE_KEY_TABLE_ORDER = 'acu_table_order';
-  const STORAGE_KEY_ACTION_ORDER = 'acu_action_order';
 
-  const STORAGE_KEY_ACTIVE_TAB = 'acu_active_tab';
-  const STORAGE_KEY_UI_CONFIG = 'acu_ui_config_v19';
-  const STORAGE_KEY_IS_COLLAPSED = 'acu_ui_collapsed_state';
-  const STORAGE_KEY_OPTIONS_COLLAPSED = 'acu_options_collapsed'; // [新增] 选项面板独立折叠状态
-  const STORAGE_KEY_DASHBOARD_ACTIVE = 'acu_dashboard_active';
-  const STORAGE_KEY_GLOBAL_INTERACTIONS_ACTIVE = 'acu_global_interactions_panel_active';
-  const STORAGE_KEY_GLOBAL_INTERACTION_COLLAPSED_SECTIONS = 'acu_global_interaction_collapsed_sections_v1';
-  const STORAGE_KEY_INVENTORY_FILTERS = 'acu_inventory_filters_v1';
-  const STORAGE_KEY_INVENTORY_FILTERS_COLLAPSED = 'acu_inventory_filters_collapsed_v1';
-  const STORAGE_KEY_INVENTORY_METADATA = 'acu_inventory_metadata_v1';
-  const STORAGE_KEY_GACHA_ACTIVE_POOL_TAG = 'acu_gacha_active_pool_tag_v1';
+
+
+
+
+
+ // [新增] 选项面板独立折叠状态
+
+
+
+
+
+
+
   // [新增] 移植功能所需的存储键
-  const STORAGE_KEY_TABLE_HEIGHTS = 'acu_table_heights_v19';
-  const STORAGE_KEY_TABLE_STYLES = 'acu_table_styles_v19';
-  const STORAGE_KEY_HIDDEN_TABLES = 'acu_hidden_tables_v19';
-  const STORAGE_KEY_GM_CONFIG = 'acu_gm_engine_config_v1';
-  const STORAGE_KEY_REVERSE_TABLES = 'acu_reverse_tables_v1';
+
+
+
+
+
   const MAX_ACTION_BUTTONS = 6; // 活动栏最大按钮数
   const MIN_PANEL_HEIGHT = 200; // 面板最小高度
   const MAX_PANEL_HEIGHT = 1200; // 面板最大高度
   const PANEL_VIEWPORT_TOP_GUTTER = 32; // 手动拉高面板时保留顶部工具栏安全距
 
-  const STORAGE_KEY_DICE_CONFIG = 'acu_dice_config_v1';
-  const STORAGE_KEY_CUSTOM_TABLE_NAME_ICONS = 'acu_custom_table_name_icons_v1';
-  const STORAGE_KEY_ATTRIBUTE_PRESETS = 'acu_attribute_presets_v1';
-  const STORAGE_KEY_ACTIVE_ATTR_PRESET = 'acu_active_attr_preset_v1';
-  const STORAGE_KEY_ACTION_PRESETS = 'acu_action_presets_v1';
-  const STORAGE_KEY_ACTIVE_ACTION_PRESET = 'acu_active_action_preset_v1';
-  const STORAGE_KEY_DASHBOARD_PRESETS = 'acu_dashboard_presets_v1';
-  const STORAGE_KEY_ACTIVE_DASHBOARD_PRESET = 'acu_active_dashboard_preset_v1';
-  const STORAGE_KEY_ADVANCED_PRESETS = 'acu_advanced_presets_v1';
-  const STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS = 'acu_table_template_requirement_presets_v1';
-  const STORAGE_KEY_ACTIVE_TABLE_TEMPLATE_REQUIREMENT_PRESET = 'acu_active_table_template_requirement_preset_v1';
-  const STORAGE_KEY_BUILTIN_PRESET_VISIBILITY = 'acu_builtin_preset_visibility';
-  const STORAGE_KEY_BUILTIN_PRESET_ORDER = 'acu_builtin_preset_order';
-  const STORAGE_KEY_LAST_PRESET = 'acu_dice_last_preset';
-  const STORAGE_KEY_CRAZY_MODE = 'acu_dice_crazy_mode';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   // 自定义掷骰模式常量
   const CUSTOM_ROLL_MODE = {
@@ -1375,8 +1376,8 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
     return 0;
   };
 
-  const STORAGE_KEY_AVATAR_MAP = 'acu_avatar_map_v1';
-  const STORAGE_KEY_MAP_FOCUS = 'acu_map_focus_v1';
+
+
 
   // ========================================
   // ConsoleCaptureManager - Console日志抓取管理器
@@ -1544,10 +1545,10 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   }
 
   // 正则转换系统存储键
-  const STORAGE_KEY_REGEX_RULES = 'acu_regex_rules_v1';
-  const STORAGE_KEY_REGEX_PRESETS = 'acu_regex_presets_v1';
-  const STORAGE_KEY_REGEX_ACTIVE_PRESET = 'acu_regex_active_preset_v1';
-  const STORAGE_KEY_REGEX_ENABLED = 'acu_regex_enabled_v1';
+
+
+
+
 
   // ========================================
   // 酒馆原生正则格式兼容 (Tavern Regex Import)
@@ -1629,9 +1630,9 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   // ========================================
   // ValidationRuleManager - 数据验证规则系统
   // ========================================
-  const STORAGE_KEY_VALIDATION_RULES = 'acu_validation_rules_v1';
-  const STORAGE_KEY_VALIDATION_ENABLED = 'acu_validation_enabled_v1';
-  const STORAGE_KEY_VALIDATION_MODE = 'acu_validation_mode'; // 数据验证模式（只显示验证错误）
+
+
+ // 数据验证模式（只显示验证错误）
 
   // 规则类型信息（用于 UI 显示和分组）
 
@@ -1642,7 +1643,7 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   // 快捷检定显示排除词
   // ========================================
   // 旧版变量过滤黑名单的存储键只用于迁移；是否显示骰子图标统一走 RenderPresetManager.shouldShowQuickCheck()。
-  const STORAGE_KEY_BLACKLIST = 'acu_filter_blacklist_v1';
+
   const DEFAULT_QUICK_CHECK_EXCLUDE_KEYWORDS = [
     '时间',
     '地点',
@@ -1695,9 +1696,9 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   const RENDER_PRESET_FORMAT = 'acu_render_preset_v1' as const;
   const RENDER_DEFAULT_PRESET_ID = '__builtin_render_default__';
   const RENDER_LEGACY_BLACKLIST_PRESET_ID = 'render_legacy_blacklist_migration';
-  const STORAGE_KEY_RENDER_PRESETS = 'acu_render_presets_v1';
-  const STORAGE_KEY_ACTIVE_RENDER_PRESET = 'acu_active_render_preset_v1';
-  const STORAGE_KEY_RENDER_PRESET_BLACKLIST_MIGRATED = 'acu_render_preset_blacklist_migrated_v1';
+
+
+
 
   interface RenderPresetColumnDisplayRules {
     stripBracketContent: boolean;
@@ -1935,8 +1936,8 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   // ========================================
   // PresetManager - 验证规则预设管理
   // ========================================
-  const STORAGE_KEY_PRESETS = 'acu_validation_presets_v1';
-  const STORAGE_KEY_ACTIVE_PRESET = 'acu_active_preset_id';
+
+
 
   const PresetManager = createPresetManager({
     compareVersion: (...a: any[]) => compareVersion(...a),
@@ -3736,7 +3737,7 @@ import { ACTION_ICON_MAP } from './features/actions/action-icon-map';
   // 高级骰子预设管理器
   // ========================================
 
-  const STORAGE_KEY_ACTIVE_ADVANCED_PRESET = 'acu_active_advanced_preset';
+
   const ADVANCED_PRESET_EXPORT_FORMAT = 'acu_advanced_preset_v1';
   const ADVANCED_PRESET_AGENT_FORMAT = 'acu_advanced_preset_agent_v1';
 
@@ -6276,7 +6277,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   let lastOptionHash = null;
   let optionPanelVisible = false; // [新增] 选项面板可见性控制
   // [修改] 初始化时从硬盘读取记忆
-  const STORAGE_KEY_SCROLL = 'acu_scroll_v19_fixed';
+
   let tableScrollStates = {};
   try {
     const saved = localStorage.getItem(STORAGE_KEY_SCROLL);
@@ -9379,7 +9380,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   const DICE_CONFIG_BACKUP_FORMAT = 'acu_dice_config_backup_v1' as const;
   const DICE_CONFIG_BACKUP_SCHEMA_VERSION = 1;
-  const DICE_CONFIG_BACKUP_SETTINGS_EXPANDED_KEY = 'acu_settings_expanded';
+
   const DICE_PROFILE_INDEX_STORAGE_KEY = 'acu_dice_profile_index_v1';
   const DICE_PROFILE_LAST_APPLIED_STORAGE_KEY = 'acu_dice_profile_last_applied_v1';
   const DICE_PROFILE_SKIPPED_PROMPTS_STORAGE_KEY = 'acu_dice_profile_skipped_prompts_v1';
@@ -9518,127 +9519,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     sourceTextKind: 'message' | 'first_mes' | 'regex';
   }
 
-  const DICE_CONFIG_BACKUP_MODULES: DiceConfigBackupModuleDefinition[] = [
-    {
-      id: 'uiLayout',
-      name: '界面外观与布局',
-      description: '主题、布局、表格顺序、高度、显示与隐藏、倒序与折叠状态。',
-      storageKeys: [
-        STORAGE_KEY_UI_CONFIG,
-        STORAGE_KEY_TABLE_ORDER,
-        STORAGE_KEY_ACTION_ORDER,
-        STORAGE_KEY_IS_COLLAPSED,
-        STORAGE_KEY_OPTIONS_COLLAPSED,
-        STORAGE_KEY_TABLE_HEIGHTS,
-        STORAGE_KEY_TABLE_STYLES,
-        STORAGE_KEY_HIDDEN_TABLES,
-        STORAGE_KEY_REVERSE_TABLES,
-        STORAGE_KEY_GLOBAL_INTERACTION_COLLAPSED_SECTIONS,
-        DICE_CONFIG_BACKUP_SETTINGS_EXPANDED_KEY,
-      ],
-    },
-    {
-      id: 'diceConfig',
-      name: '检定设置',
-      description: '是否隐藏，覆盖检定结果、头像与图标联动、疯狂模式的开关。',
-      storageKeys: [STORAGE_KEY_DICE_CONFIG, STORAGE_KEY_CRAZY_MODE, STORAGE_KEY_LAST_PRESET],
-    },
-    {
-      id: 'advancedPresets',
-      name: '检定预设',
-      description: '自定义检定预设、预设显示顺序与当前激活预设。',
-      storageKeys: [
-        STORAGE_KEY_ADVANCED_PRESETS,
-        STORAGE_KEY_ACTIVE_ADVANCED_PRESET,
-        STORAGE_KEY_BUILTIN_PRESET_VISIBILITY,
-        STORAGE_KEY_BUILTIN_PRESET_ORDER,
-      ],
-    },
-    {
-      id: 'attributePresets',
-      name: '属性预设',
-      description: '自定义属性生成预设与当前激活状态。',
-      storageKeys: [STORAGE_KEY_ATTRIBUTE_PRESETS, STORAGE_KEY_ACTIVE_ATTR_PRESET],
-    },
-    {
-      id: 'actionGm',
-      name: '交互规则预设',
-      description: '交互规则预设与当前激活状态；若历史版本保存过 GM 引擎配置也会一并迁移。',
-      storageKeys: [STORAGE_KEY_ACTION_PRESETS, STORAGE_KEY_ACTIVE_ACTION_PRESET, STORAGE_KEY_GM_CONFIG],
-    },
-    {
-      id: 'dashboardPresets',
-      name: '仪表盘预设',
-      description: '仪表盘预设与当前激活状态。',
-      storageKeys: [STORAGE_KEY_DASHBOARD_PRESETS, STORAGE_KEY_ACTIVE_DASHBOARD_PRESET],
-    },
-    {
-      id: 'renderPresets',
-      name: '渲染预设',
-      description: '自定义渲染预设与当前激活状态。',
-      storageKeys: [STORAGE_KEY_RENDER_PRESETS, STORAGE_KEY_ACTIVE_RENDER_PRESET],
-    },
-    {
-      id: 'tableTemplate',
-      name: '当前数据库表格模板',
-      description: '当前聊天生效的数据库表格模板。恢复时会导入到数据库模板列表；如果已有同名模板，会覆盖同名模板。',
-      storageKeys: [],
-    },
-    {
-      id: 'tableTemplateRequirementPresets',
-      name: '模板检验预设',
-      description: '自定义模板检验预设与当前激活状态。',
-      storageKeys: [STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS, STORAGE_KEY_ACTIVE_TABLE_TEMPLATE_REQUIREMENT_PRESET],
-    },
-    {
-      id: 'validation',
-      name: '数据验证',
-      description: '数据验证预设、当前激活状态、启用状态与验证模式。',
-      storageKeys: [
-        STORAGE_KEY_PRESETS,
-        STORAGE_KEY_ACTIVE_PRESET,
-        STORAGE_KEY_VALIDATION_ENABLED,
-        STORAGE_KEY_VALIDATION_MODE,
-        STORAGE_KEY_VALIDATION_RULES,
-      ],
-      ...DATA_VALIDATION_DEPRECATED_META,
-    },
-    {
-      id: 'regex',
-      name: '表格正则预设',
-      description: '表格正则预设、当前激活状态、规则列表与启用状态。',
-      storageKeys: [
-        STORAGE_KEY_REGEX_PRESETS,
-        STORAGE_KEY_REGEX_RULES,
-        STORAGE_KEY_REGEX_ACTIVE_PRESET,
-        STORAGE_KEY_REGEX_ENABLED,
-      ],
-    },
-    {
-      id: 'avatarMap',
-      name: '角色头像预设',
-      description: '角色头像 URL、裁剪偏移、缩放与别名映射。不包括本地上传的图片',
-      storageKeys: [STORAGE_KEY_AVATAR_MAP, STORAGE_KEY_MAP_FOCUS],
-    },
-    {
-      id: 'customIcons',
-      name: '图标预设',
-      description: '表名、物品、装备、势力等图标预设的配置元数据。',
-      storageKeys: [STORAGE_KEY_CUSTOM_TABLE_NAME_ICONS],
-    },
-    {
-      id: 'gachaSettings',
-      name: '骰子商城配置与自定义物品',
-      description: '商城卡池、条目设置、全局自定义物品目录、当前池与碎片商店稀有度。',
-      storageKeys: [
-        STORAGE_KEY_GACHA_POOL_SETTINGS,
-        STORAGE_KEY_GACHA_SETTINGS_POOL_TAG,
-        STORAGE_KEY_GACHA_ITEM_SETTINGS,
-        STORAGE_KEY_GACHA_ACTIVE_POOL_TAG,
-        STORAGE_KEY_GACHA_SHARD_SHOP_RARITY,
-      ],
-    },
-  ];
+
 
   const DICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT: Record<DiceConfigBackupModuleId, string> = {
     uiLayout: '风险较低，但会暴露主题、布局、表格顺序、隐藏项、折叠状态等使用偏好。',
@@ -9657,54 +9538,7 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     gachaSettings: '可能包含自定义物品、卡池、描述、自定义字段、外链图标和剧情偏好内容。',
   };
 
-  const DICE_CONFIG_BACKUP_KEY_STRATEGIES: Record<string, DiceConfigBackupKeyStrategy> = {
-    [STORAGE_KEY_UI_CONFIG]: 'object',
-    [STORAGE_KEY_TABLE_ORDER]: 'setArray',
-    [STORAGE_KEY_ACTION_ORDER]: 'setArray',
-    [STORAGE_KEY_IS_COLLAPSED]: 'raw',
-    [STORAGE_KEY_OPTIONS_COLLAPSED]: 'raw',
-    [STORAGE_KEY_TABLE_HEIGHTS]: 'map',
-    [STORAGE_KEY_TABLE_STYLES]: 'map',
-    [STORAGE_KEY_HIDDEN_TABLES]: 'setArray',
-    [STORAGE_KEY_REVERSE_TABLES]: 'setArray',
-    [STORAGE_KEY_GLOBAL_INTERACTION_COLLAPSED_SECTIONS]: 'map',
-    [DICE_CONFIG_BACKUP_SETTINGS_EXPANDED_KEY]: 'raw',
-    [STORAGE_KEY_DICE_CONFIG]: 'object',
-    [STORAGE_KEY_CRAZY_MODE]: 'object',
-    [STORAGE_KEY_LAST_PRESET]: 'rawString',
-    [STORAGE_KEY_ADVANCED_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_ADVANCED_PRESET]: 'raw',
-    [STORAGE_KEY_BUILTIN_PRESET_VISIBILITY]: 'map',
-    [STORAGE_KEY_BUILTIN_PRESET_ORDER]: 'map',
-    [STORAGE_KEY_ATTRIBUTE_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_ATTR_PRESET]: 'raw',
-    [STORAGE_KEY_ACTION_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_ACTION_PRESET]: 'raw',
-    [STORAGE_KEY_GM_CONFIG]: 'object',
-    [STORAGE_KEY_DASHBOARD_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_DASHBOARD_PRESET]: 'raw',
-    [STORAGE_KEY_RENDER_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_RENDER_PRESET]: 'raw',
-    [STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_TABLE_TEMPLATE_REQUIREMENT_PRESET]: 'raw',
-    [STORAGE_KEY_PRESETS]: 'presetArray',
-    [STORAGE_KEY_ACTIVE_PRESET]: 'raw',
-    [STORAGE_KEY_VALIDATION_ENABLED]: 'map',
-    [STORAGE_KEY_VALIDATION_MODE]: 'raw',
-    [STORAGE_KEY_VALIDATION_RULES]: 'presetArray',
-    [STORAGE_KEY_REGEX_PRESETS]: 'presetArray',
-    [STORAGE_KEY_REGEX_RULES]: 'presetArray',
-    [STORAGE_KEY_REGEX_ACTIVE_PRESET]: 'raw',
-    [STORAGE_KEY_REGEX_ENABLED]: 'map',
-    [STORAGE_KEY_AVATAR_MAP]: 'map',
-    [STORAGE_KEY_MAP_FOCUS]: 'raw',
-    [STORAGE_KEY_CUSTOM_TABLE_NAME_ICONS]: 'map',
-    [STORAGE_KEY_GACHA_POOL_SETTINGS]: 'gachaPoolSettings',
-    [STORAGE_KEY_GACHA_SETTINGS_POOL_TAG]: 'raw',
-    [STORAGE_KEY_GACHA_ITEM_SETTINGS]: 'gachaItemSettings',
-    [STORAGE_KEY_GACHA_ACTIVE_POOL_TAG]: 'raw',
-    [STORAGE_KEY_GACHA_SHARD_SHOP_RARITY]: 'raw',
-  };
+
 
   const DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY = 'gachaCatalogRecords';
   const DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY = 'tableTemplate';
