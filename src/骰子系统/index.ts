@@ -85,6 +85,14 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createAcuDiceAPI } from './features/api/public-api';
+import { createUpdateTemplateForActivePreset } from './features/presets/update-template-for-active-preset';
+import { createShowTemplateInspectionResultModal } from './features/table/show-template-inspection-result-modal';
+import { createUpdateTemplateForActiveCheckPreset } from './features/presets/update-template-for-active-check-preset';
+import { createApplyDiceConfigBackup } from './features/dice/apply-dice-config-backup';
+import { createApplyDiceConfigBackupValue } from './features/dice/apply-dice-config-backup-value';
+import { createWriteAttributesToCharacter } from './features/dice/write-attributes-to-character';
+import { createParseDiceConfigBackup } from './features/dice/parse-dice-config-backup';
 import { createBindGlobalInteractionEvents } from './features/interactions/bind-global-interaction-events';
 import { createShowDiceConfigBackupDialog } from './features/dice/show-dice-config-backup-dialog';
 import { createShowInventoryDetailMenu } from './features/table/show-inventory-detail-menu';
@@ -7330,369 +7338,29 @@ ${attributeScaleStr}`,
     return replaceRuleTagInTemplate(template, '检定规则', buildCheckSuggestionGuide(preset), debugPrefix);
   };
 
-  const updateTemplateForActiveCheckPreset = (presetId: string | null): void => {
-    const debugPrefix = '[DICE][检定规则同步]';
-    const preset = getCheckSuggestionPresetById(presetId);
-    console.info(`${debugPrefix} updateTemplateForActiveCheckPreset 被调用`, {
-      requestedPresetId: presetId,
-      resolvedPresetId: preset?.id || null,
-      presetName: preset?.name || '',
-    });
-    if (!preset) {
-      console.warn(`${debugPrefix} 找不到可用检定预设，跳过同步`);
-      return;
-    }
-
-    type TemplateSourceDataDebug = { note?: unknown };
-    type TemplateSheetDebug = { name?: unknown; sourceData?: TemplateSourceDataDebug };
-    type TemplateRecordDebug = Record<string, unknown>;
-    type TemplateImportResultDebug = {
-      success?: boolean;
-      message?: string;
-      scope?: string;
-      presetName?: string;
-    };
-
-    const dbApi = getCore().getDB();
-    console.info(`${debugPrefix} 数据库 API 状态`, {
-      hasDbApi: !!dbApi,
-      getTableTemplateType: typeof dbApi?.getTableTemplate,
-      importTemplateFromDataType: typeof dbApi?.importTemplateFromData,
-    });
-    if (!dbApi || typeof dbApi.getTableTemplate !== 'function') {
-      console.warn(`${debugPrefix} 数据库 API 不可用，跳过更新`);
-      return;
-    }
-
-    const rawTemplate = dbApi.getTableTemplate();
-    const template = rawTemplate && typeof rawTemplate === 'object' ? (rawTemplate as TemplateRecordDebug) : null;
-    if (!template) {
-      console.warn(`${debugPrefix} 无法获取可修改的表格模板对象，跳过更新`, {
-        rawType: typeof rawTemplate,
-      });
-      return;
-    }
-
-    const guideContent = buildCheckSuggestionGuide(preset);
-    let modified = false;
-    const isTemplateSheetWithNote = (value: unknown): value is TemplateSheetDebug => {
-      if (!value || typeof value !== 'object') return false;
-      const record = value as Record<string, unknown>;
-      const sourceData = record.sourceData;
-      if (!sourceData || typeof sourceData !== 'object') return false;
-      return typeof (sourceData as Record<string, unknown>).note === 'string';
-    };
-    const getCheckRuleSnippet = (note: string): string => {
-      const matched = note.match(/<检定规则>[\s\S]*?<\/检定规则>/);
-      return (matched?.[0] || '').slice(0, 500);
-    };
-
-    const checkRuleSheets = Object.entries(template).filter((entry): entry is [string, TemplateSheetDebug] => {
-      const [, sheet] = entry;
-      if (!isTemplateSheetWithNote(sheet)) return false;
-      return sheet.sourceData?.note?.includes('<检定规则>') === true;
-    });
-    console.info(`${debugPrefix} 可同步表扫描`, {
-      totalSheets: Object.keys(template).length,
-      matchedCount: checkRuleSheets.length,
-      matchedSheets: checkRuleSheets.map(([sheetKey, sheet]) => ({
-        sheetKey,
-        sheetName: String(sheet.name || ''),
-      })),
-    });
-    if (checkRuleSheets.length === 0) {
-      console.warn(`${debugPrefix} 没有找到包含 <检定规则> 标签的表，跳过 note 同步`);
-      return;
-    }
-
-    checkRuleSheets.forEach(([sheetKey, sheet]) => {
-      const sourceData = sheet.sourceData;
-      if (!sourceData || typeof sourceData.note !== 'string') return;
-      const originalNote = sourceData.note;
-      const nextNote = replaceTag(originalNote, '检定规则', guideContent);
-      const changed = nextNote !== originalNote;
-      console.info(`${debugPrefix} note 替换结果`, {
-        sheetKey,
-        sheetName: String(sheet.name || ''),
-        changed,
-        beforeSnippet: getCheckRuleSnippet(originalNote),
-        afterSnippet: getCheckRuleSnippet(nextNote),
-      });
-      if (changed) {
-        sourceData.note = nextNote;
-        modified = true;
-      }
-    });
-
-    const activeAttributePresetId = Store.get(STORAGE_KEY_ACTIVE_ATTR_PRESET, null) as string | null;
-    const attributeRuleModified = syncAttributeRuleTagsInTemplate(template, activeAttributePresetId, debugPrefix);
-    modified = modified || attributeRuleModified;
-
-    console.info(`${debugPrefix} 模板修改汇总`, { modified, presetId: preset.id });
-    if (modified && typeof dbApi.importTemplateFromData === 'function') {
-      console.info(`${debugPrefix} 准备保存模板`, { presetId: preset.id, scope: 'chat' });
-      dbApi
-        .importTemplateFromData(template, { scope: 'chat' })
-        .then((result: TemplateImportResultDebug) => {
-          console.info(`${debugPrefix} importTemplateFromData 返回`, {
-            presetId: preset.id,
-            result,
-          });
-          if (result.success) {
-            console.log('[DICE] updateTemplateForActiveCheckPreset 已更新表格模板，预设:', preset.id);
-          } else {
-            console.error('[DICE] updateTemplateForActiveCheckPreset 保存模板失败:', result.message);
-          }
-        })
-        .catch((err: Error) => {
-          console.error(`${debugPrefix} importTemplateFromData 异常`, err);
-        });
-    } else if (!modified) {
-      console.info(`${debugPrefix} 未保存：没有检测到 note 变化`, { presetId: preset.id });
-    } else {
-      console.warn(`${debugPrefix} importTemplateFromData 不可用，跳过保存`);
-    }
-  };
+  const updateTemplateForActiveCheckPreset = createUpdateTemplateForActiveCheckPreset({
+    buildCheckSuggestionGuide: (...a: any[]) => buildCheckSuggestionGuide(...a),
+    getCheckSuggestionPresetById: (...a: any[]) => getCheckSuggestionPresetById(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    replaceTag: (...a: any[]) => replaceTag(...a),
+    syncAttributeRuleTagsInTemplate: (...a: any[]) => syncAttributeRuleTagsInTemplate(...a),
+    STORAGE_KEY_ACTIVE_ATTR_PRESET: STORAGE_KEY_ACTIVE_ATTR_PRESET,
+  });
 
   /**
    * 根据激活的属性预设更新表格模板中的示例和范围
    * @param presetId 预设ID，null 表示使用默认逻辑
    */
-  const updateTemplateForActivePreset = (presetId: string | null): void => {
-    const debugPrefix = '[DICE][属性规则同步]';
-    console.info(`${debugPrefix} updateTemplateForActivePreset 被调用`, { presetId });
-
-    // 1. 获取预设对象（默认规则使用虚拟预设，确保统一处理路径）
-    type AttributePreset = (typeof BUILTIN_ATTRIBUTE_PRESETS)[number];
-    type TemplateSourceDataDebug = { note?: unknown };
-    type TemplateSheetDebug = { name?: unknown; sourceData?: TemplateSourceDataDebug };
-    type TemplateRecordDebug = Record<string, unknown>;
-    type TemplateImportResultDebug = {
-      success?: boolean;
-      message?: string;
-      scope?: string;
-      presetName?: string;
-    };
-    let preset: AttributePreset;
-    if (presetId === null || presetId === '__default__') {
-      // 使用虚拟默认预设
-      preset = DEFAULT_VIRTUAL_PRESET as AttributePreset;
-    } else {
-      const found = AttributePresetManager.getAllPresets().find((p: AttributePreset) => p.id === presetId);
-      preset = found || (DEFAULT_VIRTUAL_PRESET as AttributePreset);
-    }
-    console.info(`${debugPrefix} 属性预设解析完成`, {
-      requestedPresetId: presetId,
-      resolvedPresetId: preset.id,
-      presetName: preset.name,
-      baseAttributeCount: preset.baseAttributes?.length || 0,
-      specialAttributeCount: preset.specialAttributes?.length || 0,
-    });
-
-    // 2. 生成随机属性值
-    // 注意：对于默认规则，传入 null 以使用 generateRPGAttributes 的内置默认逻辑
-    const attrs = generateRPGAttributes(presetId === null || presetId === '__default__' ? null : preset);
-    // attrs = { base: {...}, special: {...} }
-
-    // 3. 计算数值范围（统一从 preset 对象读取）
-    let baseRangeMin = 0;
-    let baseRangeMax = 100;
-    let specialRangeMin = 0;
-    let specialRangeMax = 100;
-
-    // 基础属性范围：取所有 baseAttributes.range 的 min/max
-    if (preset.baseAttributes && preset.baseAttributes.length > 0) {
-      const baseRanges = preset.baseAttributes.map(attr => attr.range);
-      baseRangeMin = Math.min(...baseRanges.map(r => r[0]));
-      baseRangeMax = Math.max(...baseRanges.map(r => r[1]));
-    }
-    // 特有属性范围：取所有 specialAttributes.range 的 min/max
-    if (preset.specialAttributes && preset.specialAttributes.length > 0) {
-      const specialRanges = preset.specialAttributes.map(attr => attr.range);
-      specialRangeMin = Math.min(...specialRanges.map(r => r[0]));
-      specialRangeMax = Math.max(...specialRanges.map(r => r[1]));
-    }
-
-    // 4. 获取生成的属性数据
-    const baseEntries = Object.entries(attrs.base as Record<string, number>);
-    const specialEntries = Object.entries(attrs.special as Record<string, number>);
-
-    // 5. 获取数据库 API 并读取模板
-    const dbApi = getCore().getDB();
-    console.info(`${debugPrefix} 数据库 API 状态`, {
-      hasDbApi: !!dbApi,
-      getTableTemplateType: typeof dbApi?.getTableTemplate,
-      importTemplateFromDataType: typeof dbApi?.importTemplateFromData,
-    });
-    if (!dbApi || typeof dbApi.getTableTemplate !== 'function') {
-      console.warn(`${debugPrefix} 数据库 API 不可用，跳过更新`);
-      return;
-    }
-
-    const rawTemplate = dbApi.getTableTemplate();
-    const templateRecord = rawTemplate && typeof rawTemplate === 'object' ? (rawTemplate as TemplateRecordDebug) : null;
-    const templateKeys = templateRecord ? Object.keys(templateRecord) : [];
-    console.info(`${debugPrefix} getTableTemplate 返回`, {
-      rawType: typeof rawTemplate,
-      isArray: Array.isArray(rawTemplate),
-      keyCount: templateKeys.length,
-      firstKeys: templateKeys.slice(0, 12),
-      stringPreview: typeof rawTemplate === 'string' ? rawTemplate.slice(0, 180) : '',
-    });
-    const template = templateRecord;
-    if (!template) {
-      console.warn(`${debugPrefix} 无法获取可修改的表格模板对象，跳过更新`, {
-        rawType: typeof rawTemplate,
-      });
-      return;
-    }
-
-    // 6. 生成属性标尺（基于基础属性范围，不含重复的基准说明）
-    const attributeScaleStr = generateAttributeScale(baseRangeMin, baseRangeMax);
-
-    // 7. 构建完整的 <属性规则> 内容块
-    const baseRangeStr = `[${baseRangeMin},${baseRangeMax}]`;
-    const specialRangeStr =
-      specialEntries.length > 0
-        ? `[${specialRangeMin},${specialRangeMax}]`
-        : `[${DEFAULT_SPECIAL_ATTR_TEMPLATE.range[0]},${DEFAULT_SPECIAL_ATTR_TEMPLATE.range[1]}]`;
-
-    // 基础属性示例（分号分隔格式）
-    const baseExampleStr =
-      baseEntries.length > 0
-        ? baseEntries.map(([name, value]) => `${name}:${value}`).join('; ')
-        : '力量:35; 敏捷:50; 体质:52; 智力:35; 感知:40; 魅力:64';
-
-    // 特有属性示例（分号分隔格式）
-    const specialExampleStr =
-      specialEntries.length > 0
-        ? specialEntries.map(([name, value]) => `${name}:${value}`).join('; ')
-        : DEFAULT_SPECIAL_ATTR_TEMPLATE.example;
-
-    // 构建完整的属性规则内容
-    const attributeRulesContent = `基础属性: "{基础属性}:{数值}"，数值范围${baseRangeStr}
-示例: "${baseExampleStr}"
-
-特有属性: 角色的特殊能力与技能，体现世界观特色与个体差异。
-格式: "{特有属性}:{数值}"，数值范围${specialRangeStr}
-示例: "${specialExampleStr}"
-
-【属性标尺】
-${attributeScaleStr}`;
-    console.info(`${debugPrefix} 已生成新的属性规则内容`, {
-      baseRangeStr,
-      specialRangeStr,
-      baseExampleStr,
-      specialExampleStr,
-      attributeScaleStr,
-    });
-
-    let modified = false;
-    const isTemplateSheetWithNote = (value: unknown): value is TemplateSheetDebug => {
-      if (!value || typeof value !== 'object') return false;
-      const record = value as Record<string, unknown>;
-      const sourceData = record.sourceData;
-      if (!sourceData || typeof sourceData !== 'object') return false;
-      return typeof (sourceData as Record<string, unknown>).note === 'string';
-    };
-    const getAttributeRuleSnippet = (note: string): string => {
-      const matched = note.match(/<属性规则>[\s\S]*?<\/属性规则>/);
-      return (matched?.[0] || '').slice(0, 500);
-    };
-    const describeTemplateSheet = (sheetKey: string, sheet: TemplateSheetDebug | undefined): void => {
-      const note = sheet?.sourceData?.note;
-      console.info(`${debugPrefix} 目标表检查`, {
-        sheetKey,
-        hasSheet: !!sheet,
-        sheetName: String(sheet?.name || ''),
-        hasSourceData: !!sheet?.sourceData,
-        noteType: typeof note,
-        noteLength: typeof note === 'string' ? note.length : 0,
-        hasAttributeRuleTag: typeof note === 'string' ? note.includes('<属性规则>') : false,
-        currentAttributeRuleSnippet: typeof note === 'string' ? getAttributeRuleSnippet(note) : '',
-      });
-    };
-    const replaceAttributeRuleInSheet = (sheetKey: string, sheet: TemplateSheetDebug | undefined): void => {
-      const sourceData = sheet?.sourceData;
-      if (!sourceData || typeof sourceData.note !== 'string') {
-        console.warn(`${debugPrefix} 跳过 ${sheetKey}: note 不存在或不是字符串`, {
-          hasSheet: !!sheet,
-          noteType: typeof sourceData?.note,
-        });
-        return;
-      }
-
-      const originalNote = sourceData.note;
-      const nextNote = replaceTag(originalNote, '属性规则', attributeRulesContent);
-      const changed = nextNote !== originalNote;
-      console.info(`${debugPrefix} note 替换结果`, {
-        sheetKey,
-        changed,
-        beforeSnippet: getAttributeRuleSnippet(originalNote),
-        afterSnippet: getAttributeRuleSnippet(nextNote),
-      });
-
-      if (changed) {
-        sourceData.note = nextNote;
-        modified = true;
-      }
-    };
-
-    // 7.5 扫描所有带 <属性规则> 标签的表；用户自定义角色表只要加入标签，也会自动同步。
-    const attributeRuleSheets = Object.entries(template).filter((entry): entry is [string, TemplateSheetDebug] => {
-      const [, sheet] = entry;
-      if (!isTemplateSheetWithNote(sheet)) return false;
-      return sheet.sourceData?.note?.includes('<属性规则>') === true;
-    });
-    console.info(`${debugPrefix} 可同步表扫描`, {
-      totalSheets: templateKeys.length,
-      matchedCount: attributeRuleSheets.length,
-      matchedSheets: attributeRuleSheets.map(([sheetKey, sheet]) => ({
-        sheetKey,
-        sheetName: String(sheet.name || ''),
-      })),
-    });
-    if (attributeRuleSheets.length === 0) {
-      console.warn(`${debugPrefix} 没有找到包含 <属性规则> 标签的表，跳过 note 同步`);
-    }
-
-    // 8. 替换所有带 <属性规则> 标签的 note。
-    attributeRuleSheets.forEach(([sheetKey, sheet]) => {
-      describeTemplateSheet(sheetKey, sheet);
-      replaceAttributeRuleInSheet(sheetKey, sheet);
-    });
-
-    const activeCheckPresetId = Store.get(STORAGE_KEY_ACTIVE_ADVANCED_PRESET, null) as string | null;
-    const checkRuleModified = syncCheckRuleTagsInTemplate(template, activeCheckPresetId, debugPrefix);
-    modified = modified || checkRuleModified;
-    console.info(`${debugPrefix} 模板修改汇总`, { modified, presetId });
-
-    // 9. 使用数据库 API 保存模板
-    if (modified && typeof dbApi.importTemplateFromData === 'function') {
-      console.info(`${debugPrefix} 准备保存模板`, { presetId, scope: 'chat' });
-      dbApi
-        .importTemplateFromData(template, { scope: 'chat' })
-        .then((result: TemplateImportResultDebug) => {
-          console.info(`${debugPrefix} importTemplateFromData 返回`, {
-            presetId,
-            result,
-          });
-          if (result.success) {
-            console.log('[DICE] updateTemplateForActivePreset 已更新表格模板，预设:', presetId);
-          } else {
-            console.error('[DICE] updateTemplateForActivePreset 保存模板失败:', result.message);
-          }
-        })
-        .catch((err: Error) => {
-          console.error(`${debugPrefix} importTemplateFromData 异常`, err);
-        });
-    } else if (!modified) {
-      console.log('[DICE] updateTemplateForActivePreset 无需更新（模板内容未变化），预设:', presetId);
-      console.info(`${debugPrefix} 未保存：没有检测到 note 变化`, { presetId });
-    } else {
-      console.warn(`${debugPrefix} importTemplateFromData 不可用，跳过保存`);
-    }
-  };
+  const updateTemplateForActivePreset = createUpdateTemplateForActivePreset({
+    generateAttributeScale: (...a: any[]) => generateAttributeScale(...a),
+    generateRPGAttributes: (...a: any[]) => generateRPGAttributes(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    replaceTag: (...a: any[]) => replaceTag(...a),
+    syncCheckRuleTagsInTemplate: (...a: any[]) => syncCheckRuleTagsInTemplate(...a),
+    AttributePresetManager: AttributePresetManager,
+    BUILTIN_ATTRIBUTE_PRESETS: BUILTIN_ATTRIBUTE_PRESETS,
+    STORAGE_KEY_ACTIVE_ADVANCED_PRESET: STORAGE_KEY_ACTIVE_ADVANCED_PRESET,
+  });
 
   // ========================================
   // 交互规则预设系统
@@ -13043,187 +12711,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   // [新增] 将属性写入角色表格
   // [修复] 支持分别写入基础属性列和特有属性列
-  const writeAttributesToCharacter = async (
-    charName,
-    newAttrs,
-    isDND = false,
-    specialAttrs: Record<string, number> | null = null,
-  ) => {
-    const rawData = cachedRawData || getTableData();
-    if (!rawData) {
-      console.error('[DICE]ACU writeAttributesToCharacter: 无法获取表格数据');
-      if (window.toastr)
-        showActionableErrorToast('无法获取表格数据，暂时不能写入角色属性。', { suggestion: 'table' });
-      return { success: false };
-    }
-
-    const lookup = findCharacterAttributeRow(charName, rawData as DiceRawData);
-    const targetSheet = lookup?.sheet || null;
-    const targetRowIndex = lookup?.rowIndex ?? -1;
-    const sheetKey = lookup?.sheetKey || null;
-    const { baseColIndex, specialColIndex } = lookup
-      ? findPrimaryAttributeColumns(lookup.headers)
-      : { baseColIndex: -1, specialColIndex: -1 };
-
-    // 验证是否找到目标
-    if (!targetSheet || targetRowIndex < 0) {
-      console.error('[DICE]ACU writeAttributesToCharacter: 找不到角色', charName);
-      if (window.toastr)
-        showActionableErrorToast(`找不到角色「${charName || '<user>'}」，无法写入属性。`, {
-          suggestion: '请确认角色名与表格中的名称一致，并刷新数据后再试；如果角色确实存在，请检查角色表是否包含名称列。',
-        });
-      return { success: false };
-    }
-
-    if (baseColIndex < 0) {
-      console.error('[DICE]ACU writeAttributesToCharacter: 找不到属性列');
-      errorTableTemplateIssue('找不到属性列（需要包含"属性"关键词的列）');
-      return { success: false };
-    }
-
-    // 获取当前规则的属性列表
-    const standardAttrs = getStandardAttrs();
-    const preset = AttributePresetManager.getActivePreset();
-    const presetSpecialAttrNames = new Set<string>();
-    if (preset && preset.specialAttributes) {
-      preset.specialAttributes.forEach(attr => presetSpecialAttrNames.add(attr.name));
-    }
-
-    // ========== 处理基础属性列 ==========
-    const existingBaseStr = targetSheet.content[targetRowIndex][baseColIndex] || '';
-    const existingBaseAttrs = parseAttributeString(existingBaseStr);
-
-    // 构建现有基础属性的映射
-    const existingBaseMap = {};
-    existingBaseAttrs.forEach(attr => {
-      existingBaseMap[attr.name] = attr.value;
-    });
-
-    // 检查标准属性（基本属性）是否完整
-    let standardCount = 0;
-    standardAttrs.forEach(attrName => {
-      if (existingBaseMap[attrName] !== undefined) {
-        standardCount++;
-      }
-    });
-    const isComplete = standardCount === standardAttrs.length;
-
-    // 收集基础属性列中的用户自定义属性（不属于当前规则预设的属性）
-    const customBaseAttrs: Array<{ name: string; value: number }> = [];
-    existingBaseAttrs.forEach(attr => {
-      if (!standardAttrs.includes(attr.name) && !presetSpecialAttrNames.has(attr.name)) {
-        customBaseAttrs.push({ name: attr.name, value: attr.value });
-      }
-    });
-
-    // 按标准顺序构建基础属性结果
-    const baseResultParts: string[] = [];
-
-    // 写入基本属性
-    standardAttrs.forEach(attrName => {
-      if (isComplete) {
-        // 完整 → 全部用新值覆盖
-        const newValue = newAttrs[attrName] !== undefined ? newAttrs[attrName] : existingBaseMap[attrName];
-        if (newValue !== undefined) {
-          baseResultParts.push(`${attrName}:${newValue}`);
-        }
-      } else {
-        // 不完整 → 有则保留，无则用新值
-        if (existingBaseMap[attrName] !== undefined) {
-          baseResultParts.push(`${attrName}:${existingBaseMap[attrName]}`);
-        } else if (newAttrs[attrName] !== undefined) {
-          baseResultParts.push(`${attrName}:${newAttrs[attrName]}`);
-        }
-      }
-    });
-
-    // 如果没有独立的特有属性列，则把特有属性也写入基础属性列（兼容旧格式）
-    if (specialColIndex < 0 && specialAttrs) {
-      Object.keys(specialAttrs).forEach(attrName => {
-        if (isComplete || !existingBaseMap[attrName]) {
-          baseResultParts.push(`${attrName}:${specialAttrs[attrName]}`);
-        } else {
-          baseResultParts.push(`${attrName}:${existingBaseMap[attrName]}`);
-        }
-      });
-    }
-
-    // 追加用户自定义属性
-    customBaseAttrs.forEach(attr => {
-      baseResultParts.push(`${attr.name}:${attr.value}`);
-    });
-
-    const newBaseAttrString = baseResultParts.join(';');
-
-    const nextRow = [...targetSheet.content[targetRowIndex]];
-    nextRow[baseColIndex] = newBaseAttrString;
-
-    // ========== 处理特有属性列（如果存在且有特有属性需要写入） ==========
-    let newSpecialAttrString = '';
-    if (specialColIndex >= 0 && specialAttrs && Object.keys(specialAttrs).length > 0) {
-      const existingSpecialStr = targetSheet.content[targetRowIndex][specialColIndex] || '';
-      const existingSpecialAttrs = parseAttributeString(existingSpecialStr);
-
-      // 构建现有特有属性的映射
-      const existingSpecialMap = {};
-      existingSpecialAttrs.forEach(attr => {
-        existingSpecialMap[attr.name] = attr.value;
-      });
-
-      // 收集特有属性列中的用户自定义属性
-      const customSpecialAttrs: Array<{ name: string; value: number }> = [];
-      existingSpecialAttrs.forEach(attr => {
-        if (!presetSpecialAttrNames.has(attr.name)) {
-          customSpecialAttrs.push({ name: attr.name, value: attr.value });
-        }
-      });
-
-      // 构建特有属性结果
-      const specialResultParts: string[] = [];
-
-      // 按预设顺序写入特有属性
-      if (preset && preset.specialAttributes) {
-        preset.specialAttributes.forEach(attrDef => {
-          const attrName = attrDef.name;
-          if (specialAttrs[attrName] !== undefined) {
-            if (isComplete || !existingSpecialMap[attrName]) {
-              specialResultParts.push(`${attrName}:${specialAttrs[attrName]}`);
-            } else {
-              specialResultParts.push(`${attrName}:${existingSpecialMap[attrName]}`);
-            }
-          } else if (existingSpecialMap[attrName] !== undefined) {
-            specialResultParts.push(`${attrName}:${existingSpecialMap[attrName]}`);
-          }
-        });
-      }
-
-      // 追加用户自定义属性
-      customSpecialAttrs.forEach(attr => {
-        specialResultParts.push(`${attr.name}:${attr.value}`);
-      });
-
-      newSpecialAttrString = specialResultParts.join(';');
-
-      nextRow[specialColIndex] = newSpecialAttrString;
-    }
-
-    // 保存（不更新完整快照，保留审核面板状态）
-    await saveRowInstantly(sheetKey, targetRowIndex - 1, nextRow);
-
-    // 返回写入的属性供UI更新
-    const writtenAttrs: Array<{ name: string; value: number }> = [];
-    standardAttrs.forEach(attrName => {
-      writtenAttrs.push({ name: attrName, value: newAttrs[attrName] });
-    });
-
-    return {
-      success: true,
-      attrs: writtenAttrs,
-      attrString: newBaseAttrString,
-      specialAttrString: newSpecialAttrString,
-      wasComplete: isComplete,
-    };
-  };
+  const writeAttributesToCharacter = createWriteAttributesToCharacter({
+    errorTableTemplateIssue: (...a: any[]) => errorTableTemplateIssue(...a),
+    findCharacterAttributeRow: (...a: any[]) => findCharacterAttributeRow(...a),
+    findPrimaryAttributeColumns: (...a: any[]) => findPrimaryAttributeColumns(...a),
+    getStandardAttrs: (...a: any[]) => getStandardAttrs(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    parseAttributeString: (...a: any[]) => parseAttributeString(...a),
+    saveRowInstantly: (...a: any[]) => saveRowInstantly(...a),
+    AttributePresetManager: AttributePresetManager,
+    getCachedRawData: () => cachedRawData,
+  });
 
   // [新增] 更新属性字符串中的单个属性值（用于燃运等功能）
   const updateSingleAttribute = async (
@@ -16393,74 +15891,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const parseDiceConfigBackup = (text: string): DiceConfigBackupParseResult => {
-    const parsed = parseJsoncDocument({
-      text,
-      emptyMessage: '备份文件内容为空',
-      invalidJsonMessage: '备份文件不是有效的 JSON/JSONC',
-      validate: value => {
-        if (!isDiceConfigBackupRecord(value)) throw new Error('备份文件结构无效');
-        return value;
-      },
-    });
-    if (parsed.format !== DICE_CONFIG_BACKUP_FORMAT) throw new Error('备份格式不匹配，无法作为骰子系统配置备份导入');
-    if (parsed.schemaVersion !== DICE_CONFIG_BACKUP_SCHEMA_VERSION) {
-      throw new Error(`仅支持 schemaVersion ${DICE_CONFIG_BACKUP_SCHEMA_VERSION} 的备份文件`);
-    }
-    if (!isDiceConfigBackupRecord(parsed.modules)) throw new Error('备份文件缺少 modules 配置');
-
-    const warnings: string[] = [];
-    const modules: Partial<Record<DiceConfigBackupModuleId, DiceConfigBackupModulePayload>> = {};
-
-    Object.entries(parsed.modules).forEach(([rawModuleId, rawPayload]) => {
-      if (!isDiceConfigBackupModuleId(rawModuleId)) {
-        warnings.push(`备份文件包含未知模块 "${rawModuleId}"，已跳过。`);
-        return;
-      }
-      if (!isDiceConfigBackupRecord(rawPayload)) {
-        warnings.push(`模块 "${rawModuleId}" 的结构无效，已跳过。`);
-        return;
-      }
-      const storageValue = rawPayload.storage;
-      const moduleStorage = isDiceConfigBackupRecord(storageValue)
-        ? cloneDiceConfigBackupValue(storageValue)
-        : {};
-      if (storageValue !== undefined && !isDiceConfigBackupRecord(storageValue)) {
-        warnings.push(`模块 "${rawModuleId}" 的 storage 结构无效，已按空对象处理。`);
-      }
-      const warningsValue = rawPayload.warnings;
-      const moduleWarnings = Array.isArray(warningsValue)
-        ? warningsValue.map(item => String(item || '').trim()).filter(Boolean)
-        : [];
-      const resourcesValue = rawPayload.resources;
-      const moduleResources = isDiceConfigBackupRecord(resourcesValue)
-        ? cloneDiceConfigBackupValue(resourcesValue)
-        : undefined;
-      if (resourcesValue !== undefined && !moduleResources) {
-        warnings.push(`模块 "${rawModuleId}" 的扩展资源结构无效，已忽略。`);
-      }
-      const resourceShapeWarnings = getDiceConfigBackupModuleResourceShapeWarnings(rawModuleId, moduleResources);
-      modules[rawModuleId] = {
-        storage: moduleStorage,
-        ...(moduleResources ? { resources: moduleResources } : {}),
-        ...(moduleWarnings.length > 0 || resourceShapeWarnings.length > 0
-          ? { warnings: [...moduleWarnings, ...resourceShapeWarnings] }
-          : {}),
-      };
-    });
-
-    return {
-      backup: {
-        format: DICE_CONFIG_BACKUP_FORMAT,
-        schemaVersion: DICE_CONFIG_BACKUP_SCHEMA_VERSION,
-        exportedAt: typeof parsed.exportedAt === 'string' ? parsed.exportedAt : '',
-        scriptVersion: typeof parsed.scriptVersion === 'string' ? parsed.scriptVersion : '',
-        presetFormatVersion: typeof parsed.presetFormatVersion === 'string' ? parsed.presetFormatVersion : '',
-        modules,
-      },
-      warnings,
-    };
-  };
+  const parseDiceConfigBackup = createParseDiceConfigBackup({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupModuleResourceShapeWarnings: (...a: any[]) => getDiceConfigBackupModuleResourceShapeWarnings(...a),
+    isDiceConfigBackupModuleId: (...a: any[]) => isDiceConfigBackupModuleId(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    parseJsoncDocument: (...a: any[]) => parseJsoncDocument(...a),
+    DICE_CONFIG_BACKUP_FORMAT: DICE_CONFIG_BACKUP_FORMAT,
+    DICE_CONFIG_BACKUP_SCHEMA_VERSION: DICE_CONFIG_BACKUP_SCHEMA_VERSION,
+  });
 
   const getDiceConfigBackupValueIdentity = (value: unknown): string => {
     if (value === null) return 'null:null';
@@ -17088,150 +16527,31 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     if (!Store.set(key, value)) throw new Error(`存储项 ${key} 保存失败`);
   };
 
-  const applyDiceConfigBackupValue = (
-    key: string,
-    value: unknown,
-    moduleName: string,
-    stats: DiceConfigBackupApplyStats,
-    idMappings: Map<string, Map<string, string>>,
-  ): void => {
-    const strategy = getDiceConfigBackupKeyStrategy(key);
-    const currentExists = localStorage.getItem(key) !== null;
-    const current = strategy === 'rawString' ? localStorage.getItem(key) : Store.get(key, undefined);
-
-    if (strategy === 'gachaPoolSettings' || strategy === 'gachaItemSettings') {
-      const merged =
-        strategy === 'gachaPoolSettings'
-          ? mergeDiceConfigBackupGachaPoolSettings(current, value)
-          : mergeDiceConfigBackupGachaItemSettings(current, value);
-      if (!merged) {
-        stats.skipped += 1;
-        stats.warnings.push(`${moduleName}: ${key} 不是有效的商城配置，已跳过。`);
-        return;
-      }
-      if (isDiceConfigBackupSameValue(current, merged)) {
-        stats.skipped += 1;
-      } else {
-        if (currentExists) {
-          stats.overwritten += 1;
-        } else {
-          stats.added += 1;
-        }
-        setDiceConfigBackupValue(key, merged);
-      }
-      return;
-    }
-
-    if (strategy === 'object' || strategy === 'map') {
-      if (!isDiceConfigBackupRecord(value)) {
-        stats.skipped += 1;
-        stats.warnings.push(`${moduleName}: ${key} 不是对象配置，已跳过。`);
-        return;
-      }
-      const currentRecord = isDiceConfigBackupRecord(current) ? current : {};
-      const merged = { ...currentRecord, ...value };
-      if (isDiceConfigBackupSameValue(current, merged)) {
-        stats.skipped += 1;
-      } else {
-        if (currentExists) {
-          stats.overwritten += 1;
-        } else {
-          stats.added += 1;
-        }
-        setDiceConfigBackupValue(key, merged);
-      }
-      return;
-    }
-
-    if (strategy === 'setArray') {
-      const merged = mergeDiceConfigBackupSetArray(current, value);
-      if (!merged) {
-        stats.skipped += 1;
-        stats.warnings.push(`${moduleName}: ${key} 不是数组配置，已跳过。`);
-        return;
-      }
-      if (isDiceConfigBackupSameValue(current, merged)) {
-        stats.skipped += 1;
-      } else {
-        if (currentExists) {
-          stats.overwritten += 1;
-        } else {
-          stats.added += 1;
-        }
-        setDiceConfigBackupValue(key, merged);
-      }
-      return;
-    }
-
-    if (key === STORAGE_KEY_VALIDATION_RULES) {
-      const currentRules = getDiceConfigBackupRuleRecords(current, sanitizeDiceConfigBackupValidationRule);
-      const incomingRules = getDiceConfigBackupRuleRecords(value, sanitizeDiceConfigBackupValidationRule);
-      const builtinKeys = new Set(
-        BUILTIN_VALIDATION_RULES.map(rule =>
-          getDiceConfigBackupValidationRuleKey(rule as Record<string, unknown>),
-        ).filter(Boolean),
-      );
-      const mergedRules = mergeDiceConfigBackupCustomRules(
-        currentRules,
-        incomingRules,
-        builtinKeys,
-        getDiceConfigBackupValidationRuleKey,
-      );
-      if (isDiceConfigBackupSameValue(current, mergedRules)) {
-        stats.skipped += 1;
-      } else {
-        if (currentExists) {
-          stats.overwritten += 1;
-        } else {
-          stats.added += 1;
-        }
-        setDiceConfigBackupValue(key, mergedRules);
-      }
-      return;
-    }
-
-    if (key === STORAGE_KEY_REGEX_RULES) {
-      const mergedRules = mergeDiceConfigBackupRegexRules(current, value);
-      if (isDiceConfigBackupSameValue(current, mergedRules)) {
-        stats.skipped += 1;
-      } else {
-        if (currentExists) {
-          stats.overwritten += 1;
-        } else {
-          stats.added += 1;
-        }
-        setDiceConfigBackupValue(key, mergedRules);
-      }
-      return;
-    }
-
-    if (strategy === 'presetArray') {
-      const merged =
-        key === STORAGE_KEY_PRESETS || key === STORAGE_KEY_REGEX_PRESETS
-          ? mergeDiceConfigBackupPresetArraySafely(current, value, moduleName, key)
-          : key === STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS
-            ? mergeDiceConfigBackupCustomOnlyPresetArray(current, value, moduleName, key)
-          : mergeDiceConfigBackupPresetArray(current, sanitizeDiceConfigBackupStoredValue(key, value), moduleName, key);
-      idMappings.set(key, merged.idMap);
-      stats.added += merged.added;
-      stats.overwritten += merged.overwritten;
-      stats.skipped += merged.skipped;
-      stats.warnings.push(...merged.warnings);
-      if (!isDiceConfigBackupSameValue(current, merged.value)) setDiceConfigBackupValue(key, merged.value);
-      return;
-    }
-
-    if (isDiceConfigBackupSameValue(current, value)) {
-      stats.skipped += 1;
-    } else {
-      if (currentExists) {
-        stats.overwritten += 1;
-      } else {
-        stats.added += 1;
-      }
-      setDiceConfigBackupValue(key, cloneDiceConfigBackupValue(value));
-    }
-  };
+  const applyDiceConfigBackupValue = createApplyDiceConfigBackupValue({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupKeyStrategy: (...a: any[]) => getDiceConfigBackupKeyStrategy(...a),
+    getDiceConfigBackupRuleRecords: (...a: any[]) => getDiceConfigBackupRuleRecords(...a),
+    getDiceConfigBackupValidationRuleKey: (...a: any[]) => getDiceConfigBackupValidationRuleKey(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    isDiceConfigBackupSameValue: (...a: any[]) => isDiceConfigBackupSameValue(...a),
+    mergeDiceConfigBackupCustomOnlyPresetArray: (...a: any[]) => mergeDiceConfigBackupCustomOnlyPresetArray(...a),
+    mergeDiceConfigBackupCustomRules: (...a: any[]) => mergeDiceConfigBackupCustomRules(...a),
+    mergeDiceConfigBackupGachaItemSettings: (...a: any[]) => mergeDiceConfigBackupGachaItemSettings(...a),
+    mergeDiceConfigBackupGachaPoolSettings: (...a: any[]) => mergeDiceConfigBackupGachaPoolSettings(...a),
+    mergeDiceConfigBackupPresetArray: (...a: any[]) => mergeDiceConfigBackupPresetArray(...a),
+    mergeDiceConfigBackupPresetArraySafely: (...a: any[]) => mergeDiceConfigBackupPresetArraySafely(...a),
+    mergeDiceConfigBackupRegexRules: (...a: any[]) => mergeDiceConfigBackupRegexRules(...a),
+    mergeDiceConfigBackupSetArray: (...a: any[]) => mergeDiceConfigBackupSetArray(...a),
+    sanitizeDiceConfigBackupStoredValue: (...a: any[]) => sanitizeDiceConfigBackupStoredValue(...a),
+    sanitizeDiceConfigBackupValidationRule: (...a: any[]) => sanitizeDiceConfigBackupValidationRule(...a),
+    setDiceConfigBackupValue: (...a: any[]) => setDiceConfigBackupValue(...a),
+    BUILTIN_VALIDATION_RULES: BUILTIN_VALIDATION_RULES,
+    STORAGE_KEY_PRESETS: STORAGE_KEY_PRESETS,
+    STORAGE_KEY_REGEX_PRESETS: STORAGE_KEY_REGEX_PRESETS,
+    STORAGE_KEY_REGEX_RULES: STORAGE_KEY_REGEX_RULES,
+    STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS: STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS,
+    STORAGE_KEY_VALIDATION_RULES: STORAGE_KEY_VALIDATION_RULES,
+  });
 
   const applyDiceConfigBackupActiveValue = (
     write: DiceConfigBackupPendingActiveWrite,
@@ -17643,160 +16963,32 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const applyDiceConfigBackup = async (
-    backup: DiceConfigBackupDocument,
-    selectedModuleIds: readonly DiceConfigBackupModuleId[],
-  ): Promise<DiceConfigBackupApplyStats> => {
-    if (backup.format !== DICE_CONFIG_BACKUP_FORMAT || backup.schemaVersion !== DICE_CONFIG_BACKUP_SCHEMA_VERSION) {
-      throw new Error('备份文件版本不兼容');
-    }
-    const selectedIds = normalizeDiceConfigBackupSelectedModuleIds(selectedModuleIds);
-    if (selectedIds.length === 0) throw new Error('请至少选择一个要恢复的模块');
-
-    const stats: DiceConfigBackupApplyStats = {
-      added: 0,
-      overwritten: 0,
-      skipped: 0,
-      restoredModules: [],
-      warnings: [],
-    };
-    const idMappings = new Map<string, Map<string, string>>();
-    const pendingActiveWrites: DiceConfigBackupPendingActiveWrite[] = [];
-    const affectedKeys = new Set<string>();
-    const hasGachaCatalogResource =
-      selectedIds.includes('gachaSettings') &&
-      Array.isArray(backup.modules.gachaSettings?.resources?.[DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY]);
-    const incomingGachaItemSettings = normalizeDiceConfigBackupGachaItemSettings(
-      selectedIds.includes('gachaSettings')
-        ? backup.modules.gachaSettings?.storage?.[STORAGE_KEY_GACHA_ITEM_SETTINGS]
-        : undefined,
-    );
-    const gachaItemSettingSourceIds = new Set(Object.keys(incomingGachaItemSettings?.items || {}));
-
-    selectedIds.forEach(moduleId => {
-      const definition = getDiceConfigBackupModuleDefinition(moduleId);
-      const payload = backup.modules[moduleId];
-      if (!definition || !payload) return;
-      Object.keys(payload.storage).forEach(key => {
-        if (definition.storageKeys.includes(key)) affectedKeys.add(key);
-      });
-    });
-    if (selectedIds.includes('regex')) affectedKeys.add(STORAGE_KEY_REGEX_RULES);
-    if (hasGachaCatalogResource) affectedKeys.add(STORAGE_KEY_GACHA_POOL_SETTINGS);
-
-    const rollbackValues = new Map<string, string | null>();
-    affectedKeys.forEach(key => rollbackValues.set(key, localStorage.getItem(key)));
-    const gachaCatalogRollbackSnapshot =
-      hasGachaCatalogResource
-        ? await collectDiceConfigBackupGachaCatalogRollbackSnapshot()
-        : null;
-    if (gachaCatalogRollbackSnapshot?.warning) throw new Error(gachaCatalogRollbackSnapshot.warning);
-    const tableTemplateRollbackSnapshot =
-      selectedIds.includes('tableTemplate') && hasDiceConfigBackupTableTemplateResource(backup.modules.tableTemplate)
-        ? getDiceConfigBackupTableTemplateRollbackSnapshot()
-        : undefined;
-    if (tableTemplateRollbackSnapshot?.warning) throw new Error(tableTemplateRollbackSnapshot.warning);
-    const deferredTableTemplatePayload =
-      selectedIds.includes('tableTemplate') && backup.modules.tableTemplate
-        ? backup.modules.tableTemplate
-        : null;
-    const deferredGachaPayload =
-      selectedIds.includes('gachaSettings') && backup.modules.gachaSettings ? backup.modules.gachaSettings : null;
-    const gachaItemIdMap = new Map<string, string>();
-    let tableTemplateResourceImportAttempted = false;
-    let latestRestoreRawData: unknown = getRuntimeGachaRawData();
-    const getTouchedCount = () => stats.added + stats.overwritten + stats.skipped;
-    const pushRestoredModule = (moduleId: DiceConfigBackupModuleId, touchedBefore: number) => {
-      const definition = getDiceConfigBackupModuleDefinition(moduleId);
-      if (!definition || getTouchedCount() <= touchedBefore) return;
-      if (!stats.restoredModules.includes(definition.name)) stats.restoredModules.push(definition.name);
-    };
-
-    try {
-      for (const moduleId of selectedIds) {
-        const definition = getDiceConfigBackupModuleDefinition(moduleId);
-        const payload = backup.modules[moduleId];
-        if (!definition || !payload) continue;
-        const moduleTouchedBefore = getTouchedCount();
-        if (payload.warnings?.length) stats.warnings.push(...payload.warnings);
-
-        Object.entries(payload.storage).forEach(([key, value]) => {
-          if (!definition.storageKeys.includes(key)) {
-            stats.skipped += 1;
-            stats.warnings.push(`${definition.name}: 未知存储项 ${key} 已跳过。`);
-            return;
-          }
-          if (DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY[key]) {
-            pendingActiveWrites.push({ key, value, moduleName: definition.name });
-            return;
-          }
-          applyDiceConfigBackupValue(key, value, definition.name, stats, idMappings);
-        });
-        pushRestoredModule(moduleId, moduleTouchedBefore);
-      }
-
-      pendingActiveWrites.forEach(write => applyDiceConfigBackupActiveValue(write, stats, idMappings));
-      if (deferredTableTemplatePayload) {
-        const moduleTouchedBefore = getTouchedCount();
-        const resourceAddedBefore = stats.added;
-        await restoreDiceConfigBackupModuleResources('tableTemplate', deferredTableTemplatePayload, stats, {
-          onTableTemplateImportAttempt: () => {
-            tableTemplateResourceImportAttempted = true;
-          },
-        });
-        const tableTemplateResourceImported = stats.added > resourceAddedBefore;
-        pushRestoredModule('tableTemplate', moduleTouchedBefore);
-        if (tableTemplateResourceImported) {
-          cachedRawData = null;
-          syncDiceConfigBackupRuntimeAfterRestore(selectedIds, { closeSettings: true });
-          latestRestoreRawData = getTableData({ silent: true }) || getRuntimeGachaRawData();
-        }
-      }
-      if (deferredGachaPayload) {
-        const moduleTouchedBefore = getTouchedCount();
-        await restoreDiceConfigBackupModuleResources('gachaSettings', deferredGachaPayload, stats, {
-          gachaItemIdMap,
-          rawData: latestRestoreRawData,
-        });
-        remapDiceConfigBackupGachaItemSettings(gachaItemIdMap, gachaItemSettingSourceIds);
-        pushRestoredModule('gachaSettings', moduleTouchedBefore);
-      }
-      syncDiceConfigBackupRuntimeAfterRestore(selectedIds, { closeSettings: true });
-      return stats;
-    } catch (error) {
-      const rollbackWarnings: string[] = [];
-      rollbackValues.forEach((value, key) => {
-        try {
-          if (value === null) {
-            localStorage.removeItem(key);
-          } else {
-            localStorage.setItem(key, value);
-          }
-        } catch (rollbackError) {
-          const message = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
-          rollbackWarnings.push(`${key} 回滚失败：${message}`);
-        }
-      });
-      rollbackWarnings.push(
-        ...(await restoreDiceConfigBackupGachaCatalogSnapshot(gachaCatalogRollbackSnapshot)),
-        ...(tableTemplateResourceImportAttempted
-          ? await restoreDiceConfigBackupTableTemplateRollbackSnapshot(tableTemplateRollbackSnapshot)
-          : []),
-      );
-      try {
-        syncDiceConfigBackupRuntimeAfterRestore(selectedIds);
-      } catch (syncError) {
-        const message = syncError instanceof Error ? syncError.message : String(syncError);
-        rollbackWarnings.push(`恢复失败后的界面刷新也失败：${message}`);
-      }
-      if (rollbackWarnings.length > 0) {
-        stats.warnings.push(...rollbackWarnings);
-        const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`${message}；回滚提示：${rollbackWarnings.join('；')}`);
-      }
-      throw error;
-    }
-  };
+  const applyDiceConfigBackup = createApplyDiceConfigBackup({
+    applyDiceConfigBackupActiveValue: (...a: any[]) => applyDiceConfigBackupActiveValue(...a),
+    applyDiceConfigBackupValue: (...a: any[]) => applyDiceConfigBackupValue(...a),
+    collectDiceConfigBackupGachaCatalogRollbackSnapshot: (...a: any[]) => collectDiceConfigBackupGachaCatalogRollbackSnapshot(...a),
+    getDiceConfigBackupModuleDefinition: (...a: any[]) => getDiceConfigBackupModuleDefinition(...a),
+    getDiceConfigBackupTableTemplateRollbackSnapshot: (...a: any[]) => getDiceConfigBackupTableTemplateRollbackSnapshot(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    hasDiceConfigBackupTableTemplateResource: (...a: any[]) => hasDiceConfigBackupTableTemplateResource(...a),
+    normalizeDiceConfigBackupGachaItemSettings: (...a: any[]) => normalizeDiceConfigBackupGachaItemSettings(...a),
+    normalizeDiceConfigBackupSelectedModuleIds: (...a: any[]) => normalizeDiceConfigBackupSelectedModuleIds(...a),
+    remapDiceConfigBackupGachaItemSettings: (...a: any[]) => remapDiceConfigBackupGachaItemSettings(...a),
+    restoreDiceConfigBackupGachaCatalogSnapshot: (...a: any[]) => restoreDiceConfigBackupGachaCatalogSnapshot(...a),
+    restoreDiceConfigBackupModuleResources: (...a: any[]) => restoreDiceConfigBackupModuleResources(...a),
+    restoreDiceConfigBackupTableTemplateRollbackSnapshot: (...a: any[]) => restoreDiceConfigBackupTableTemplateRollbackSnapshot(...a),
+    syncDiceConfigBackupRuntimeAfterRestore: (...a: any[]) => syncDiceConfigBackupRuntimeAfterRestore(...a),
+    DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY: DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY,
+    DICE_CONFIG_BACKUP_FORMAT: DICE_CONFIG_BACKUP_FORMAT,
+    DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY: DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY,
+    DICE_CONFIG_BACKUP_SCHEMA_VERSION: DICE_CONFIG_BACKUP_SCHEMA_VERSION,
+    STORAGE_KEY_GACHA_ITEM_SETTINGS: STORAGE_KEY_GACHA_ITEM_SETTINGS,
+    STORAGE_KEY_GACHA_POOL_SETTINGS: STORAGE_KEY_GACHA_POOL_SETTINGS,
+    STORAGE_KEY_REGEX_RULES: STORAGE_KEY_REGEX_RULES,
+    getCachedRawData: () => cachedRawData,
+    setCachedRawData: (v: any) => { cachedRawData = v; },
+  });
 
   const getAllDiceConfigBackupModuleIds = (): DiceConfigBackupModuleId[] =>
     DICE_CONFIG_BACKUP_MODULES.map(module => module.id);
@@ -22658,219 +21850,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * AcuDice 公共 API
    * 提供骰子投掷和检定功能给外部插件使用
    */
-  const AcuDiceAPI = {
-    /** API 版本号 */
-    version: '1.3.0',
-
-    /**
-     * 骰子投掷（同步）
-     * @param formula 骰子表达式，如 "2d6", "1d20+5", "4d6kh3"
-     * @returns 投掷结果对象
-     * @example
-     * AcuDice.roll('2d6') // => { total: 7, formula: '2d6', breakdown: '2d6 = 7' }
-     * AcuDice.roll('1d20+5') // => { total: 15, formula: '1d20+5', breakdown: '1d20+5 = 15' }
-     */
-    roll(formula: string): { total: number; formula: string; breakdown: string } {
-      return acuDiceRoll.roll(formula);
-    },
-
-    /**
-     * 属性/技能检定（异步）
-     * @param options 检定选项
-     * @returns 检定结果对象
-     * @example
-     * await AcuDice.check({ attribute: '力量' })
-     * await AcuDice.check({ attribute: '力量', targetValue: 50, diceType: '1d100' })
-     */
-    async check(
-      options: {
-        attribute?: string;
-        skill?: string;
-        targetValue?: number;
-        diceType?: string;
-        successCriteria?: 'lte' | 'gte';
-        modifier?: number;
-      } = {},
-    ): Promise<{
-      success: boolean;
-      roll: number;
-      target: number;
-      margin: number;
-      criticalSuccess: boolean;
-      criticalFailure: boolean;
-      message: string;
-      diceType: string;
-      rule: 'coc' | 'dnd';
-    }> {
-      return acuDiceCheck.check(options);
-    },
-    /**
-     * 初始化回调 - API 已就绪时调用
-     * @param callback 回调函数
-     */
-    onReady(callback: () => void): void {
-      acuDiceReady.onReady(callback);
-    },
-
-    /**
-     * 订阅事件
-     * @param event 事件类型 ('check' | 'contest')
-     * @param handler 事件处理函数
-     */
-    on(event: string, handler: Function): void {
-      acuDiceEvents.on(event, handler);
-    },
-
-    /**
-     * 取消事件订阅
-     * @param event 事件类型 ('check' | 'contest')
-     * @param handler 事件处理函数
-     */
-    off(event: string, handler: Function): void {
-      acuDiceEvents.off(event, handler);
-    },
-
-    /**
-     * 获取最近一次普通检定结果
-     */
-    getLatestCheck(): (AcuDice.CheckResult & { timestamp: number }) | null {
-      return acuDiceHistory.getLatestCheck() as (AcuDice.CheckResult & { timestamp: number }) | null;
-    },
-
-    /**
-     * 获取最近一次对抗检定结果
-     */
-    getLatestContest(): (AcuDice.ContestResult & { timestamp: number }) | null {
-      return acuDiceHistory.getLatestContest() as (AcuDice.ContestResult & { timestamp: number }) | null;
-    },
-
-    /**
-     * 获取历史记录
-     * @param options 查询选项
-     * @param options.limit 限制返回数量
-     * @param options.type 筛选类型 ('check' | 'contest')
-     */
-    getHistory(options?: { limit?: number; type?: 'check' | 'contest' }): Array<any> {
-      return acuDiceHistory.getHistory(options);
-    },
-
-    /**
-     * 获取所有预设列表（摘要信息）
-     * @returns 预设摘要数组
-     */
-    listPresets(): Array<{ id: string; name: string; description?: string; builtin: boolean }> {
-      return acuDicePresets.listPresets();
-    },
-
-    /**
-     * 获取当前激活的预设 ID
-     * @returns 预设 ID 字符串，无激活预设时返回 null
-     */
-    getActivePresetId(): string | null {
-      return acuDicePresets.getActivePresetId();
-    },
-
-    /**
-     * 获取指定预设的摘要信息
-     * @param presetId 预设 ID
-     * @returns 预设摘要，未找到时返回 null
-     */
-    getPresetSummary(presetId: string): { id: string; name: string; description?: string; builtin: boolean } | null {
-      return acuDicePresets.getPresetSummary(presetId);
-    },
-
-    profiles: acuDiceProfiles,
-
-    /**
-     * 获取所有可用角色名列表
-     * @returns 角色名数组，包括 '<user>' 和所有 NPC
-     * @example
-     * AcuDice.listCharacters() // => ['<user>', 'NPC1', 'NPC2']
-     */
-    listCharacters(): string[] {
-      return acuDiceCharacters.listCharacters();
-    },
-
-    /**
-     * 获取指定角色的所有属性
-     * @param name 角色名，可以是 '<user>' 或 NPC 名称
-     * @returns 属性数组，每个元素包含 name 和 value
-     * @example
-     * AcuDice.getCharacterAttributes('<user>') // => [{ name: '力量', value: 50 }, { name: '敏捷', value: 60 }]
-     * AcuDice.getCharacterAttributes('张三') // => [{ name: '力量', value: 70 }]
-     */
-    getCharacterAttributes(name: string): Array<{ name: string; value: number }> {
-      return acuDiceCharacters.getCharacterAttributes(name);
-    },
-
-    /**
-     * 获取指定角色的指定属性值
-     * @param name 角色名
-     * @param attribute 属性名
-     * @returns 属性值，如果未找到则返回 null
-     * @example
-     * AcuDice.getAttributeValue('<user>', '力量') // => 50
-     * AcuDice.getAttributeValue('张三', '敏捷') // => 60
-     */
-    getAttributeValue(name: string, attribute: string): number | null {
-      return acuDiceCharacters.getAttributeValue(name, attribute);
-    },
-
-    /**
-     * 按角色名和属性名进行便捷检定
-     * @param options 检定选项
-     * @returns 检定结果对象
-     * @example
-     * await AcuDice.checkByCharacter({ name: '<user>', attribute: '力量' })
-     * await AcuDice.checkByCharacter({ name: 'NPC1', attribute: '敏捷', modifier: 5 })
-     */
-    async checkByCharacter(options: {
-      name: string;
-      attribute: string;
-      modifier?: number;
-      diceType?: string;
-      successCriteria?: 'lte' | 'gte';
-    }): Promise<{
-      success: boolean;
-      roll: number;
-      target: number;
-      margin: number;
-      criticalSuccess: boolean;
-      criticalFailure: boolean;
-      message: string;
-      diceType: string;
-      rule: 'coc' | 'dnd';
-    }> {
-      return acuDiceCheck.checkByCharacter(options);
-    },
-    /**
-     * 对抗检定
-     * @param options 对抗检定选项
-     * @returns 对抗检定结果
-     * @example
-     * await AcuDice.contest({
-     *   left: { name: '<user>', attribute: '力量' },
-     *   right: { name: 'NPC1', attribute: '力量' }
-     * })
-     */
-    async contest(options: {
-      left?: { name: string; attribute: string; targetValue?: number };
-      right?: { name: string; attribute: string; targetValue?: number };
-      /** @deprecated 使用 left 代替 */
-      attacker?: { name: string; attribute: string; targetValue?: number };
-      /** @deprecated 使用 right 代替 */
-      defender?: { name: string; attribute: string; targetValue?: number };
-      rule?: 'initiator_win' | 'initiator_lose' | 'tie';
-      diceType?: string;
-    }): Promise<{
-      left: { name: string; attribute: string; roll: number; target: number; successLevel: number };
-      right: { name: string; attribute: string; roll: number; target: number; successLevel: number };
-      winner: 'left' | 'right' | 'tie';
-      message: string;
-    }> {
-      return acuDiceContest.contest(options);
-    },
-  };
+  const AcuDiceAPI = createAcuDiceAPI({
+    acuDiceCharacters: acuDiceCharacters,
+    acuDiceCheck: acuDiceCheck,
+    acuDiceContest: acuDiceContest,
+    acuDiceEvents: acuDiceEvents,
+    acuDiceHistory: acuDiceHistory,
+    acuDicePresets: acuDicePresets,
+    acuDiceReady: acuDiceReady,
+    acuDiceRoll: acuDiceRoll,
+    acuDiceProfiles: acuDiceProfiles,
+  });
 
   // ========================================
   // ========================================
@@ -23380,213 +22370,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const showTemplateInspectionResultModal = (result: TemplateInspectionResult): void => {
-    const { $ } = getCore();
-    const config = getConfig();
-    $('.acu-template-inspection-overlay').remove();
-
-    const errorCount = result.issues.filter(issue => issue.severity === 'error').length;
-    const warningCount = result.issues.filter(issue => issue.severity === 'warning').length;
-    const infoCount = result.issues.filter(issue => issue.severity === 'info').length;
-    const statusText =
-      result.issues.length === 0
-        ? '当前聊天模板满足当前模板检验预设的最低要求。'
-        : `发现 ${result.issues.length} 项需要关注的模板问题。`;
-    const severityRank: Record<TemplateInspectionSeverity, number> = { error: 3, warning: 2, info: 1 };
-    const groupedIssues = result.issues.reduce<TemplateInspectionIssueGroup[]>((groups, issue) => {
-      const groupName = issue.groupName || '其他问题';
-      let group = groups.find(item => item.name === groupName);
-      if (!group) {
-        group = { name: groupName, severity: issue.severity, issues: [] };
-        groups.push(group);
-      }
-      group.issues.push(issue);
-      if (severityRank[issue.severity] > severityRank[group.severity]) {
-        group.severity = issue.severity;
-      }
-      return groups;
-    }, []);
-
-    groupedIssues.sort((a, b) => severityRank[b.severity] - severityRank[a.severity] || a.name.localeCompare(b.name));
-    const isClean = groupedIssues.length === 0;
-    const summarySeverity = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : 'info';
-    const summaryMeta = getTemplateInspectionSeverityMeta(summarySeverity);
-    const presetLabel = result.presetName || '当前模板检验预设';
-    const issueSummaryTitle = isClean ? '模板结构完整' : `发现 ${result.issues.length} 项模板问题`;
-    const repairButtonHtml =
-      result.fixableCount > 0
-        ? `<button class="acu-dialog-btn acu-btn-confirm" id="template-inspection-repair" title="追加修复当前聊天模板" aria-label="追加修复当前聊天模板">
-             <i class="fa-solid fa-wrench"></i> 修复
-           </button>`
-        : '';
-
-    const tabHtml =
-      isClean
-        ? ''
-        : groupedIssues
-            .map((group, index) => {
-              const meta = getTemplateInspectionSeverityMeta(group.severity);
-              return `
-                <button class="acu-template-inspection-tab ${index === 0 ? 'active' : ''}" data-group-index="${index}" style="--acu-template-inspection-color:${meta.color};">
-                  <i class="fa-solid ${meta.icon} acu-template-inspection-tab-icon"></i>
-                  <span class="acu-template-inspection-tab-label">${escapeHtml(group.name)}</span>
-                  <span class="acu-changes-count acu-template-inspection-tab-count" style="background:${meta.color};">${group.issues.length}</span>
-                </button>`;
-            })
-            .join('');
-
-    const panelHtml = groupedIssues
-      .map((group, groupIndex) => {
-        const issueCards = group.issues
-          .map((issue, issueIndex) => {
-            const meta = getTemplateInspectionSeverityMeta(issue.severity);
-            const missingHtml = issue.missing.map(item => `<li>${escapeHtml(item)}</li>`).join('');
-            const isFixable = !!issue.fixActions && issue.fixActions.length > 0;
-            const resolutionHtml = isFixable
-              ? `<div style="font-weight:700;color:var(--acu-text-main);margin-bottom:4px;">智能修复</div>
-                 <ul style="margin:0 0 8px 18px;padding:0;color:var(--acu-text-main);">${issue.fixActions
-                   .map(action => `<li>${escapeHtml(action)}</li>`)
-                   .join('')}</ul>`
-              : `<div style="font-weight:700;color:var(--acu-text-main);margin-bottom:4px;">建议做法</div>
-                 <div style="color:var(--acu-text-main);">${escapeHtml(issue.suggestion)}</div>`;
-            const collapsed = issueIndex > 0;
-            return `
-              <div class="acu-changes-group acu-template-inspection-card ${collapsed ? 'collapsed' : ''}" style="--acu-template-inspection-color:${meta.color};">
-                <div class="acu-changes-group-header acu-template-inspection-card-header" style="cursor:pointer;">
-                  <i class="fa-solid fa-chevron-${collapsed ? 'right' : 'down'} acu-collapse-icon" style="font-size:10px;width:12px;transition:transform 0.2s;"></i>
-                  <i class="fa-solid ${meta.icon}" style="color:${meta.color};"></i>
-                  <span style="flex:1;">${escapeHtml(issue.title)}</span>
-                  <span class="acu-changes-count" style="background:${meta.color};">${meta.label}</span>
-                </div>
-                <div class="acu-changes-group-body" style="${collapsed ? 'display:none;' : ''}">
-                  <div class="acu-change-item" style="display:block;line-height:1.65;">
-                    <div style="font-weight:700;color:var(--acu-text-main);margin-bottom:4px;">缺失内容</div>
-                    <ul style="margin:0 0 8px 18px;padding:0;color:var(--acu-text-main);">${missingHtml}</ul>
-                    <div style="font-weight:700;color:var(--acu-text-main);margin-bottom:4px;">影响功能</div>
-                    <div style="margin-bottom:8px;color:var(--acu-text-main);">${escapeHtml(issue.impact)}</div>
-                    ${resolutionHtml}
-                  </div>
-                </div>
-              </div>`;
-          })
-          .join('');
-        return `
-          <div class="acu-template-inspection-panel" data-group-index="${groupIndex}" style="${groupIndex === 0 ? '' : 'display:none;'}">
-            <div class="acu-changes-list acu-template-inspection-card-list">${issueCards}</div>
-          </div>`;
-      })
-      .join('');
-
-    const cleanBodyHtml = `
-      <div class="acu-template-inspection-clean-card">
-        <div class="acu-template-inspection-clean-result">
-          <div class="acu-template-inspection-clean-icon"><i class="fa-solid fa-check"></i></div>
-          <div class="acu-template-inspection-clean-copy">
-            <div class="acu-template-inspection-clean-title">模板关键结构完整</div>
-            <div class="acu-template-inspection-clean-desc">${escapeHtml(statusText)}</div>
-          </div>
-        </div>
-        <div class="acu-template-inspection-clean-meta">
-          <div><span>预设</span><strong>${escapeHtml(presetLabel)}</strong></div>
-          <div><span>模板</span><strong>${result.sheets.length} 张表</strong></div>
-          <div><span>检查时间</span><strong>${escapeHtml(result.checkedAt)}</strong></div>
-        </div>
-        <div class="acu-template-inspection-clean-stats">
-          <span><b>${errorCount}</b> 严重</span>
-          <span><b>${warningCount}</b> 警告</span>
-          <span><b>${infoCount}</b> 提示</span>
-          <span><b>${result.fixableCount || 0}</b> 可修复</span>
-          <span><b>${result.manualCount || 0}</b> 手动</span>
-        </div>
-      </div>`;
-
-    const issueBodyHtml = `
-      <div class="acu-template-inspection-summary" style="--acu-template-inspection-summary-color:${summaryMeta.color};">
-        <div class="acu-template-inspection-summary-head">
-          <span class="acu-template-inspection-summary-icon" aria-hidden="true">
-            <i class="fa-solid ${summaryMeta.icon}"></i>
-          </span>
-          <div class="acu-template-inspection-summary-copy">
-            <div class="acu-template-inspection-summary-title">${escapeHtml(issueSummaryTitle)}</div>
-          </div>
-        </div>
-        <div class="acu-template-inspection-stats" aria-label="问题统计">
-          <span class="acu-template-inspection-stat acu-template-inspection-stat-error"><b>${errorCount}</b> 严重</span>
-          <span class="acu-template-inspection-stat acu-template-inspection-stat-warning"><b>${warningCount}</b> 警告</span>
-          <span class="acu-template-inspection-stat acu-template-inspection-stat-info"><b>${infoCount}</b> 提示</span>
-          <span class="acu-template-inspection-stat"><b>${result.fixableCount || 0}</b> 智能修复</span>
-          <span class="acu-template-inspection-stat"><b>${result.manualCount || 0}</b> 需手动处理</span>
-        </div>
-      </div>
-      <div class="acu-template-inspection-layout" style="display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px;align-items:start;">
-        <div class="acu-template-inspection-tabs" style="display:flex;flex-direction:column;gap:8px;max-height:54vh;overflow:auto;padding-right:2px;">
-          ${tabHtml}
-        </div>
-        <div class="acu-template-inspection-panels" style="min-width:0;max-height:54vh;overflow:auto;padding-right:2px;">
-          ${panelHtml}
-        </div>
-      </div>`;
-
-    const overlay = $(`
-      <div class="acu-edit-overlay acu-template-inspection-overlay">
-        <div class="acu-edit-dialog acu-template-inspection-dialog ${isClean ? 'acu-template-inspection-dialog-clean' : ''} acu-theme-${config.theme}" style="width: 900px; max-width: 96vw; max-height: 88vh;">
-          <div class="acu-template-inspection-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--acu-border);">
-            <div class="acu-template-inspection-title" style="font-size:16px;font-weight:bold;color:var(--acu-text-main);min-width:0;display:flex;align-items:center;gap:6px;">
-              <i class="fa-solid fa-stethoscope"></i> 检验表格模板
-            </div>
-            <div class="acu-template-inspection-header-actions">
-              ${getTutorialButtonHtml('templateInspection', '查看检验表格模板教程', 'acu-template-inspection-tutorial-btn')}
-              <button class="acu-close-btn acu-template-inspection-close" title="关闭" aria-label="关闭检验表格模板结果"><i class="fa-solid fa-times"></i></button>
-            </div>
-          </div>
-          <div class="acu-settings-content acu-settings-content-scroll acu-template-inspection-body" style="padding:12px 0;">
-            ${isClean ? cleanBodyHtml : issueBodyHtml}
-          </div>
-          <div class="acu-dialog-btns acu-template-inspection-actions" style="justify-content:space-between;align-items:center;gap:10px;">
-            <button class="acu-dialog-btn acu-template-inspection-download" id="template-inspection-download" title="下载最新表格模板" aria-label="下载最新表格模板" style="background:var(--acu-card-bg);color:var(--acu-text-main);border:1px solid var(--acu-border);">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> 最新模板
-            </button>
-            <div class="acu-template-inspection-primary-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-              ${repairButtonHtml}
-            </div>
-          </div>
-        </div>
-      </div>`);
-
-    $('body').append(overlay);
-    bindTutorialButtonsIn(overlay);
-    overlay.find('.acu-template-inspection-close').on('click', () => overlay.remove());
-    overlay.find('#template-inspection-download').on('click', () => {
-      window.open(LATEST_TABLE_TEMPLATE_URL, '_blank', 'noopener,noreferrer');
-    });
-    overlay.find('#template-inspection-repair').on('click', () => {
-      void repairCurrentTableTemplateFromPreset(result.presetId, overlay);
-    });
-    overlay.find('.acu-template-inspection-tab').on('click', function () {
-      const groupIndex = $(this).data('group-index');
-      overlay
-        .find('.acu-template-inspection-tab')
-        .removeClass('active');
-      $(this).addClass('active');
-      overlay.find('.acu-template-inspection-panel').hide();
-      overlay.find(`.acu-template-inspection-panel[data-group-index="${groupIndex}"]`).show();
-    });
-    overlay.find('.acu-template-inspection-card-header').on('click', function () {
-      const $group = $(this).closest('.acu-template-inspection-card');
-      const $body = $group.find('.acu-changes-group-body').first();
-      const $icon = $(this).find('.acu-collapse-icon');
-      if ($group.hasClass('collapsed')) {
-        $group.removeClass('collapsed');
-        $body.slideDown(160);
-        $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
-      } else {
-        $group.addClass('collapsed');
-        $body.slideUp(160);
-        $icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
-      }
-    });
-    setupOverlayClose(overlay, 'acu-template-inspection-overlay', () => overlay.remove());
-  };
+  const showTemplateInspectionResultModal = createShowTemplateInspectionResultModal({
+    bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTemplateInspectionSeverityMeta: (...a: any[]) => getTemplateInspectionSeverityMeta(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    repairCurrentTableTemplateFromPreset: (...a: any[]) => repairCurrentTableTemplateFromPreset(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+    LATEST_TABLE_TEMPLATE_URL: LATEST_TABLE_TEMPLATE_URL,
+  });
 
   const showTemplateInspectionModal = (): void => {
     const dbApi = getCore().getDB() as Record<string, unknown> | null | undefined;
