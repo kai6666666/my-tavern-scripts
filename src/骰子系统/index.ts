@@ -85,6 +85,27 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createApplyJsonCellFallbackForCrud } from './features/table/apply-json-cell-fallback-for-crud';
+import { createStripJsoncSyntax } from './shared/strip-jsonc-syntax';
+import { createResolveUserGraphName } from './features/avatars/resolve-user-graph-name';
+import { createGetCustomTableNameIconFallbackContexts } from './features/table/get-custom-table-name-icon-fallback-contexts';
+import { createCopyTextWithTavernApi } from './shared/copy-text-with-tavern-api';
+import { createBuildNewActionPresetRulesJsoncTemplate } from './features/presets/build-new-action-preset-rules-jsonc-template';
+import { createValidateAdvancedPresetCustomFields } from './features/presets/validate-advanced-preset-custom-fields';
+import { createReplaceRuleTagInTemplate } from './features/presets/replace-rule-tag-in-template';
+import { createGenerateAttributeScale } from './features/presets/generate-attribute-scale';
+import { createSwitchPanel } from './features/ui/switch-panel';
+import { createRenderDiceConfigBackupModuleRows } from './features/dice/render-dice-config-backup-module-rows';
+import { createGetDiceQuickSelectCharacterList } from './features/dice/get-dice-quick-select-character-list';
+import { createValidateGachaCustomFieldsForTargetTable } from './features/gacha/validate-gacha-custom-fields-for-target-table';
+import { createUpdateGachaFortuneProgressDom } from './features/gacha/update-gacha-fortune-progress-dom';
+import { createStartTutorialFromButton } from './features/tutorial/start-tutorial-from-button';
+import { createShowDiceCharacterProfilePrompt } from './features/dice/show-dice-character-profile-prompt';
+import { createValidateGachaCatalogImportItemTarget } from './features/gacha/validate-gacha-catalog-import-item-target';
+import { createRenderGachaSettingsFilterMenuHtml } from './features/gacha/render-gacha-settings-filter-menu-html';
+import { createGetCharacterNameCandidates } from './features/avatars/get-character-name-candidates';
+import { createApplyRuntimeDataViaCrud } from './features/table/apply-runtime-data-via-crud';
+import { createApplyDiceConfigBackupActiveValue } from './features/dice/apply-dice-config-backup-active-value';
 import { createInferAvatarImageColor } from './features/avatar/infer-avatar-image-color';
 import { createShowPresetConflictDialog } from './features/presets/show-preset-conflict-dialog';
 import { createBuildNewAttributePresetJsoncTemplate } from './features/presets/build-new-attribute-preset-jsonc-template';
@@ -2433,45 +2454,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return data.aliases.map(alias => String(alias ?? '').trim()).filter(Boolean);
   };
 
-  const getCharacterNameCandidates = (name: unknown, includeResolved = true): string[] => {
-    const rawName = String(name ?? '').trim();
-    if (!rawName) return [];
-
-    const candidates: string[] = [];
-    const addParsedName = (value: string): void => {
-      const parsed = parseCharacterName(value);
-      pushUniqueNameCandidate(candidates, value);
-      pushUniqueNameCandidate(candidates, parsed.displayName);
-      parsed.aliases.forEach(alias => pushUniqueNameCandidate(candidates, alias));
-    };
-
-    addParsedName(rawName);
-
-    const replacedName = replaceUserPlaceholders(rawName);
-    if (typeof replacedName === 'string' && replacedName !== rawName) {
-      addParsedName(replacedName);
-    }
-
-    const displayName = getDisplayName(rawName);
-    const replacedDisplayName = replaceUserPlaceholders(displayName);
-    if (typeof replacedDisplayName === 'string' && replacedDisplayName !== displayName) {
-      addParsedName(replacedDisplayName);
-    }
-
-    getAvatarManualAliases(rawName).forEach(alias => addParsedName(alias));
-    if (displayName !== rawName) {
-      getAvatarManualAliases(displayName).forEach(alias => addParsedName(alias));
-    }
-
-    if (includeResolved) {
-      const resolvedName = NameAliasRegistry.resolve(rawName);
-      if (resolvedName && resolvedName !== rawName) {
-        addParsedName(resolvedName);
-      }
-    }
-
-    return candidates;
-  };
+  const getCharacterNameCandidates = createGetCharacterNameCandidates({
+    getAvatarManualAliases: (...a: any[]) => getAvatarManualAliases(...a),
+    pushUniqueNameCandidate: (...a: any[]) => pushUniqueNameCandidate(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    NameAliasRegistry: NameAliasRegistry,
+  });
 
   const getUserCharacterNameCandidates = (): string[] => {
     const seeds: string[] = [...USER_PLACEHOLDER_KEYS, '主角'];
@@ -2674,49 +2662,17 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isUserCharacterName: (...a: any[]) => isUserCharacterName(...a),
   });
 
-  const resolveUserGraphName = (name: string): string => {
-    const displayName = getDisplayName(String(name || '').trim());
-    if (!displayName) return displayName;
-
-    const avatarPrimary = AvatarManager.getPrimaryName(displayName);
-    if (
-      isUserPlaceholderKey(displayName) ||
-      isUserPlaceholderKey(avatarPrimary) ||
-      isUserCharacterName(displayName) ||
-      isUserCharacterName(avatarPrimary)
-    ) {
-      return USER_NODE_KEY;
-    }
-
-    const userAliases = new Set<string>(USER_PLACEHOLDER_KEYS);
-    USER_PLACEHOLDER_KEYS.forEach(key => {
-      const aliases = AvatarManager.load()[key]?.aliases || [];
-      aliases.forEach(alias => {
-        if (alias) userAliases.add(alias);
-      });
-    });
-
-    const personaName = getPersonaName();
-    if (personaName) userAliases.add(getDisplayName(personaName));
-
-    const diceCfg = getDiceConfig();
-    if (diceCfg.autoMergeProtagonist !== false) {
-      userAliases.add('主角');
-      const playerName = getPlayerName();
-      if (playerName) userAliases.add(getDisplayName(playerName));
-    }
-
-    const normalizedUserAliases = [...userAliases].map(alias => alias.toLowerCase());
-    const candidates = [displayName, avatarPrimary, NameAliasRegistry.resolve(displayName)]
-      .filter(Boolean)
-      .map(candidate => candidate.toLowerCase());
-
-    if (candidates.some(candidate => normalizedUserAliases.includes(candidate))) {
-      return USER_NODE_KEY;
-    }
-
-    return avatarPrimary;
-  };
+  const resolveUserGraphName = createResolveUserGraphName({
+    getDiceConfig: (...a: any[]) => getDiceConfig(...a),
+    getPersonaName: (...a: any[]) => getPersonaName(...a),
+    getPlayerName: (...a: any[]) => getPlayerName(...a),
+    isUserCharacterName: (...a: any[]) => isUserCharacterName(...a),
+    isUserPlaceholderKey: (...a: any[]) => isUserPlaceholderKey(...a),
+    AvatarManager: AvatarManager,
+    NameAliasRegistry: NameAliasRegistry,
+    USER_NODE_KEY: USER_NODE_KEY,
+    USER_PLACEHOLDER_KEYS: USER_PLACEHOLDER_KEYS,
+  });
 
   // 渲染图标：支持 fa:xxx 简写格式和原生emoji
   const renderIcon = (icon: string | null): string => {
@@ -4035,48 +3991,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     }
   };
 
-  const validateAdvancedPresetCustomFields = (
-    preset: AdvancedDicePreset,
-    issues: AdvancedPresetValidationIssue[],
-  ): void => {
-    if (preset.customFields === undefined) return;
-    if (!Array.isArray(preset.customFields)) {
-      pushAdvancedPresetIssue(issues, 'customFields', '必须是数组');
-      return;
-    }
-
-    const allowedTypes = new Set(['number', 'text', 'select', 'toggle']);
-    const ids = new Set<string>();
-    preset.customFields.forEach((field, index) => {
-      const path = `customFields[${index}]`;
-      if (!isAdvancedPresetRecord(field)) {
-        pushAdvancedPresetIssue(issues, path, '必须是对象');
-        return;
-      }
-      if (typeof field.id !== 'string' || !field.id.trim()) {
-        pushAdvancedPresetIssue(issues, `${path}.id`, '必须是非空字符串');
-      } else if (ids.has(field.id)) {
-        pushAdvancedPresetIssue(issues, `${path}.id`, `重复的自定义字段 ID: ${field.id}`);
-      } else {
-        ids.add(field.id);
-      }
-      if (typeof field.type !== 'string' || !allowedTypes.has(field.type)) {
-        pushAdvancedPresetIssue(issues, `${path}.type`, '必须是 number/text/select/toggle 之一');
-      }
-      if ('label' in field && typeof field.label !== 'string') {
-        pushAdvancedPresetIssue(issues, `${path}.label`, '必须是字符串');
-      }
-      if ('defaultValue' in field) {
-        const valueType = typeof field.defaultValue;
-        if (valueType !== 'number' && valueType !== 'string' && valueType !== 'boolean') {
-          pushAdvancedPresetIssue(issues, `${path}.defaultValue`, '必须是数字、字符串或布尔值');
-        }
-      }
-      if ('options' in field && !Array.isArray(field.options)) {
-        pushAdvancedPresetIssue(issues, `${path}.options`, '必须是数组');
-      }
-    });
-  };
+  const validateAdvancedPresetCustomFields = createValidateAdvancedPresetCustomFields({
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+    pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
+  });
 
   const validateAdvancedPresetDicePatches = (
     preset: AdvancedDicePreset,
@@ -4446,48 +4364,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
    * @param max 范围最大值
    * @returns 完整的属性标尺描述字符串（包含标尺和基准说明）
    */
-  const generateAttributeScale = (min: number, max: number): string => {
-    const range = max - min;
+  const generateAttributeScale = createGenerateAttributeScale({
 
-    // 计算各区间的边界值（向下取整）
-    const threshold1 = Math.floor(min + range * 0.1); // 能力缺失上限
-    const threshold2 = Math.floor(min + range * 0.4); // 弱项上限
-    const threshold3 = Math.floor(min + range * 0.6); // 平均上限
-    const threshold4 = Math.floor(min + range * 0.8); // 精英上限
-    const threshold5 = Math.floor(min + range * 0.9); // 极限上限
-
-    // 生成标尺字符串，处理边界情况（避免出现 "3-3" 这样的区间）
-    const formatRange = (start: number, end: number): string => {
-      if (start === end) return `${start}`;
-      return `${start}-${end}`;
-    };
-
-    const scales = [
-      `${formatRange(min, threshold1)}:能力缺失`,
-      `${formatRange(threshold1 + 1, threshold2)}:弱项`,
-      `${formatRange(threshold2 + 1, threshold3)}:平均`,
-      `${formatRange(threshold3 + 1, threshold4)}:精英`,
-      `${formatRange(threshold4 + 1, threshold5)}:极限`,
-      `${formatRange(threshold5 + 1, max)}:破格`,
-    ];
-
-    const scaleStr = scales.join(' | ');
-
-    // 计算基准说明中的动态数值
-    // "聚集在40-60" → 平均区间
-    // "90+呈断崖式稀缺" → 极限区间起点
-    // "重伤→0-10" → 能力缺失区间
-    // "肾上腺素→80" → 精英区间的高端值
-    const avgStart = threshold2 + 1;
-    const avgEnd = threshold3;
-    const rareThreshold = threshold5 + 1; // 破格区间起点
-    const debuffRange = formatRange(min, threshold1); // 能力缺失区间
-    const buffRange = formatRange(threshold4 + 1, threshold5); // 精英区间上限
-
-    const baseDescription = `基准: 数值呈指数增长；分布呈长尾状(绝大多数聚集在${avgStart}-${avgEnd}，${rareThreshold}+呈断崖式稀缺)，依角色[身份背景]生成，当前值受[当前状态]修正。如:重伤→${debuffRange}; 肾上腺素→${buffRange}`;
-
-    return `${scaleStr}。${baseDescription}`;
-  };
+  });
 
   // 默认规则的特有属性模板内容（用于恢复）
 
@@ -4671,48 +4550,11 @@ ${attributeScaleStr}`,
     return (matched?.[0] || '').slice(0, 500);
   };
 
-  const replaceRuleTagInTemplate = (
-    template: RuleTemplateRecord,
-    tag: string,
-    content: string,
-    debugPrefix: string,
-  ): boolean => {
-    let modified = false;
-    const ruleSheets = Object.entries(template).filter((entry): entry is [string, RuleTemplateSheet] => {
-      const [, sheet] = entry;
-      if (!isRuleTemplateSheetWithNote(sheet)) return false;
-      return sheet.sourceData?.note?.includes(`<${tag}>`) === true;
-    });
-    console.info(`${debugPrefix} ${tag} 可同步表扫描`, {
-      totalSheets: Object.keys(template).length,
-      matchedCount: ruleSheets.length,
-      matchedSheets: ruleSheets.map(([sheetKey, sheet]) => ({
-        sheetKey,
-        sheetName: String(sheet.name || ''),
-      })),
-    });
-
-    ruleSheets.forEach(([sheetKey, sheet]) => {
-      const sourceData = sheet.sourceData;
-      if (!sourceData || typeof sourceData.note !== 'string') return;
-      const originalNote = sourceData.note;
-      const nextNote = replaceTag(originalNote, tag, content);
-      const changed = nextNote !== originalNote;
-      console.info(`${debugPrefix} ${tag} note 替换结果`, {
-        sheetKey,
-        sheetName: String(sheet.name || ''),
-        changed,
-        beforeSnippet: getRuleTagSnippet(originalNote, tag),
-        afterSnippet: getRuleTagSnippet(nextNote, tag),
-      });
-      if (changed) {
-        sourceData.note = nextNote;
-        modified = true;
-      }
-    });
-
-    return modified;
-  };
+  const replaceRuleTagInTemplate = createReplaceRuleTagInTemplate({
+    getRuleTagSnippet: (...a: any[]) => getRuleTagSnippet(...a),
+    isRuleTemplateSheetWithNote: (...a: any[]) => isRuleTemplateSheetWithNote(...a),
+    replaceTag: (...a: any[]) => replaceTag(...a),
+  });
 
   const syncAttributeRuleTagsInTemplate = (
     template: RuleTemplateRecord,
@@ -5315,49 +5157,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return String(error || '未知错误');
   };
 
-  const stripJsoncSyntax = (jsonText: string): string => {
-    const withoutComments = stripJsonComments(String(jsonText || ''));
-    let result = '';
-    let inString = false;
-    let quote = '';
-    let escaped = false;
-
-    for (let index = 0; index < withoutComments.length; index++) {
-      const char = withoutComments[index];
-
-      if (inString) {
-        result += char;
-        if (escaped) {
-          escaped = false;
-        } else if (char === '\\') {
-          escaped = true;
-        } else if (char === quote) {
-          inString = false;
-          quote = '';
-        }
-        continue;
-      }
-
-      if (char === '"' || char === "'") {
-        inString = true;
-        quote = char;
-        result += char;
-        continue;
-      }
-
-      if (char === ',') {
-        let nextIndex = index + 1;
-        while (nextIndex < withoutComments.length && /\s/.test(withoutComments[nextIndex])) {
-          nextIndex++;
-        }
-        if (withoutComments[nextIndex] === '}' || withoutComments[nextIndex] === ']') continue;
-      }
-
-      result += char;
-    }
-
-    return result;
-  };
+  const stripJsoncSyntax = createStripJsoncSyntax({
+    stripJsonComments: (...a: any[]) => stripJsonComments(...a),
+  });
 
   const parseJsoncValue = (jsonText: string): unknown => JSON.parse(stripJsoncSyntax(jsonText));
 
@@ -7342,49 +7144,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return false;
   };
 
-  const getCustomTableNameIconFallbackContexts = (
-    context: CustomTableNameIconContext,
-  ): CustomTableNameIconContext[] => {
-    const fallbackContexts: CustomTableNameIconContext[] = [];
-
-    const addFallbackContext = (fallbackContext: CustomTableNameIconContext): void => {
-      if (getCustomTableNameIconContextKey(fallbackContext) === getCustomTableNameIconContextKey(context)) return;
-      if (!isCustomTableNameIconContextAllowed(fallbackContext)) return;
-      if (
-        fallbackContexts.some(
-          item => getCustomTableNameIconContextKey(item) === getCustomTableNameIconContextKey(fallbackContext),
-        )
-      )
-        return;
-      fallbackContexts.push(fallbackContext);
-    };
-
-    if (context.moduleId === 'global-interaction-panel') {
-      const directModuleId = (() => {
-        if (context.section === 'item') return 'item';
-        if (context.section === 'equipment') return 'equipment';
-        if (context.section === 'faction') return 'faction';
-        if (context.section === 'shop') return 'shop';
-        return null;
-      })();
-      if (directModuleId) {
-        addFallbackContext({
-          ...context,
-          moduleId: directModuleId,
-        });
-      }
-    }
-
-    if (context.moduleId !== 'table-name') {
-      addFallbackContext({
-        ...context,
-        moduleId: 'table-name',
-        section: 'table',
-      });
-    }
-
-    return fallbackContexts;
-  };
+  const getCustomTableNameIconFallbackContexts = createGetCustomTableNameIconFallbackContexts({
+    getCustomTableNameIconContextKey: (...a: any[]) => getCustomTableNameIconContextKey(...a),
+    isCustomTableNameIconContextAllowed: (...a: any[]) => isCustomTableNameIconContextAllowed(...a),
+  });
 
   const CustomTableNameIconStoreManager = createCustomTableNameIconStoreManager({
     getCustomTableNameIconContextKey: (...a: any[]) => getCustomTableNameIconContextKey(...a),
@@ -8294,47 +8057,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const getDiceQuickSelectCharacterList = (rawData: DiceRawData | null | undefined): string[] => {
-    const list: string[] = [];
-    if (!rawData) return list;
-
-    const allTables = processJsonData(rawData || {}) as Record<string, RelationGraphTableInput>;
-    const playerResult = DashboardDataParser.findTable(allTables, 'player');
-    if (playerResult?.data?.rows?.length > 0) {
-      const playerConfig = playerResult.config || getDashboardModuleConfig('player') || DASHBOARD_TABLE_CONFIG.player;
-      const playerHeaders = playerResult.data.headers || [];
-      const playerNameIdx = DashboardDataParser.findColumnIndex(playerHeaders, 'name', playerConfig);
-      const safePlayerNameIdx = playerNameIdx >= 0 ? playerNameIdx : findNameColumnIndex(playerHeaders);
-      pushDiceQuickSelectCharacter(list, playerResult.data.rows[0]?.[safePlayerNameIdx], true);
-    }
-
-    const npcListData = getDashboardNpcListData(allTables);
-    const dashboardEntries = (npcListData.entries || []) as Array<{ name?: unknown }>;
-    dashboardEntries.forEach(entry => pushDiceQuickSelectCharacter(list, entry.name));
-
-    if (list.length > 0) return list;
-
-    for (const key in rawData) {
-      const sheet = rawData[key];
-      if (!sheet?.name || !Array.isArray(sheet.content)) continue;
-      const headers = sheet.content[0] || [];
-
-      if (isNpcTableName(sheet.name)) {
-        const nameIdx = findNameColumnIndex(headers);
-        for (let i = 1; i < sheet.content.length; i++) {
-          const row = sheet.content[i];
-          if (row) pushDiceQuickSelectCharacter(list, row[nameIdx]);
-        }
-      }
-
-      if (sheet.name.includes('主角') && sheet.content[1]) {
-        const nameIdx = findNameColumnIndex(headers);
-        pushDiceQuickSelectCharacter(list, sheet.content[1][nameIdx], true);
-      }
-    }
-
-    return list;
-  };
+  const getDiceQuickSelectCharacterList = createGetDiceQuickSelectCharacterList({
+    getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
+    getDashboardNpcListData: (...a: any[]) => getDashboardNpcListData(...a),
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    pushDiceQuickSelectCharacter: (...a: any[]) => pushDiceQuickSelectCharacter(...a),
+    DashboardDataParser: DashboardDataParser,
+  });
 
   const getAdvancedPresetMappedTarget = (
     preset: QuickSelectCheckPresetConfig | null | undefined,
@@ -10325,45 +10054,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     STORAGE_KEY_VALIDATION_RULES: STORAGE_KEY_VALIDATION_RULES,
   });
 
-  const applyDiceConfigBackupActiveValue = (
-    write: DiceConfigBackupPendingActiveWrite,
-    stats: DiceConfigBackupApplyStats,
-    idMappings: Map<string, Map<string, string>>,
-  ): void => {
-    const presetKey = DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY[write.key];
-    if (!presetKey) {
-      applyDiceConfigBackupValue(write.key, write.value, write.moduleName, stats, idMappings);
-      return;
-    }
-
-    if (write.value === null && write.key === STORAGE_KEY_ACTIVE_ADVANCED_PRESET) {
-      applyDiceConfigBackupValue(write.key, null, write.moduleName, stats, idMappings);
-      return;
-    }
-
-    if (typeof write.value !== 'string' && typeof write.value !== 'number') {
-      stats.skipped += 1;
-      stats.warnings.push(`${write.moduleName}: ${write.key} 不是有效的预设 ID，已保留当前值。`);
-      return;
-    }
-
-    const sourceId = String(write.value).trim();
-    if (!sourceId) {
-      stats.skipped += 1;
-      stats.warnings.push(`${write.moduleName}: ${write.key} 为空，已保留当前值。`);
-      return;
-    }
-
-    const mappedId = idMappings.get(presetKey)?.get(sourceId) || sourceId;
-    const isCustomAdvanced = write.key === STORAGE_KEY_LAST_PRESET && mappedId === CUSTOM_ROLL_MODE.id;
-    if (!isCustomAdvanced && !getDiceConfigBackupKnownPresetIds(presetKey).has(mappedId)) {
-      stats.skipped += 1;
-      stats.warnings.push(`${write.moduleName}: 预设 ID "${sourceId}" 不存在，已保留当前激活项。`);
-      return;
-    }
-
-    applyDiceConfigBackupValue(write.key, mappedId, write.moduleName, stats, idMappings);
-  };
+  const applyDiceConfigBackupActiveValue = createApplyDiceConfigBackupActiveValue({
+    applyDiceConfigBackupValue: (...a: any[]) => applyDiceConfigBackupValue(...a),
+    getDiceConfigBackupKnownPresetIds: (...a: any[]) => getDiceConfigBackupKnownPresetIds(...a),
+    CUSTOM_ROLL_MODE: CUSTOM_ROLL_MODE,
+    DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY: DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY,
+  });
 
   const normalizeDiceConfigBackupGachaCatalogItems = createNormalizeDiceConfigBackupGachaCatalogItems({
     isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
@@ -11062,46 +10758,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return null;
   };
 
-  const showDiceCharacterProfilePrompt = (detection: DiceCharacterProfileDetection): Promise<'apply' | 'save' | 'skip'> => {
-    const { $ } = getCore();
-    const config = getConfig();
-    const profile = detection.profile;
-    return new Promise(resolve => {
-      $('.acu-profile-prompt-overlay').remove();
-      const overlay = $(`
-        <div class="acu-profile-prompt-overlay acu-theme-${escapeHtml(config.theme)}" tabindex="-1">
-          <div class="acu-profile-prompt-dialog" role="dialog" aria-modal="true">
-            <div class="acu-profile-prompt-header">
-              <span class="acu-profile-prompt-title"><i class="fa-solid fa-layer-group"></i> 角色卡内置配置方案</span>
-              <button type="button" class="acu-profile-prompt-close" title="关闭" aria-label="关闭"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <div class="acu-profile-prompt-body">
-              <div class="acu-profile-prompt-name">${escapeHtml(profile.name)}</div>
-              <div class="acu-profile-prompt-text">检测到当前角色卡携带骰子系统配置方案。它已保存到方案库；应用后会修改当前骰子系统配置。</div>
-              <div class="acu-profile-prompt-meta">
-                <span>${escapeHtml(profile.source.characterName || '当前角色卡')}</span>
-                <span>${escapeHtml(getDiceProfileModuleNames(profile.moduleIds))}</span>
-              </div>
-            </div>
-            <div class="acu-profile-prompt-footer">
-              <button type="button" class="acu-setting-action-btn acu-profile-prompt-skip">跳过</button>
-              <button type="button" class="acu-setting-action-btn acu-profile-prompt-save">仅保存到库</button>
-              <button type="button" class="acu-setting-action-btn acu-config-backup-primary-btn acu-profile-prompt-apply">应用</button>
-            </div>
-          </div>
-        </div>
-      `);
-      const finish = (action: 'apply' | 'save' | 'skip') => {
-        overlay.remove();
-        resolve(action);
-      };
-      $('body').append(overlay);
-      setupOverlayClose(overlay, 'acu-profile-prompt-overlay', () => finish('skip'));
-      overlay.on('click', '.acu-profile-prompt-close, .acu-profile-prompt-skip', () => finish('skip'));
-      overlay.on('click', '.acu-profile-prompt-save', () => finish('save'));
-      overlay.on('click', '.acu-profile-prompt-apply', () => finish('apply'));
-    });
-  };
+  const showDiceCharacterProfilePrompt = createShowDiceCharacterProfilePrompt({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getDiceProfileModuleNames: (...a: any[]) => getDiceProfileModuleNames(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+  });
 
   const maybePromptCharacterDiceProfile = async (): Promise<void> => {
     try {
@@ -11178,47 +10841,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `${storageCount + resourceCount} 项`;
   };
 
-  const renderDiceConfigBackupModuleRows = (
-    moduleIds: readonly DiceConfigBackupModuleId[],
-    backup?: DiceConfigBackupDocument,
-  ): string => {
-    if (moduleIds.length === 0) {
-      return '<div class="acu-config-backup-empty">没有可用模块</div>';
-    }
-    return moduleIds
-      .map(moduleId => {
-        const definition = getDiceConfigBackupModuleDefinition(moduleId);
-        if (!definition) return '';
-        const payload = backup?.modules[moduleId];
-        const storageCount = payload ? Object.keys(payload.storage).length : definition.storageKeys.length;
-        const resourceCount = getDiceConfigBackupModuleResourceCount(payload, moduleId);
-        const countText = getDiceConfigBackupModuleCountText(moduleId, storageCount, resourceCount, Boolean(payload));
-        const deprecatedBadgeHtml =
-          definition.deprecated && definition.deprecatedReason
-            ? renderDeprecatedBadge(definition.deprecatedReason)
-            : '';
-        const warningHtml =
-          payload?.warnings && payload.warnings.length > 0
-            ? `<div class="acu-config-backup-module-warning">${payload.warnings
-                .map(warning => `<div><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(warning)}</div>`)
-                .join('')}</div>`
-            : '';
-        return `
-          <label class="acu-config-backup-module-row">
-            <input type="checkbox" class="acu-config-backup-module-checkbox" value="${escapeHtml(moduleId)}" checked>
-            <span class="acu-config-backup-module-main">
-              <span class="acu-config-backup-module-title-row">
-                <strong class="acu-config-backup-module-name">${escapeHtml(definition.name)}</strong>
-                ${deprecatedBadgeHtml}
-                <span class="acu-config-backup-module-count">${escapeHtml(countText)}</span>
-              </span>
-              <span class="acu-config-backup-module-desc">${escapeHtml(definition.description)}</span>
-              ${warningHtml}
-            </span>
-          </label>`;
-      })
-      .join('');
-  };
+  const renderDiceConfigBackupModuleRows = createRenderDiceConfigBackupModuleRows({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getDiceConfigBackupModuleCountText: (...a: any[]) => getDiceConfigBackupModuleCountText(...a),
+    getDiceConfigBackupModuleDefinition: (...a: any[]) => getDiceConfigBackupModuleDefinition(...a),
+    getDiceConfigBackupModuleResourceCount: (...a: any[]) => getDiceConfigBackupModuleResourceCount(...a),
+    renderDeprecatedBadge: (...a: any[]) => renderDeprecatedBadge(...a),
+  });
 
   const renderDiceConfigBackupWarningList = (warnings: readonly string[]): string => {
     if (warnings.length === 0) return '';
@@ -11545,46 +11174,16 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return true;
   };
 
-  const startTutorialFromButton = (button: Element): void => {
-    const { $ } = getCore();
-    const scope = String($(button).attr('data-tutorial-scope') || '');
-    if (!isTutorialScope(scope)) return;
-    if (scope === 'avatarManager') {
-      const win = getTavernHostWindow();
-      let attempts = 0;
-      const startWhenReady = (): void => {
-        attempts += 1;
-        const isReady = prepareAvatarManagerTutorial(button);
-        if (isReady || attempts >= 6) {
-          getTutorialModule().start(scope, { manual: true, interrupt: true });
-          return;
-        }
-        win.setTimeout(startWhenReady, 120);
-      };
-      startWhenReady();
-      return;
-    }
-    if (scope === 'mvu') {
-      const win = getTavernHostWindow();
-      let attempts = 0;
-      const startWhenReady = (): void => {
-        attempts += 1;
-        const isReady = prepareMvuTutorial();
-        if (isReady || attempts >= 8) {
-          getTutorialModule().start(scope, { manual: true, interrupt: true });
-          return;
-        }
-        win.setTimeout(startWhenReady, 140);
-      };
-      startWhenReady();
-      return;
-    }
-    if (scope === 'inventory') {
-      prepareInventoryTutorial(button);
-    }
-    prepareSettingsGroupTutorial(scope, button);
-    getTutorialModule().start(scope, { manual: true, interrupt: true });
-  };
+  const startTutorialFromButton = createStartTutorialFromButton({
+    getCore: (...a: any[]) => getCore(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    getTutorialModule: (...a: any[]) => getTutorialModule(...a),
+    isTutorialScope: (...a: any[]) => isTutorialScope(...a),
+    prepareAvatarManagerTutorial: (...a: any[]) => prepareAvatarManagerTutorial(...a),
+    prepareInventoryTutorial: (...a: any[]) => prepareInventoryTutorial(...a),
+    prepareMvuTutorial: (...a: any[]) => prepareMvuTutorial(...a),
+    prepareSettingsGroupTutorial: (...a: any[]) => prepareSettingsGroupTutorial(...a),
+  });
 
   const bindTutorialButtonsIn = ($root: JQuery): void => {
     $root
@@ -12738,50 +12337,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return refreshedData;
   };
 
-  const applyJsonCellFallbackForCrud = async (input: CrudExistingRowPatchInput, colIndex: number): Promise<boolean> => {
-    const liveData = readRuntimeTableDataReference(input.api);
-    const liveEntry =
-      findDiffSnapshotEntry(liveData, input.sheetKey || input.tableName, input.sheet) ||
-      findDiffSnapshotEntry(liveData, input.crudTableName, input.sheet);
-    const sheetKey = liveEntry?.key || input.sheetKey || '';
-    if (!sheetKey) return false;
-
-    const value = getCrudCellValueForWrite(
-      input.headers,
-      input.nextRow,
-      colIndex,
-      input.sheet,
-      input.columnAliasMap || buildCrudColumnAliasMap(input.sheet),
-    );
-    patchCrudSheetCellInRecord(liveData, sheetKey, input.sheet, input.rowIndex, colIndex, value);
-    assertCrudRequiredCellValues(
-      input.tableName,
-      input.headers,
-      input.nextRow,
-      input.sheet,
-      input.rowIndex,
-      input.columnAliasMap || buildCrudColumnAliasMap(input.sheet),
-    );
-    const persisted = await patchLatestChatSheetCellWithoutTracking(
-      sheetKey,
-      input.sheet,
-      input.rowIndex,
-      colIndex,
-      value,
-    );
-    if (!persisted) return false;
-
-    input.api._notifyTableUpdate?.();
-    console.warn('[DICE]ACU updateCell failed; saved cell via JSON-floor fallback without importTableAsJson:', {
-      tableName: input.tableName,
-      sheetKey,
-      rowIndex: input.rowIndex + 1,
-      column: String(input.headers[colIndex] || `#${colIndex + 1}`),
-      messageIndex: persisted.messageIndex,
-      patchedKeys: persisted.patchedKeys,
-    });
-    return true;
-  };
+  const applyJsonCellFallbackForCrud = createApplyJsonCellFallbackForCrud({
+    assertCrudRequiredCellValues: (...a: any[]) => assertCrudRequiredCellValues(...a),
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    getCrudCellValueForWrite: (...a: any[]) => getCrudCellValueForWrite(...a),
+    patchCrudSheetCellInRecord: (...a: any[]) => patchCrudSheetCellInRecord(...a),
+    patchLatestChatSheetCellWithoutTracking: (...a: any[]) => patchLatestChatSheetCellWithoutTracking(...a),
+    readRuntimeTableDataReference: (...a: any[]) => readRuntimeTableDataReference(...a),
+  });
 
   const patchCrudRowIdIfMissing = (
     row: DiffRow | null | undefined,
@@ -12958,45 +12522,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return { dataToSave, sheetKeysToSave };
   };
 
-  const applyRuntimeDataViaCrud = async (
-    tableData,
-    modifiedSheetKeys?: string[],
-    options?: { commitDeletes?: boolean },
-  ) => {
-    const api = assertRuntimeCrudApi();
-    const isPartialSave = Array.isArray(modifiedSheetKeys);
-    const { dataToSave, sheetKeysToSave } = sanitizeRuntimeTableData(
-      tableData,
-      modifiedSheetKeys,
-      options?.commitDeletes === true,
-    );
-    if (sheetKeysToSave.length === 0) {
-      console.info('[DICE]ACU CRUD 保存跳过：没有有效修改表');
-      return dataToSave;
-    }
-
-    const latestData = getTableData({ silent: true });
-    if (!latestData) throw new Error('无法读取最新数据库基底，已取消保存以避免覆盖未保存表格');
-    if (!isPartialSave) {
-      const deletedSheetNames = Object.keys(latestData)
-        .filter(key => key.startsWith('sheet_') && !dataToSave[key])
-        .map(key => latestData[key]?.name || key);
-      if (deletedSheetNames.length > 0) {
-        throw new Error(`检测到整表删除：${deletedSheetNames.join('、')}。该结构级变更仅标注，不支持快捷保存。`);
-      }
-    }
-
-    for (const sheetKey of sheetKeysToSave) {
-      const desiredSheet = dataToSave[sheetKey];
-      const latestEntry = findRuntimeSheetEntryForCrud(latestData, sheetKey, desiredSheet);
-      await applySheetDataViaCrud(api, latestEntry?.key || sheetKey, desiredSheet, latestEntry?.sheet);
-    }
-
-    const refreshedData = getTableData({ silent: true }) || dataToSave;
-    cachedRawData = refreshedData;
-    api._notifyTableUpdate?.();
-    return refreshedData;
-  };
+  const applyRuntimeDataViaCrud = createApplyRuntimeDataViaCrud({
+    applySheetDataViaCrud: (...a: any[]) => applySheetDataViaCrud(...a),
+    assertRuntimeCrudApi: (...a: any[]) => assertRuntimeCrudApi(...a),
+    findRuntimeSheetEntryForCrud: (...a: any[]) => findRuntimeSheetEntryForCrud(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    sanitizeRuntimeTableData: (...a: any[]) => sanitizeRuntimeTableData(...a),
+    getCachedRawData: () => cachedRawData,
+    setCachedRawData: (v: any) => { cachedRawData = v; },
+  });
 
   const saveDataToDatabase = createSaveDataToDatabase({
     applyRuntimeDataViaCrud: (...a: any[]) => applyRuntimeDataViaCrud(...a),
@@ -13559,49 +13093,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     ActionPresetManager: ActionPresetManager,
   });
 
-  const buildNewActionPresetRulesJsoncTemplate = (): string => `[
-  // 这里填写规则数组；每个规则组按表名关键词匹配一类表格。
-  {
-    // table_keywords：表名中包含任意关键词时，这组 actions 会显示在该表的条目上。
-    "table_keywords": ["地点", "地图", "场所"],
+  const buildNewActionPresetRulesJsoncTemplate = createBuildNewActionPresetRulesJsoncTemplate({
 
-    // actions：匹配后显示的快捷按钮。至少需要一个动作。
-    "actions": [
-      {
-        // label：按钮文字，必填，建议短一些。
-        "label": "前往",
-
-        // icon：可选 Font Awesome 图标 class；不填时使用默认按钮样式。
-        "icon": "fa-location-arrow",
-
-        // template：点击按钮后写入输入框的文本；{Name} 会替换为当前条目的名称。
-        "template": "<user>前往{Name}。"
-      },
-      {
-        "label": "调查",
-        "icon": "fa-magnifying-glass",
-        "template": "<user>仔细调查{Name}的情况。"
-      }
-    ]
-  },
-  {
-    // 同一预设可以包含多个规则组；后续规则不会覆盖前面的规则，而是按命中的表格一起提供动作。
-    "table_keywords": ["人物", "NPC", "角色"],
-    "actions": [
-      {
-        // template 可以使用 <user>、{Name} 和普通文本；复杂提示词建议保持一句话可读。
-        "label": "交谈",
-        "icon": "fa-comments",
-        "template": "<user>与{Name}交谈。"
-      },
-      {
-        "label": "观察",
-        "icon": "fa-eye",
-        "template": "<user>观察{Name}。"
-      }
-    ]
-  }
-]`;
+  });
 
   // 交互规则编辑器（JSON配置风格）
   const showActionPresetEditor = createShowActionPresetEditor({
@@ -13875,49 +13369,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   let globalHistoryKeyword = '';
   let globalHistoryStatsScope: DiceStatsScope = 'chat';
 
-  const copyTextWithTavernApi = async (text: string): Promise<boolean> => {
-    try {
-      if (window.TavernHelper && window.TavernHelper.triggerSlash) {
-        const safeContent = text
-          .replace(/\\/g, '\\\\')
-          .replace(/"/g, '\\"')
-          .replace(/\n/g, '\\n')
-          .replace(/\{/g, '\\{')
-          .replace(/\}/g, '\\}');
-        await window.TavernHelper.triggerSlash(`/clipboard-set "${safeContent}"`);
-        return true;
-      }
-    } catch (error) {
-      console.warn('[DICE] history copy via TavernHelper failed:', error);
-    }
+  const copyTextWithTavernApi = createCopyTextWithTavernApi({
 
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch (error) {
-      console.warn('[DICE] history copy via navigator.clipboard failed:', error);
-    }
-
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-9999px';
-      textArea.style.top = '0';
-      textArea.setAttribute('readonly', '');
-      document.body.appendChild(textArea);
-      textArea.select();
-      textArea.setSelectionRange(0, 99999);
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      return successful;
-    } catch (error) {
-      console.error('[DICE] history copy fallback failed:', error);
-      return false;
-    }
-  };
+  });
 
   const showGlobalDiceHistoryDialog = createShowGlobalDiceHistoryDialog({
     bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
@@ -16925,45 +16379,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return '导入失败：没有有效物品。请确认 items 是非空数组，并且每个物品都包含 name、quality、poolTags、weight、grantQuantity。';
   };
 
-  const validateGachaCatalogImportItemTarget = (rawData, item: GachaItemDefinition, warnings: string[]): boolean => {
-    try {
-      const parsed = getGachaRewardParseResultForItem(rawData, item);
-      const sheet = parsed.tableKey && rawData ? rawData[parsed.tableKey] : undefined;
-      const validation = validateGachaCustomFieldsForTargetTable({
-        target: item.rewardTarget,
-        tableName: parsed.tableName,
-        headers: parsed.headers,
-        sheet,
-        item,
-        throwOnMissing: false,
-      });
-      if (validation.message) {
-        warnings.push(validation.message);
-        return false;
-      }
-      const headerRow = Array.isArray(sheet?.content?.[0]) ? sheet.content[0] : parsed.headers;
-      const candidateRow = new Array(Math.max(headerRow.length, 1)).fill('');
-      if (candidateRow.length > 0) candidateRow[0] = '1';
-      const quantity = Math.max(1, Math.floor(Number(item.grantQuantity) || 1));
-      if (item.rewardTarget === 'equipment') {
-        setEquipmentRowBasicFields(candidateRow, parsed.colMap, item, quantity, headerRow, sheet);
-      } else {
-        setInventoryRowBasicFields(candidateRow, parsed.colMap, item, quantity);
-      }
-      applyGachaCustomFieldsToRow(candidateRow, headerRow, item, {
-        target: item.rewardTarget,
-        targetColumns: item.targetColumns,
-      });
-      assertCrudRequiredColumnsRepresented(parsed.tableName, headerRow, sheet);
-      assertCrudInsertRequiredCells(parsed.tableName, headerRow, candidateRow, sheet, 0);
-      assertCrudEnumConstraints(parsed.tableName, headerRow, candidateRow, sheet, 0);
-      assertCrudLengthConstraints(parsed.tableName, headerRow, candidateRow, sheet, 0);
-      return true;
-    } catch (error) {
-      warnings.push(getRuntimeErrorMessage(error) || `物品「${item.name || item.id}」的写入目标无法解析`);
-      return false;
-    }
-  };
+  const validateGachaCatalogImportItemTarget = createValidateGachaCatalogImportItemTarget({
+    applyGachaCustomFieldsToRow: (...a: any[]) => applyGachaCustomFieldsToRow(...a),
+    assertCrudEnumConstraints: (...a: any[]) => assertCrudEnumConstraints(...a),
+    assertCrudInsertRequiredCells: (...a: any[]) => assertCrudInsertRequiredCells(...a),
+    assertCrudLengthConstraints: (...a: any[]) => assertCrudLengthConstraints(...a),
+    assertCrudRequiredColumnsRepresented: (...a: any[]) => assertCrudRequiredColumnsRepresented(...a),
+    getGachaRewardParseResultForItem: (...a: any[]) => getGachaRewardParseResultForItem(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    setEquipmentRowBasicFields: (...a: any[]) => setEquipmentRowBasicFields(...a),
+    setInventoryRowBasicFields: (...a: any[]) => setInventoryRowBasicFields(...a),
+    validateGachaCustomFieldsForTargetTable: (...a: any[]) => validateGachaCustomFieldsForTargetTable(...a),
+  });
 
   const mergeImportedGachaPools = (pools: readonly GachaPoolDefinition[]) => {
     if (!pools.length) return;
@@ -17761,46 +17188,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const validateGachaCustomFieldsForTargetTable = (
-    options: GachaCustomFieldValidationOptions,
-  ): GachaCustomFieldValidationResult => {
-    const availableHeaders = Array.from(buildGachaCustomFieldHeaderMap(options.headers).keys());
-    const missingHeaders: string[] = [];
-    const requiredHeaders = buildCrudRequiredHeaderSet(options.sheet);
-    const reservedHeaders = getGachaReservedCustomFieldHeaders(options.target, options.item.targetColumns);
-    const providedCustomFieldHeaders = new Set<string>();
-
-    if (hasGachaCustomFields(options.item)) {
-      for (const [rawKey, rawValue] of getGachaCustomFieldEntries(options.item)) {
-        const headerName = String(rawKey ?? '').trim();
-        const value = String(rawValue ?? '').trim();
-        if (!headerName || !value || reservedHeaders.has(headerName)) continue;
-        providedCustomFieldHeaders.add(headerName);
-      }
-    }
-
-    availableHeaders.forEach(headerName => {
-      if (reservedHeaders.has(headerName)) return;
-      if (!requiredHeaders.has(headerName)) return;
-      if (!providedCustomFieldHeaders.has(headerName)) missingHeaders.push(headerName);
-    });
-
-    const message = missingHeaders.length
-      ? withTableTemplateCheckHint(
-          `向目标表“${options.tableName}”写入扭蛋奖励“${options.item.name}”前，发现必填自定义列缺少值：${missingHeaders.join('、')}。当前可用表头：${availableHeaders.join('、') || '（无）'}。请在该物品的自定义字段中补充对应值，或调整目标表 DDL / 表头，取消这些列的必填要求。`,
-        )
-      : '';
-
-    if (message && options.throwOnMissing !== false) {
-      throw new Error(message);
-    }
-
-    return {
-      missingHeaders,
-      availableHeaders,
-      message,
-    };
-  };
+  const validateGachaCustomFieldsForTargetTable = createValidateGachaCustomFieldsForTargetTable({
+    buildCrudRequiredHeaderSet: (...a: any[]) => buildCrudRequiredHeaderSet(...a),
+    buildGachaCustomFieldHeaderMap: (...a: any[]) => buildGachaCustomFieldHeaderMap(...a),
+    getGachaCustomFieldEntries: (...a: any[]) => getGachaCustomFieldEntries(...a),
+    getGachaReservedCustomFieldHeaders: (...a: any[]) => getGachaReservedCustomFieldHeaders(...a),
+    hasGachaCustomFields: (...a: any[]) => hasGachaCustomFields(...a),
+    withTableTemplateCheckHint: (...a: any[]) => withTableTemplateCheckHint(...a),
+  });
 
   const validateGachaCustomFieldsForExistingRow = (options: GachaExistingCustomFieldValidationOptions): void => {
     const validation = validateGachaCustomFieldsForTargetTable({ ...options, throwOnMissing: false });
@@ -18257,46 +17652,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Array.from(roots);
   };
 
-  const updateGachaFortuneProgressDom = (state: GachaState, projectActiveProgress = false): boolean => {
-    const containers = getGachaShopProgressContainers();
-    if (containers.length === 0) return false;
-
-    const view = getGachaFortuneProgressView(state, { projectActiveProgress });
-    let didUpdate = false;
-
-    const setText = (root: HTMLElement, selector: string, text: string) => {
-      root.querySelectorAll<HTMLElement>(selector).forEach(element => {
-        element.textContent = text;
-      });
-    };
-    const setProgressWidth = (root: HTMLElement, selector: string, percent: number) => {
-      root.querySelectorAll<HTMLElement>(selector).forEach(element => {
-        element.style.width = `${String(percent)}%`;
-      });
-    };
-
-    containers.forEach(container => {
-      const progress = container.querySelector<HTMLElement>('.acu-gacha-fortune-progress');
-      if (!progress) return;
-
-      setText(container, '.acu-gacha-fortune-amount', String(view.fortune));
-      setText(progress, '.acu-gacha-last-gain-summary', view.lastGainText);
-      setText(progress, '.acu-gacha-char-progress-value', `${String(view.charProgress)}/${String(view.charGoal)}`);
-      setProgressWidth(progress, '.acu-gacha-char-progress-fill', view.charPercent);
-      setText(progress, '.acu-gacha-char-progress-note', view.charNote);
-      setText(progress, '.acu-gacha-active-progress-time', view.activeRemainingText);
-      setProgressWidth(progress, '.acu-gacha-active-progress-fill', view.activePercent);
-      setText(progress, '.acu-gacha-active-progress-note', view.activeNote);
-      setText(progress, '.acu-gacha-last-gain-time', view.lastGainTime);
-      setText(progress, '.acu-gacha-last-gain-note', view.lastGainText);
-      progress.querySelectorAll<HTMLElement>('.acu-gacha-active-progress').forEach(element => {
-        element.classList.toggle('is-reward-flash', view.shouldFlashActiveReward);
-      });
-      didUpdate = true;
-    });
-
-    return didUpdate;
-  };
+  const updateGachaFortuneProgressDom = createUpdateGachaFortuneProgressDom({
+    getGachaFortuneProgressView: (...a: any[]) => getGachaFortuneProgressView(...a),
+    getGachaShopProgressContainers: (...a: any[]) => getGachaShopProgressContainers(...a),
+  });
 
   const updateGachaShopProgressUi = (): boolean => {
     if (!getGachaShopProgressContainers().length) return false;
@@ -18516,45 +17875,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return GACHA_SETTINGS_SORT_OPTIONS.find(option => option.value === value)?.label || '默认排序';
   };
 
-  const renderGachaSettingsFilterMenuHtml = <T extends string>(
-    field: GachaSettingsFilterField,
-    options: readonly GachaSettingsFilterOption<T>[],
-    selectedValue: T,
-  ): string => {
-    const fallback = options[0];
-    if (!fallback) return '';
-    const selected = options.find(option => option.value === selectedValue) || fallback;
-    const optionHtml = options
-      .map(option => {
-        const active = option.value === selected.value;
-        return `
-          <button
-            class="acu-gacha-settings-filter-option ${active ? 'active' : ''}"
-            type="button"
-            role="menuitemradio"
-            aria-checked="${active ? 'true' : 'false'}"
-            data-filter-value="${escapeHtml(option.value)}"
-          >
-            <i class="fa-solid ${escapeHtml(option.iconClass)}"></i>
-            <span>${escapeHtml(option.label)}</span>
-          </button>
-        `;
-      })
-      .join('');
-    return `
-      <input class="acu-gacha-settings-${field}-filter" type="hidden" value="${escapeHtml(selected.value)}" />
-      <div class="acu-gacha-settings-filter-menu" data-filter-field="${field}">
-        <button class="acu-gacha-settings-filter-trigger" type="button" aria-haspopup="menu" aria-expanded="false">
-          <i class="fa-solid ${escapeHtml(selected.iconClass)}"></i>
-          <span class="acu-gacha-settings-filter-menu-label">${escapeHtml(selected.label)}</span>
-          <i class="fa-solid fa-chevron-down acu-gacha-settings-filter-chevron"></i>
-        </button>
-        <div class="acu-gacha-settings-filter-menu-list" role="menu">
-          ${optionHtml}
-        </div>
-      </div>
-    `;
-  };
+  const renderGachaSettingsFilterMenuHtml = createRenderGachaSettingsFilterMenuHtml({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+
+  });
 
   const renderGachaPoolSettingsListHtml = createRenderGachaPoolSettingsListHtml({
     canDeleteGachaPoolDefinition: (...a: any[]) => canDeleteGachaPoolDefinition(...a),
@@ -20004,47 +19328,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * 由于CSS已改为 opacity + visibility 过渡，即使快速更新也不会闪烁
    * @param {Function} updateContentFn - 更新面板内容的函数，接收 $panel 参数
    */
-  const switchPanel = (
-    updateContentFn: ($panel: JQuery<HTMLElement>) => void | Promise<void>,
-    $root?: JQuery<HTMLElement>,
-    panelHeightKey?: string | null,
-  ) => {
-    const $panel = getDataAreaForRoot($root);
-    const refreshPanelHeight = () => {
-      applyStoredPanelHeight($panel, panelHeightKey || null);
-    };
-    const showPanel = () => {
-      refreshPanelHeight();
-      if (!$panel.hasClass('visible')) $panel.addClass('visible');
-      syncHostRegenerateButtonVisibility($root);
-      requestAnimationFrame(() => {
-        refreshPanelHeight();
-        ensurePanelNavigationVisible($root);
-        syncHostRegenerateButtonVisibility($root);
-      });
-      window.setTimeout(() => {
-        refreshPanelHeight();
-      }, 120);
-    };
-    const showPanelError = (error: unknown) => {
-      console.error('[DICE]ACU 面板切换失败:', error);
-      $panel.html('<div class="acu-panel-content"><div class="acu-empty-hint">面板打开失败，请查看控制台</div></div>');
-      if (window.toastr) showActionableErrorToast('面板打开失败，请查看控制台', { developerHint: true });
-      showPanel();
-    };
-
-    try {
-      refreshPanelHeight();
-      const updateResult = updateContentFn($panel);
-      if (updateResult instanceof Promise) {
-        void updateResult.then(showPanel).catch(showPanelError);
-        return;
-      }
-      showPanel();
-    } catch (error) {
-      showPanelError(error);
-    }
-  };
+  const switchPanel = createSwitchPanel({
+    applyStoredPanelHeight: (...a: any[]) => applyStoredPanelHeight(...a),
+    ensurePanelNavigationVisible: (...a: any[]) => ensurePanelNavigationVisible(...a),
+    getDataAreaForRoot: (...a: any[]) => getDataAreaForRoot(...a),
+    syncHostRegenerateButtonVisibility: (...a: any[]) => syncHostRegenerateButtonVisibility(...a),
+  });
 
   const bindFloatingCollapseDrag = createBindFloatingCollapseDrag({
     clampFloatingCollapsePosition: (...a: any[]) => clampFloatingCollapsePosition(...a),
