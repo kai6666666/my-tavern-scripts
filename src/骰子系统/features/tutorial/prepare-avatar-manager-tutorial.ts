@@ -5,12 +5,14 @@
  */
 export function createPrepareAvatarManagerTutorial(deps: any) {
   const prepareAvatarManagerTutorial = (button: Element): boolean => {
+    console.info('[tut-debug] prepareAvatar entry');
     const { $ } = deps.getCore();
     const $manager = $(button).closest('.acu-avatar-manager');
     if (!$manager.length) return false;
 
     const $userItem = $manager.find('#acu-avatar-list-container .acu-avatar-user-item').first();
-    if (!$userItem.length) return false;
+    console.info('[tut-debug] prepareAvatar manager found=', $manager.length, 'userItem=', $userItem.length);
+    if (!$userItem.length) { console.info('[tut-debug] prepareAvatar: no user item -> false'); return false; }
 
     const $otherExpandedItems = $manager.find('#acu-avatar-list-container .acu-avatar-item.expanded').not($userItem);
     $otherExpandedItems.removeClass('expanded');

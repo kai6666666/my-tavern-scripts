@@ -8,14 +8,17 @@ import type { TutorialScope } from '../tutorial';
 export function createPrepareSettingsGroupTutorial(deps: any) {
   const prepareSettingsGroupTutorial = (scope: TutorialScope, button: Element): boolean => {
     const groupId = deps.SETTINGS_GROUP_TUTORIAL_MAP[scope];
-    if (!groupId) return true;
+    console.info('[tut-debug] prepareSettings entry scope=', scope, 'groupId=', groupId);
+    if (!groupId) { console.info('[tut-debug] prepareSettings: no groupId -> true'); return true; }
 
     const { $ } = deps.getCore();
     const $dialog = $(button).closest('.acu-settings-dialog');
-    if (!$dialog.length) return false;
+    console.info('[tut-debug] prepareSettings dialog found=', $dialog.length);
+    if (!$dialog.length) { console.info('[tut-debug] prepareSettings: no dialog -> false'); return false; }
 
     const $group = $dialog.find(`.acu-settings-group[data-group="${groupId}"]`).first();
-    if (!$group.length) return false;
+    console.info('[tut-debug] prepareSettings group found=', $group.length, 'collapsed=', $group.hasClass('collapsed'));
+    if (!$group.length) { console.info('[tut-debug] prepareSettings: no group -> false'); return false; }
 
     const $body = $group.find('.acu-settings-group-body').first();
     const $chevron = $group.find('.acu-group-chevron').first();
