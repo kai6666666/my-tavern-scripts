@@ -85,6 +85,21 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createCreateRenderPresetEditorTemplate } from './features/presets/create-render-preset-editor-template';
+import { createCreateDashboardPresetEditorTemplate } from './features/dashboard/create-dashboard-preset-editor-template';
+import { createBuildNewAdvancedPresetJsoncTemplate } from './features/presets/build-new-advanced-preset-jsonc-template';
+import { createMergeDiceConfigBackupPresetArray } from './features/dice/merge-dice-config-backup-preset-array';
+import { createValidateAdvancedPresetContestRule } from './features/presets/validate-advanced-preset-contest-rule';
+import { createValidateAdvancedPresetOutcomePolicy } from './features/presets/validate-advanced-preset-outcome-policy';
+import { createValidateAdvancedPresetOutcomes } from './features/presets/validate-advanced-preset-outcomes';
+import { createBuildAdvancedPresetEvaluationContext } from './features/presets/build-advanced-preset-evaluation-context';
+import { createNormalizeDashboardPresetFilters } from './features/dashboard/normalize-dashboard-preset-filters';
+import { createGetDashboardRuntimeConfig } from './features/dashboard/get-dashboard-runtime-config';
+import { createRestoreDiceConfigBackupGachaCatalogRecords } from './features/dice/restore-dice-config-backup-gacha-catalog-records';
+import { createGetDiceConfigBackupModuleResourceShapeWarnings } from './features/dice/get-dice-config-backup-module-resource-shape-warnings';
+import { createCountRuntimeDataChanges } from './features/table/count-runtime-data-changes';
+import { createParseCheckSuggestionCommand } from './features/checks/parse-check-suggestion-command';
+import { createExecuteCheckSuggestionCommand } from './features/checks/execute-check-suggestion-command';
 import { createBuildCheckSuggestionPresetSide } from './features/checks/build-check-suggestion-preset-side';
 import { createResolveCheckSuggestionContestWinner } from './features/checks/resolve-check-suggestion-contest-winner';
 import { createExecuteAdvancedContestCheckSuggestion } from './features/checks/execute-advanced-contest-check-suggestion';
@@ -2436,114 +2451,10 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     return { name, description, rules };
   };
 
-  const createRenderPresetEditorTemplate = (): string => `{
-  // 渲染预设只改变“怎么显示”，不会修改数据库里的真实列名和真实内容。
-  // 影响范围：主表格卡片、收藏夹卡片、仪表盘预览、MVU 数值面板的快捷检定按钮。
-  // 这里可以直接填写 rules 对象；导入完整预设文件时也支持 format / name / description / rules 包装。
-
-  // columnDisplay：控制列名显示。
-  // 例：真实列名是“一句话介绍（给 AI 看）”，显示时会先去掉括号内容，再按 aliases 改成“介绍”。
-  "columnDisplay": {
-    // true：移除列名里 ()、（） 、[]、【】 及其中内容。
-    // 只影响显示名，不影响表头、锁定 key、搜索和写入。
-    "stripBracketContent": true,
-
-    // aliases：列名显示别名。左边是真实列名或清理括号后的列名，右边是你想显示给用户看的名字。
-    // 例：“外貌特征”显示为“外貌”；真实表头仍然叫“外貌特征”。
-    "aliases": {
-      "一句话介绍": "介绍",
-      "外貌特征": "外貌"
-    }
-  },
-
-  // invalidValues：这些值会被当作“空内容”处理。
-  // 在表格卡片里会隐藏这一行；在关系和短标签拆分里会被过滤掉。
-  "invalidValues": ["-", "--", "—", "null", "none", "无", "空", "n/a", "undefined", "/", "nil"],
-
-  // identityHeaderKeywords：身份字段例外。
-  // 列名包含这些词时，不拆“属性:数值”、不拆“人名:关系”、不拆分号标签，尽量保留普通文本或标签。
-  // 例：“身份”列里的“侦探;调查员”不会被拆成两个短标签。
-  "identityHeaderKeywords": ["身份"],
-
-  // relationship：控制“人名:关系”这类内容的显示方式。
-  // 推荐格式是“张三:朋友;李四:竞争”，会显示成两条关系：张三=朋友、李四=竞争；界面上不再重复显示原列名。
-  "relationship": {
-    // false：完全关闭关系拆分，回退为普通文本。
-    "enabled": true,
-
-    // headerKeywords：按“列名”判断是否属于关系列。
-    // 例：列名是“人际关系”“NPC关系”时，会尝试把这一列里的“张三:朋友;李四:竞争”拆成多条关系显示。
-    "headerKeywords": ["关系", "人际"],
-
-    // autoDetectMultipleParen：按“内容”兜底判断。
-    // true 时：即使列名是“备注”这类普通名字，只要内容里有多个旧式“人名(关系)”，也会自动拆成多条关系显示。
-    // 注意：冒号格式“张三:朋友;李四:竞争”建议放在列名包含 headerKeywords 的关系列里。
-    "autoDetectMultipleParen": true
-  },
-
-  // attributes：控制属性键值对渲染。
-  // 会把“力量:80; 敏捷:70”或 {"力量":80,"敏捷":70} 拆成两行，显示“属性名 + 数值”，并隐藏原列名。
-  // 拆出的数值属性会按 quickCheck 规则决定是否显示快捷检定按钮。
-  "attributes": {
-    // false：完全关闭属性拆分，回退为普通文本。
-    "enabled": true,
-
-    // true：支持 JSON 对象格式，如 {"力量":80,"敏捷":70}。
-    "parseJsonObject": true,
-
-    // true：支持 属性名:数值 / 属性名：数值，也支持分号、逗号、空格分隔。
-    "parseKeyValuePairs": true
-  },
-
-  // shortTags：控制短标签渲染。
-  // 例：“受伤;潜行;警觉”会显示成三个标签。
-  // 如果任意一项超过 maxLength，会回退为普通文本，避免长句被切成一堆标签。
-  "shortTags": {
-    "enabled": true,
-    "maxLength": 6
-  },
-
-  // badges（小标签）：控制普通短文本是否显示成紧凑的小标签。
-  // 短文本、百分比、Lv.N、状态词可以沿用当前小标签样式。
-  "badges": {
-    "enabled": true,
-
-    // 长度不超过这个值的普通文本可以显示为标签。
-    "shortTextMaxLength": 6,
-
-    // true：百分比、分数、Lv.N 这类数值短文本也可以显示为小标签。
-    "numericPattern": true,
-
-    // 常见状态词。可以增删，比如加入“昏迷”“中毒”“失踪”。
-    "statusValues": ["是", "否", "有", "无", "死亡", "存活"]
-  },
-
-  // quickCheck：控制快捷检定按钮。
-  // 启用时，表格里的纯数值、属性键值对数值、MVU 数值面板包含数字时会渲染快捷检定用骰子图标。
-  "quickCheck": {
-    // false：所有渲染位置都不显示快捷检定按钮。
-    "enabled": true,
-
-    // excludeKeywords：列名或属性名包含这些词时，不显示快捷检定按钮。
-    // 用来排除“描述”“身份”“外貌”等虽然可能含数字、但不适合检定的字段。
-    "excludeKeywords": ${JSON.stringify(DEFAULT_QUICK_CHECK_EXCLUDE_KEYWORDS, null, 6).replace(/\n/g, '\n    ')}
-  },
-
-  // dialogueIndent：控制“正文头像渲染”只在哪些消息标签内生效。
-  // 白名单和黑名单是“且”的关系：文本必须命中白名单，且不能处在黑名单标签内。
-  // 黑名单优先。例：whitelist=["content"] 且 blacklist=["tag1"] 时，
-  // <content><tag1>...</tag1><tag2>...</tag2></content> 只会尝试渲染 tag2 里的正文头像。
-  "dialogueIndent": {
-    // whitelist：为空或包含 "*" 时，不限制标签范围，维持默认全局识别。
-    // 如果只想处理 <content></content> 内的正文，可改成 ["content"]。
-    // 也支持逗号分隔字符串，如 "content, tag2, tag3"。
-    "whitelist": ["*"],
-
-    // blacklist：处在这些标签内的内容永远不做正文头像渲染。
-    // 用来排除摘要、分析、变量更新、检定结果、选项、图片等系统内容。
-    "blacklist": ${JSON.stringify(DEFAULT_DIALOGUE_INDENT_TAG_BLACKLIST, null, 6).replace(/\n/g, '\n    ')}
-  }
-}`;
+  const createRenderPresetEditorTemplate = createCreateRenderPresetEditorTemplate({
+    DEFAULT_DIALOGUE_INDENT_TAG_BLACKLIST: DEFAULT_DIALOGUE_INDENT_TAG_BLACKLIST,
+    DEFAULT_QUICK_CHECK_EXCLUDE_KEYWORDS: DEFAULT_QUICK_CHECK_EXCLUDE_KEYWORDS,
+  });
 
   const RenderPresetManager = createRenderPresetManager({
     cloneRenderPresetRules: (...a: any[]) => cloneRenderPresetRules(...a),
@@ -5904,70 +5815,11 @@ $opponent $oppAttrName：$oppCheckValueText$oppModText，$oppFormula=$oppRoll，
     });
   };
 
-  const validateAdvancedPresetContestRule = (
-    preset: AdvancedDicePreset,
-    issues: AdvancedPresetValidationIssue[],
-  ): void => {
-    if (preset.contestRule === undefined) return;
-    if (!isAdvancedPresetRecord(preset.contestRule)) {
-      pushAdvancedPresetIssue(issues, 'contestRule', '必须是对象');
-      return;
-    }
-
-    const contestRule = preset.contestRule;
-    const allowedModes = new Set(['rank', 'value', 'margin', 'custom']);
-    const allowedKeys = new Set([
-      'disabled',
-      'mode',
-      'tieBreakers',
-      'tieBreaker',
-      'customExpr',
-      'hideDc',
-      'hideMod',
-      'hideSkillMod',
-    ]);
-    Object.keys(contestRule).forEach(key => {
-      if (!allowedKeys.has(key)) {
-        pushAdvancedPresetIssue(issues, `contestRule.${key}`, '不是支持的对抗规则字段');
-      }
-    });
-    if ('disabled' in contestRule && typeof contestRule.disabled !== 'boolean') {
-      pushAdvancedPresetIssue(issues, 'contestRule.disabled', '必须是布尔值');
-    }
-    if ('mode' in contestRule && (typeof contestRule.mode !== 'string' || !allowedModes.has(contestRule.mode))) {
-      pushAdvancedPresetIssue(issues, 'contestRule.mode', '必须是 rank/value/margin/custom 之一');
-    }
-    if ('tieBreakers' in contestRule) {
-      if (!Array.isArray(contestRule.tieBreakers)) {
-        pushAdvancedPresetIssue(issues, 'contestRule.tieBreakers', '必须是字符串数组');
-      } else if (contestRule.tieBreakers.some(item => typeof item !== 'string')) {
-        pushAdvancedPresetIssue(issues, 'contestRule.tieBreakers', '只能包含字符串');
-      }
-    }
-    if ('tieBreaker' in contestRule && typeof contestRule.tieBreaker !== 'string') {
-      pushAdvancedPresetIssue(issues, 'contestRule.tieBreaker', '必须是字符串');
-    }
-    if ('customExpr' in contestRule) {
-      if (typeof contestRule.customExpr !== 'string') {
-        pushAdvancedPresetIssue(issues, 'contestRule.customExpr', '必须是字符串');
-      } else {
-        const conditionResult = evaluateCondition(contestRule.customExpr, {
-          $initValue: 12,
-          $oppValue: 10,
-          $initRank: 60,
-          $oppRank: 40,
-        });
-        if (!conditionResult.success) {
-          pushAdvancedPresetIssue(issues, 'contestRule.customExpr', conditionResult.error || '条件表达式无法解析');
-        }
-      }
-    }
-    (['hideDc', 'hideMod', 'hideSkillMod'] as const).forEach(key => {
-      if (key in contestRule && typeof contestRule[key] !== 'boolean') {
-        pushAdvancedPresetIssue(issues, `contestRule.${key}`, '必须是布尔值');
-      }
-    });
-  };
+  const validateAdvancedPresetContestRule = createValidateAdvancedPresetContestRule({
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+    pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
+  });
 
   const coerceAdvancedPresetContextNumber = (value: unknown, fallback: number): number => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -6003,65 +5855,14 @@ $opponent $oppAttrName：$oppCheckValueText$oppModText，$oppFormula=$oppRoll，
     context[key.startsWith('$') ? key : `$${key}`] = numericValue;
   };
 
-  const buildAdvancedPresetEvaluationContext = (
-    preset: AdvancedDicePreset,
-    rawContext?: Record<string, unknown>,
-  ): Record<string, string | number | boolean | RollResult> => {
-    const rollRecord = rawContext && isAdvancedPresetRecord(rawContext.roll) ? rawContext.roll : {};
-    const rollTotal = coerceAdvancedPresetContextNumber(rawContext?.rollTotal ?? rollRecord.total, 50);
-    const rollTags = readAdvancedPresetContextTags(rawContext?.rollTags ?? rollRecord.tags);
-    const context: Record<string, string | number | boolean | RollResult> = {
-      $roll: createAdvancedPresetRollResult(rollTotal, rollTags),
-      $attr: coerceAdvancedPresetContextNumber(rawContext?.attr ?? rawContext?.attribute, 50),
-      $attrMod: 0,
-      $dc: coerceAdvancedPresetContextNumber(rawContext?.dc, 0),
-      $mod: coerceAdvancedPresetContextNumber(rawContext?.mod, 0),
-      $skillMod: coerceAdvancedPresetContextNumber(rawContext?.skillMod, 0),
-    };
-
-    if (preset.attribute?.computeModifier) {
-      const evalResult = evaluateCondition(preset.attribute.computeModifier, context as Record<string, number>);
-      if (evalResult.success) {
-        const rawValue = evalResult.value;
-        context.$attrMod = typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : rawValue ? 1 : 0;
-      }
-    }
-
-    if (Array.isArray(preset.customFields)) {
-      preset.customFields.forEach(field => {
-        context[`$${field.id}`] = coerceAdvancedPresetContextNumber(field.defaultValue, 0);
-      });
-    }
-
-    if (preset.outcomePolicy?.kind === 'minRank') {
-      const requiredRankVarId = preset.outcomePolicy.requiredRankVarId;
-      const varKey = requiredRankVarId.startsWith('$') ? requiredRankVarId : `$${requiredRankVarId}`;
-      context[varKey] = 1;
-    }
-
-    if (rawContext) {
-      const vars = isAdvancedPresetRecord(rawContext.vars) ? rawContext.vars : {};
-      Object.entries(vars).forEach(([key, value]) => assignAdvancedPresetContextNumber(context, key, value));
-      Object.entries(rawContext).forEach(([key, value]) => {
-        if (['roll', 'rollTotal', 'rollTags', 'vars', 'attr', 'attribute', 'dc', 'mod', 'skillMod'].includes(key)) {
-          return;
-        }
-        assignAdvancedPresetContextNumber(context, key, value);
-      });
-    }
-
-    if (Array.isArray(preset.derivedVars)) {
-      preset.derivedVars.forEach(spec => {
-        if (!spec || typeof spec.id !== 'string' || typeof spec.expr !== 'string') return;
-        const evalResult = evaluateCondition(spec.expr, context as Record<string, number>);
-        if (!evalResult.success) return;
-        const value = evalResult.value;
-        context[`$${spec.id}`] = typeof value === 'number' && Number.isFinite(value) ? value : value ? 1 : 0;
-      });
-    }
-
-    return context;
-  };
+  const buildAdvancedPresetEvaluationContext = createBuildAdvancedPresetEvaluationContext({
+    assignAdvancedPresetContextNumber: (...a: any[]) => assignAdvancedPresetContextNumber(...a),
+    coerceAdvancedPresetContextNumber: (...a: any[]) => coerceAdvancedPresetContextNumber(...a),
+    createAdvancedPresetRollResult: (...a: any[]) => createAdvancedPresetRollResult(...a),
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+    readAdvancedPresetContextTags: (...a: any[]) => readAdvancedPresetContextTags(...a),
+  });
 
   interface AdvancedPresetOutcomePolicyResult {
     outcome: OutcomeLevel;
@@ -6120,62 +5921,12 @@ $opponent $oppAttrName：$oppCheckValueText$oppModText，$oppFormula=$oppRoll，
   const getAdvancedPresetDisplayOutcome = (policyResult: AdvancedPresetOutcomePolicyResult): OutcomeLevel =>
     policyResult.isUnmet && policyResult.requiredOutcome ? policyResult.requiredOutcome : policyResult.outcome;
 
-  const validateAdvancedPresetOutcomes = (
-    preset: AdvancedDicePreset,
-    issues: AdvancedPresetValidationIssue[],
-  ): void => {
-    if (!Array.isArray(preset.outcomes) || preset.outcomes.length === 0) {
-      pushAdvancedPresetIssue(issues, 'outcomes', '至少需要一个判定结果');
-      return;
-    }
-
-    const ids = new Set<string>();
-    const smokeContext = buildAdvancedPresetEvaluationContext(preset);
-    preset.outcomes.forEach((outcome, index) => {
-      const path = `outcomes[${index}]`;
-      if (!isAdvancedPresetRecord(outcome)) {
-        pushAdvancedPresetIssue(issues, path, '必须是对象');
-        return;
-      }
-      if (typeof outcome.id !== 'string' || !outcome.id.trim()) {
-        pushAdvancedPresetIssue(issues, `${path}.id`, '必须是非空字符串');
-      } else if (ids.has(outcome.id)) {
-        pushAdvancedPresetIssue(issues, `${path}.id`, `重复的 outcome ID: ${outcome.id}`);
-      } else {
-        ids.add(outcome.id);
-      }
-      if (typeof outcome.name !== 'string' || !outcome.name.trim()) {
-        pushAdvancedPresetIssue(issues, `${path}.name`, '必须是非空字符串');
-      }
-      if (typeof outcome.condition !== 'string') {
-        pushAdvancedPresetIssue(issues, `${path}.condition`, '必须是字符串');
-      } else {
-        const conditionResult = evaluateCondition(outcome.condition, smokeContext as Record<string, number>);
-        if (!conditionResult.success) {
-          pushAdvancedPresetIssue(issues, `${path}.condition`, conditionResult.error || '条件表达式无法解析');
-        }
-      }
-      if ('displayExpr' in outcome) {
-        if (typeof outcome.displayExpr !== 'string') {
-          pushAdvancedPresetIssue(issues, `${path}.displayExpr`, '必须是字符串');
-        } else {
-          const displayExprResult = evaluateCondition(outcome.displayExpr, smokeContext as Record<string, number>);
-          if (!displayExprResult.success) {
-            pushAdvancedPresetIssue(issues, `${path}.displayExpr`, displayExprResult.error || '显示表达式无法解析');
-          }
-        }
-      }
-      if (typeof outcome.priority !== 'number' || !Number.isFinite(outcome.priority)) {
-        pushAdvancedPresetIssue(issues, `${path}.priority`, '必须是数字');
-      }
-      if ('rank' in outcome && typeof outcome.rank !== 'number') {
-        pushAdvancedPresetIssue(issues, `${path}.rank`, '必须是数字');
-      }
-      if ('contestRank' in outcome && typeof outcome.contestRank !== 'number') {
-        pushAdvancedPresetIssue(issues, `${path}.contestRank`, '必须是数字');
-      }
-    });
-  };
+  const validateAdvancedPresetOutcomes = createValidateAdvancedPresetOutcomes({
+    buildAdvancedPresetEvaluationContext: (...a: any[]) => buildAdvancedPresetEvaluationContext(...a),
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+    pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
+  });
 
   const isAdvancedPresetNumericLike = (value: unknown): boolean => {
     if (typeof value === 'number') return Number.isFinite(value);
@@ -6183,63 +5934,11 @@ $opponent $oppAttrName：$oppCheckValueText$oppModText，$oppFormula=$oppRoll，
     return false;
   };
 
-  const validateAdvancedPresetOutcomePolicy = (
-    preset: AdvancedDicePreset,
-    issues: AdvancedPresetValidationIssue[],
-  ): void => {
-    if (preset.outcomePolicy === undefined) return;
-    if (!isAdvancedPresetRecord(preset.outcomePolicy)) {
-      pushAdvancedPresetIssue(issues, 'outcomePolicy', '必须是对象');
-      return;
-    }
-
-    const policy = preset.outcomePolicy;
-    if (policy.kind !== 'minRank') {
-      pushAdvancedPresetIssue(issues, 'outcomePolicy.kind', '当前仅支持 minRank；conditional 是保留类型，不要生成');
-      return;
-    }
-
-    if (typeof policy.requiredRankVarId !== 'string' || !policy.requiredRankVarId.trim()) {
-      pushAdvancedPresetIssue(issues, 'outcomePolicy.requiredRankVarId', '必须是 customFields 里的字段 ID');
-    } else {
-      const fieldId = policy.requiredRankVarId.startsWith('$')
-        ? policy.requiredRankVarId.slice(1)
-        : policy.requiredRankVarId;
-      const fieldIndex = Array.isArray(preset.customFields)
-        ? preset.customFields.findIndex(candidate => candidate.id === fieldId)
-        : -1;
-      const field = fieldIndex >= 0 && Array.isArray(preset.customFields) ? preset.customFields[fieldIndex] : undefined;
-      const fieldPath = fieldIndex >= 0 ? `customFields[${fieldIndex}]` : `customFields.${fieldId}`;
-      if (!field) {
-        pushAdvancedPresetIssue(issues, 'outcomePolicy.requiredRankVarId', `找不到自定义字段: ${fieldId}`);
-      } else if (field.type !== 'number' && field.type !== 'select') {
-        pushAdvancedPresetIssue(issues, 'outcomePolicy.requiredRankVarId', '必须指向 number 字段或数值型 select 字段');
-      } else if (field.type === 'select') {
-        if (!Array.isArray(field.options) || field.options.length === 0) {
-          pushAdvancedPresetIssue(issues, `${fieldPath}.options`, 'minRank 使用的 select 必须提供数值选项');
-        } else if (field.options.some(option => !isAdvancedPresetNumericLike(option.value))) {
-          pushAdvancedPresetIssue(issues, `${fieldPath}.options`, 'minRank 使用的 select 选项 value 必须是数字');
-        }
-        if (!isAdvancedPresetNumericLike(field.defaultValue)) {
-          pushAdvancedPresetIssue(issues, `${fieldPath}.defaultValue`, 'minRank 使用的 select 默认值必须是数字');
-        }
-      }
-    }
-
-    if (typeof policy.unmetOutcomeId !== 'string' || !policy.unmetOutcomeId.trim()) {
-      pushAdvancedPresetIssue(issues, 'outcomePolicy.unmetOutcomeId', '必须是 outcomes 里的 outcome ID');
-    } else if (!preset.outcomes.some(outcome => outcome.id === policy.unmetOutcomeId)) {
-      pushAdvancedPresetIssue(issues, 'outcomePolicy.unmetOutcomeId', `找不到 outcome: ${policy.unmetOutcomeId}`);
-    }
-
-    if ('keepActualOutcome' in policy && typeof policy.keepActualOutcome !== 'boolean') {
-      pushAdvancedPresetIssue(issues, 'outcomePolicy.keepActualOutcome', '必须是布尔值');
-    }
-
-    if (!preset.outcomes.some(outcome => typeof outcome.rank === 'number')) {
-      pushAdvancedPresetIssue(issues, 'outcomes', '使用 minRank 时，参与成功等级比较的 outcomes 需要提供数字 rank');
-    }
-  };
+  const validateAdvancedPresetOutcomePolicy = createValidateAdvancedPresetOutcomePolicy({
+    isAdvancedPresetNumericLike: (...a: any[]) => isAdvancedPresetNumericLike(...a),
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+    pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
+  });
 
   const validateAdvancedPresetTemplates = (
     preset: AdvancedDicePreset,
@@ -7464,65 +7163,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return value.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
   };
 
-  const normalizeDashboardPresetFilters = (
-    moduleKey: string,
-    rawFilters: unknown,
-  ): Record<string, DashboardPresetFilterConfig> => {
-    if (!isRecordValue(rawFilters)) {
-      throw new Error(`模块 ${moduleKey}.filters 必须是对象`);
-    }
-
-    const moduleConfig = DASHBOARD_TABLE_CONFIG[moduleKey];
-    const allowedFilterKeys = DASHBOARD_PRESET_FILTER_KEYS[moduleKey] || [];
-    const filters: Record<string, DashboardPresetFilterConfig> = {};
-
-    Object.entries(rawFilters).forEach(([filterKey, rawFilter]) => {
-      if (!allowedFilterKeys.includes(filterKey)) {
-        throw new Error(`模块 ${moduleKey} 不支持过滤器: ${filterKey}`);
-      }
-      if (!moduleConfig.filters?.[filterKey]) {
-        throw new Error(`模块 ${moduleKey} 不存在默认过滤器: ${filterKey}`);
-      }
-      if (!isRecordValue(rawFilter)) {
-        throw new Error(`模块 ${moduleKey}.filters.${filterKey} 必须是对象`);
-      }
-
-      const filterConfig: DashboardPresetFilterConfig = {};
-      if ('column' in rawFilter) {
-        const column = typeof rawFilter.column === 'string' ? rawFilter.column.trim() : '';
-        if (!column || !moduleConfig.columns[column]) {
-          throw new Error(`模块 ${moduleKey}.filters.${filterKey}.column 必须引用已有字段`);
-        }
-        filterConfig.column = column;
-      }
-      if ('excludeColumn' in rawFilter) {
-        const excludeColumn = typeof rawFilter.excludeColumn === 'string' ? rawFilter.excludeColumn.trim() : '';
-        if (!excludeColumn || !moduleConfig.columns[excludeColumn]) {
-          throw new Error(`模块 ${moduleKey}.filters.${filterKey}.excludeColumn 必须引用已有字段`);
-        }
-        filterConfig.excludeColumn = excludeColumn;
-      }
-      if ('includes' in rawFilter) {
-        filterConfig.includes = normalizeDashboardOptionalStringArray(
-          rawFilter.includes,
-          `模块 ${moduleKey}.filters.${filterKey}.includes`,
-        );
-      }
-      if ('excludes' in rawFilter) {
-        filterConfig.excludes = normalizeDashboardOptionalStringArray(
-          rawFilter.excludes,
-          `模块 ${moduleKey}.filters.${filterKey}.excludes`,
-        );
-      }
-
-      if (Object.keys(filterConfig).length === 0) {
-        throw new Error(`模块 ${moduleKey}.filters.${filterKey} 至少需要配置一个字段`);
-      }
-      filters[filterKey] = filterConfig;
-    });
-
-    return filters;
-  };
+  const normalizeDashboardPresetFilters = createNormalizeDashboardPresetFilters({
+    isRecordValue: (...a: any[]) => isRecordValue(...a),
+    normalizeDashboardOptionalStringArray: (...a: any[]) => normalizeDashboardOptionalStringArray(...a),
+    DASHBOARD_PRESET_FILTER_KEYS: DASHBOARD_PRESET_FILTER_KEYS,
+    DASHBOARD_TABLE_CONFIG: DASHBOARD_TABLE_CONFIG,
+  });
 
   const normalizeDashboardRelationshipGraphConfig = (
     rawModule: Record<string, unknown>,
@@ -7863,106 +7509,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return { name, description, modules };
   };
 
-  const createDashboardPresetEditorTemplate = (): string => `{
-  // 预设名称和描述在上方输入框填写；这里配置各区域如何抓取表格。
-  // 每个区域保持现有渲染方式，只替换表名关键词和字段列关键词。
-  // 这里可以直接填写 modules 对象；导入完整预设文件时也支持 format / name / description / modules 包装。
-  // 示例对比：重要对象表 → 恋爱对象表；装备表 → 装扮表；任务表 → 备忘录。
-  "global": {
-    // 全局数据区：当前地点、时间等
-    "tableKeywords": ["全局数据表", "全局数据", "全局"],
-    "columns": {
-      "detailLocation": { "keywords": ["当前详细地点", "详细地点", "具体位置", "当前位置"] },
-      "currentLocation": { "keywords": ["当前次要地区", "当前所在地点", "当前地点", "所在地点"] },
-      "currentTime": { "keywords": ["当前时间", "时间", "当前日期时间", "当前日期", "日期时间"] }
-    }
-  },
-  "player": {
-    // 主角区：属性、资源、当前位置
-    "tableKeywords": ["主角信息", "主角", "玩家", "角色信息", "user", "<user>"],
-    "columns": {
-      "name": { "keywords": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"] },
-      "status": { "keywords": ["近况", "当前状态", "状态关键词", "状态关键字", "状态标签", "状态"] },
-      "position": { "keywords": ["具体位置", "位置", "所在地"] },
-      "money": { "keywords": ["金钱", "资金", "金币", "货币", "余额"] },
-      "resources": { "keywords": ["资源数据", "资源", "resources"] }
-    }
-  },
-  "location": {
-    // 地点区：保持地点列表和当前地点高亮
-    "tableKeywords": ["世界地图点", "地图点", "地图", "地点", "地点表", "地图表"],
-    "columns": {
-      "name": { "keywords": ["详细地点", "具体位置", "当前地点", "地区", "地点名", "名称"] },
-      "description": { "keywords": ["环境描述", "描述", "说明", "介绍"] }
-    }
-  },
-  "npc": {
-    // 角色区：示例把默认的“重要对象表”改成“恋爱对象表”，仍保持在场/离场分组和头像
-    "tableKeywords": ["恋爱对象表", "恋爱对象"],
-    "columns": {
-      "name": { "keywords": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"] },
-      "status": { "keywords": ["当前情绪", "对主角态度", "自身状态", "状态"] },
-      "position": { "keywords": ["具体位置", "位置", "所在地点", "所在"] },
-      "inScene": { "keywords": ["在场状态", "在场", "是否离场", "离场"] }
-    }
-  },
-  "relationshipGraph": {
-    // 人物关系图：sources 可配置多个来源，并按 mode 决定关系解析方式
-    // fixedTarget：当前行角色固定连到 target；适合“恋爱对象表.与主角关系”
-    // relationList：沿用“角色名:关系词;角色名:关系词”；适合“重要角色表.人际关系”
-    "sources": [
-      {
-        "mode": "fixedTarget",
-        "tableKeywords": ["恋爱对象表", "恋爱对象"],
-        "nameColumn": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"],
-        "relationColumn": ["与主角关系"],
-        "target": "player"
-      },
-      {
-        "mode": "relationList",
-        "tableKeywords": ["重要角色表", "重要人物表"],
-        "nameColumn": ["姓名", "名称", "名字", "角色名", "人物名", "人物名称", "name", "Name"],
-        "relationColumn": ["人际关系"]
-      }
-    ]
-  },
-  "quest": {
-    // 任务区：示例把默认的“任务表”改成“备忘录”，仍保持进度条、状态排序等渲染
-    "tableKeywords": ["备忘录", "备忘表", "备忘"],
-    "columns": {
-      "name": { "keywords": ["备忘标题", "事项名称", "任务名", "名称"] },
-      "type": { "keywords": ["类型", "分类", "事项类型"] },
-      "progress": { "keywords": ["后续结果", "进度", "完成度", "进度/结果"] },
-      "status": { "keywords": ["当前状态", "状态"] },
-      "priority": { "keywords": ["重要程度", "重要性", "优先级", "紧急程度"] }
-    }
-  },
-  "bag": {
-    // 物品区：保持物品列表和物品栏入口
-    "tableKeywords": ["背包物品", "背包", "物品", "道具", "库存", "持有物品表"],
-    "columns": {
-      "name": { "keywords": ["物品名称", "名称", "物品名"] },
-      "type": { "keywords": ["类型", "分类", "物品类型"] },
-      "count": { "keywords": ["数量", "个数", "持有数"] }
-    }
-  },
-  "equip": {
-    // 装备区：示例把默认的“装备表”改成“装扮表”，并把“正在穿/已佩戴”识别为展示项
-    "tableKeywords": ["装扮表", "装扮"],
-    "columns": {
-      "name": { "keywords": ["装扮名称", "装备名称", "名称", "装备名"] },
-      "type": { "keywords": ["类型", "分类"] },
-      "part": { "keywords": ["适用场景", "部位", "装备部位", "位置"] },
-      "isEquipped": { "keywords": ["当前状态", "状态", "是否装备", "装备状态", "装备中"] }
-    },
-    "filters": {
-      "equipped": {
-        "includes": ["正在穿", "已佩戴", "已穿戴", "穿着中", "已装备"],
-        "excludes": ["收纳中", "收纳", "损坏", "遗失", "借出", "已更换", "纪念保存", "未穿戴", "未装备"]
-      }
-    }
-  }
-}`;
+  const createDashboardPresetEditorTemplate = createCreateDashboardPresetEditorTemplate({
+
+  });
 
   const DashboardPresetManager = createDashboardPresetManager({
     cloneDashboardPresetModules: (...a: any[]) => cloneDashboardPresetModules(...a),
@@ -7980,67 +7529,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return graphConfig?.sources || [];
   };
 
-  const getDashboardRuntimeConfig = (): DashboardConfigMap => {
-    if (dashboardRuntimeConfigCache) return dashboardRuntimeConfigCache;
-
-    const runtimeConfig = cloneDashboardConfig(DASHBOARD_TABLE_CONFIG);
-    const activePreset = DashboardPresetManager.getActivePreset();
-
-    Object.entries(activePreset.modules || {}).forEach(([moduleKey, moduleOverride]) => {
-      const moduleConfig = runtimeConfig[moduleKey];
-      if (!moduleConfig) return;
-
-      if (moduleOverride.tableKeywords && moduleOverride.tableKeywords.length > 0) {
-        moduleConfig.tableKeywords = [...moduleOverride.tableKeywords];
-      }
-
-      Object.entries(moduleOverride.columns || {}).forEach(([columnKey, columnOverride]) => {
-        const columnConfig = moduleConfig.columns[columnKey];
-        if (columnConfig && columnOverride.keywords.length > 0) {
-          columnConfig.keywords = [...columnOverride.keywords];
-          return;
-        }
-
-        const allowedAdditionalColumns = DASHBOARD_PRESET_ADDITIONAL_COLUMNS[moduleKey] || [];
-        if (allowedAdditionalColumns.includes(columnKey) && columnOverride.keywords.length > 0) {
-          moduleConfig.columns[columnKey] = {
-            keywords: [...columnOverride.keywords],
-            fallbackIndex: null,
-          };
-        }
-      });
-
-      Object.entries(moduleOverride.filters || {}).forEach(([filterKey, filterOverride]) => {
-        const allowedFilterKeys = DASHBOARD_PRESET_FILTER_KEYS[moduleKey] || [];
-        const filterConfig = moduleConfig.filters?.[filterKey];
-        if (!allowedFilterKeys.includes(filterKey) || !filterConfig) return;
-
-        const mergedFilter: DashboardFilterConfig = { ...filterConfig, includes: [...filterConfig.includes] };
-        if (filterConfig.excludes) {
-          mergedFilter.excludes = [...filterConfig.excludes];
-        }
-        if (filterOverride.column && moduleConfig.columns[filterOverride.column]) {
-          mergedFilter.column = filterOverride.column;
-        }
-        if (filterOverride.excludeColumn && moduleConfig.columns[filterOverride.excludeColumn]) {
-          mergedFilter.excludeColumn = filterOverride.excludeColumn;
-        }
-        if (Array.isArray(filterOverride.includes)) {
-          mergedFilter.includes = [...filterOverride.includes];
-        }
-        if (Array.isArray(filterOverride.excludes)) {
-          mergedFilter.excludes = [...filterOverride.excludes];
-        }
-        moduleConfig.filters = {
-          ...(moduleConfig.filters || {}),
-          [filterKey]: mergedFilter,
-        };
-      });
-    });
-
-    dashboardRuntimeConfigCache = runtimeConfig;
-    return runtimeConfig;
-  };
+  const getDashboardRuntimeConfig = createGetDashboardRuntimeConfig({
+    cloneDashboardConfig: (...a: any[]) => cloneDashboardConfig(...a),
+    DASHBOARD_PRESET_ADDITIONAL_COLUMNS: DASHBOARD_PRESET_ADDITIONAL_COLUMNS,
+    DASHBOARD_PRESET_FILTER_KEYS: DASHBOARD_PRESET_FILTER_KEYS,
+    DASHBOARD_TABLE_CONFIG: DASHBOARD_TABLE_CONFIG,
+    DashboardPresetManager: DashboardPresetManager,
+    getDashboardRuntimeConfigCache: () => dashboardRuntimeConfigCache,
+    setDashboardRuntimeConfigCache: (v: any) => { dashboardRuntimeConfigCache = v; },
+  });
 
   const getDashboardModuleConfig = (moduleKey: string): DashboardModuleConfig | null =>
     getDashboardRuntimeConfig()[moduleKey] || null;
@@ -13096,62 +12593,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       return value !== null && value !== '';
     });
 
-  const getDiceConfigBackupModuleResourceShapeWarnings = (
-    moduleId: DiceConfigBackupModuleId,
-    resources?: Record<string, unknown>,
-  ): string[] => {
-    if (!resources) return [];
-    const warnings: string[] = [];
-    const pushUnknownResourceWarnings = (knownKeys: ReadonlySet<string>) => {
-      const unknownKeys = Object.keys(resources).filter(key => !knownKeys.has(key));
-      if (unknownKeys.length > 0) {
-        warnings.push(`模块包含当前版本无法恢复的扩展资源：${unknownKeys.join('、')}。`);
-      }
-    };
-    if (moduleId === 'tableTemplate') {
-      if (
-        DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY in resources &&
-        !isDiceConfigBackupRecord(resources[DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY])
-      ) {
-        warnings.push('当前数据库表格模板: 模板资源结构无效，无法恢复该模板。');
-      }
-      pushUnknownResourceWarnings(new Set([DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY]));
-      return warnings;
-    }
-    if (moduleId === 'gachaSettings') {
-      if (DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY in resources) {
-        const value = resources[DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY];
-        if (!Array.isArray(value)) {
-          warnings.push('骰子商城配置与自定义物品: 自定义目录资源不是数组，无法恢复该目录。');
-        } else {
-          const resourceWarnings: string[] = [];
-          const runtimeRawData = getRuntimeGachaRawData();
-          const validCount = value.filter(record =>
-            normalizeDiceConfigBackupGachaCatalogResourceRecord(record, resourceWarnings, runtimeRawData),
-          ).length;
-          if (resourceWarnings.length > 0) {
-            const maybeDeferredByTemplateRestore = Boolean(isDiceConfigBackupRecord(resources) && runtimeRawData);
-            warnings.push(
-              ...Array.from(new Set(resourceWarnings)).map(warning =>
-                maybeDeferredByTemplateRestore
-                  ? `${warning} 若本次同时恢复“当前数据库表格模板”，最终会在模板导入后重新校验。`
-                  : warning,
-              ),
-            );
-          }
-          if (value.length > 0 && validCount === 0) {
-            warnings.push(
-              '骰子商城配置与自定义物品: 自定义目录资源在当前模板下没有有效物品；若本次同时恢复“当前数据库表格模板”，最终会在模板导入后重新校验。',
-            );
-          }
-        }
-      }
-      pushUnknownResourceWarnings(new Set([DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY]));
-      return warnings;
-    }
-    pushUnknownResourceWarnings(new Set());
-    return warnings;
-  };
+  const getDiceConfigBackupModuleResourceShapeWarnings = createGetDiceConfigBackupModuleResourceShapeWarnings({
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    normalizeDiceConfigBackupGachaCatalogResourceRecord: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogResourceRecord(...a),
+    DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY: DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY,
+    DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY: DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY,
+  });
 
   const hasDiceConfigBackupLocalImageReference = (value: unknown, depth = 0): boolean => {
     if (depth > 8) return false;
@@ -13300,94 +12748,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return typeof rawName === 'string' || typeof rawName === 'number' ? String(rawName).trim() : '';
   };
 
-  const mergeDiceConfigBackupPresetArray = (
-    current: unknown,
-    incoming: unknown,
-    moduleName: string,
-    key: string,
-  ): DiceConfigBackupPresetMergeResult => {
-    const builtinPresetIds = new Set(getDiceConfigBackupBuiltinPresetIds(key));
-    const result: DiceConfigBackupPresetMergeResult = {
-      value: Array.isArray(current)
-        ? cloneDiceConfigBackupValue(current).filter(item => {
-            if (!isDiceConfigBackupRecord(item)) return true;
-            const id = getDiceConfigBackupPresetRecordId(item);
-            return !id || !builtinPresetIds.has(id);
-          })
-        : [],
-      idMap: new Map<string, string>(),
-      added: 0,
-      overwritten: 0,
-      skipped: 0,
-      warnings: [],
-    };
-    if (!Array.isArray(incoming)) {
-      result.skipped += 1;
-      result.warnings.push(`${moduleName}: ${key} 不是预设数组，已跳过。`);
-      return result;
-    }
-
-    const indexById = new Map<string, number>();
-    const indexByName = new Map<string, number>();
-    result.value.forEach((item, index) => {
-      if (!isDiceConfigBackupRecord(item)) return;
-      const id = getDiceConfigBackupPresetRecordId(item);
-      const name = getDiceConfigBackupPresetRecordName(item);
-      if (id) indexById.set(id, index);
-      if (name && !indexByName.has(name)) indexByName.set(name, index);
-    });
-
-    incoming.forEach(item => {
-      if (!isDiceConfigBackupRecord(item)) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: ${key} 中存在非对象预设，已跳过。`);
-        return;
-      }
-      const imported = cloneDiceConfigBackupValue(item);
-      const sourceId = getDiceConfigBackupPresetRecordId(imported);
-      const sourceName = getDiceConfigBackupPresetRecordName(imported);
-      if (!sourceId) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 存在缺少 id 的预设 "${sourceName || '未命名'}"，已跳过。`);
-        return;
-      }
-      if (builtinPresetIds.has(sourceId) || imported.builtin === true) {
-        result.skipped += 1;
-        result.warnings.push(`${moduleName}: 内置预设 "${sourceName || sourceId}" 以当前脚本版本为准，已跳过备份中的同名记录。`);
-        return;
-      }
-
-      if (indexById.has(sourceId)) {
-        const targetIndex = indexById.get(sourceId)!;
-        const currentRecord = isDiceConfigBackupRecord(result.value[targetIndex]) ? result.value[targetIndex] : {};
-        result.value[targetIndex] = { ...currentRecord, ...imported, id: sourceId };
-        result.idMap.set(sourceId, sourceId);
-        result.overwritten += 1;
-        if (sourceName) indexByName.set(sourceName, targetIndex);
-        return;
-      }
-
-      if (sourceName && indexByName.has(sourceName)) {
-        const targetIndex = indexByName.get(sourceName)!;
-        const currentRecord = isDiceConfigBackupRecord(result.value[targetIndex]) ? result.value[targetIndex] : {};
-        const targetId = getDiceConfigBackupPresetRecordId(currentRecord) || sourceId;
-        result.value[targetIndex] = { ...currentRecord, ...imported, id: targetId };
-        result.idMap.set(sourceId, targetId);
-        result.overwritten += 1;
-        indexById.set(targetId, targetIndex);
-        return;
-      }
-
-      result.value.push(imported);
-      const targetIndex = result.value.length - 1;
-      indexById.set(sourceId, targetIndex);
-      if (sourceName) indexByName.set(sourceName, targetIndex);
-      result.idMap.set(sourceId, sourceId);
-      result.added += 1;
-    });
-
-    return result;
-  };
+  const mergeDiceConfigBackupPresetArray = createMergeDiceConfigBackupPresetArray({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupBuiltinPresetIds: (...a: any[]) => getDiceConfigBackupBuiltinPresetIds(...a),
+    getDiceConfigBackupPresetRecordId: (...a: any[]) => getDiceConfigBackupPresetRecordId(...a),
+    getDiceConfigBackupPresetRecordName: (...a: any[]) => getDiceConfigBackupPresetRecordName(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const mergeDiceConfigBackupCustomOnlyPresetArray = createMergeDiceConfigBackupCustomOnlyPresetArray({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -13925,65 +13292,20 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return warnings;
   };
 
-  const restoreDiceConfigBackupGachaCatalogRecords = async (
-    recordsValue: unknown,
-    stats: DiceConfigBackupApplyStats,
-    itemIdMap?: Map<string, string>,
-    rawData = getRuntimeGachaRawData(),
-  ): Promise<void> => {
-    if (recordsValue === undefined) return;
-    if (!Array.isArray(recordsValue)) {
-      stats.skipped += 1;
-      stats.warnings.push('骰子商城配置与自定义物品: 自定义目录资源不是数组，已跳过。');
-      return;
-    }
-    await migrateGachaCatalogRecordsToGlobalScope();
-    const incomingRecords: GachaCatalogRecord[] = [];
-    for (const rawRecord of recordsValue) {
-      const incomingRecord = normalizeDiceConfigBackupGachaCatalogResourceRecord(
-        rawRecord,
-        stats.warnings,
-        rawData,
-      );
-      if (!incomingRecord) {
-        stats.skipped += 1;
-        continue;
-      }
-      incomingRecords.push(incomingRecord);
-    }
-    const incomingGlobalRecord = mergeGachaCatalogRecordsToGlobalScope(incomingRecords);
-    if (!incomingGlobalRecord) return;
-
-    const currentRecord = await GachaCatalogDB.get(GACHA_CATALOG_GLOBAL_SCOPE_KEY);
-    const currentCatalog = normalizeGachaCatalogRecord(currentRecord) || createEmptyGachaCatalog();
-    const beforeTouched = stats.added + stats.overwritten + stats.skipped;
-    const mergedItems = mergeDiceConfigBackupGachaCatalogItems(
-      currentCatalog.items,
-      incomingGlobalRecord.items,
-      stats,
-      itemIdMap,
-    );
-    if (stats.added + stats.overwritten + stats.skipped === beforeTouched) {
-      stats.skipped += 1;
-    }
-    const nextRecord: GachaCatalogRecord = {
-      scopeKey: GACHA_CATALOG_GLOBAL_SCOPE_KEY,
-      version: Math.max(currentCatalog.version || 1, incomingGlobalRecord.version || 1, GACHA_CATALOG_VERSION),
-      items: mergedItems,
-      updatedAt: Date.now(),
-    };
-    const saved = await GachaCatalogDB.put(nextRecord);
-    if (!saved) throw new Error('全局自定义物品目录保存失败');
-    gachaCatalogCache = {
-      scopeKey: GACHA_CATALOG_GLOBAL_SCOPE_KEY,
-      catalog: {
-        version: nextRecord.version,
-        items: cloneGachaCatalogItems(nextRecord.items),
-        updatedAt: nextRecord.updatedAt,
-      },
-    };
-    ensureGachaPoolsForTags(incomingGlobalRecord.items.flatMap(item => [...item.poolTags]));
-  };
+  const restoreDiceConfigBackupGachaCatalogRecords = createRestoreDiceConfigBackupGachaCatalogRecords({
+    cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
+    createEmptyGachaCatalog: (...a: any[]) => createEmptyGachaCatalog(...a),
+    ensureGachaPoolsForTags: (...a: any[]) => ensureGachaPoolsForTags(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    mergeDiceConfigBackupGachaCatalogItems: (...a: any[]) => mergeDiceConfigBackupGachaCatalogItems(...a),
+    mergeGachaCatalogRecordsToGlobalScope: (...a: any[]) => mergeGachaCatalogRecordsToGlobalScope(...a),
+    migrateGachaCatalogRecordsToGlobalScope: (...a: any[]) => migrateGachaCatalogRecordsToGlobalScope(...a),
+    normalizeDiceConfigBackupGachaCatalogResourceRecord: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogResourceRecord(...a),
+    normalizeGachaCatalogRecord: (...a: any[]) => normalizeGachaCatalogRecord(...a),
+    GACHA_CATALOG_GLOBAL_SCOPE_KEY: GACHA_CATALOG_GLOBAL_SCOPE_KEY,
+    getGachaCatalogCache: () => gachaCatalogCache,
+    setGachaCatalogCache: (v: any) => { gachaCatalogCache = v; },
+  });
 
   const restoreDiceConfigBackupTableTemplate = async (
     templateValue: unknown,
@@ -15400,62 +14722,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return null;
   };
 
-  const countRuntimeDataChanges = (snapshot: unknown, rawData: unknown): number => {
-    const rawRecord = asDiffRecord(rawData);
-    const snapshotRecord = asDiffRecord(snapshot);
-    if (!rawRecord || !snapshotRecord) return 0;
-
-    let changesCount = 0;
-    const matchedSnapshotKeys = new Set<string>();
-
-    for (const sheetId in rawRecord) {
-      if (!sheetId.startsWith('sheet_')) continue;
-      const newSheet = rawRecord[sheetId];
-      if (!isDiffSheet(newSheet)) continue;
-
-      const snapshotEntry = findDiffSnapshotEntry(snapshotRecord, sheetId, newSheet);
-      const oldSheet = snapshotEntry?.sheet;
-      if (snapshotEntry) matchedSnapshotKeys.add(snapshotEntry.key);
-
-      if (!oldSheet?.content) {
-        changesCount++;
-        continue;
-      }
-
-      const headers = getDiffHeaders(newSheet);
-      const oldHeaders = getDiffHeaders(oldSheet);
-      if (JSON.stringify(headers) !== JSON.stringify(oldHeaders)) {
-        changesCount++;
-        continue;
-      }
-
-      const newRows = getDiffRows(newSheet);
-      const oldRows = getDiffRows(oldSheet);
-      const matcher = createDiffRowMatcher(oldHeaders, oldRows);
-
-      newRows.forEach((row, rowIndex) => {
-        const matched = takeDiffRowMatch(matcher, headers, row, rowIndex);
-        if (!matched) {
-          changesCount++;
-          return;
-        }
-
-        const hasChange = row.some((cell, colIndex) => {
-          if (colIndex === 0) return false;
-          return String(cell ?? '') !== String(matched.row[colIndex] ?? '');
-        });
-        if (hasChange) changesCount++;
-      });
-
-      changesCount += oldRows.filter((_, rowIndex) => !matcher.usedIndices.has(rowIndex)).length;
-    }
-
-    for (const sheetId in snapshotRecord) {
-      if (sheetId.startsWith('sheet_') && !matchedSnapshotKeys.has(sheetId) && !rawRecord[sheetId]) changesCount++;
-    }
-
-    return changesCount;
-  };
+  const countRuntimeDataChanges = createCountRuntimeDataChanges({
+    asDiffRecord: (...a: any[]) => asDiffRecord(...a),
+    createDiffRowMatcher: (...a: any[]) => createDiffRowMatcher(...a),
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    getDiffHeaders: (...a: any[]) => getDiffHeaders(...a),
+    getDiffRows: (...a: any[]) => getDiffRows(...a),
+    isDiffSheet: (...a: any[]) => isDiffSheet(...a),
+    takeDiffRowMatch: (...a: any[]) => takeDiffRowMatch(...a),
+  });
 
   const generateDiffMap = createGenerateDiffMap({
     createDiffRowMatcher: (...a: any[]) => createDiffRowMatcher(...a),
@@ -17196,134 +16471,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     hideDiceResultsInUserMessages: hideDiceResultsInUserMessages,
   });
 
-  const buildNewAdvancedPresetJsoncTemplate = (): string => `{
-  // 这是一个可直接使用的 CoC7 风格高级检定预设示例。
-  // 预设名称和描述可以在上方输入框填写；如果这里也写 name / description，保存时会以最终解析结果为准。
-  // diceExpression / customFields / outcomes / outcomePolicy 决定实际投骰与判定。
-  // checkSuggestionGuide 决定“检定建议表”里 <检定规则> 展示给 AI 的提示词；删除其中任意段时会自动生成缺失段。
-  // checkSuggestionAliases 决定 DSL 参数名和值的中文别名，只处理 key=value 参数，不处理角色名或属性名别名。
-  "kind": "advanced",
-  "name": "自定义检定预设",
-  "description": "1d100 小于等于属性值成功，支持最低成功等级与奖惩骰",
+  const buildNewAdvancedPresetJsoncTemplate = createBuildNewAdvancedPresetJsoncTemplate({
 
-  // diceExpression：基础投骰公式。dicePatches 可以在它后面追加 b/p 奖惩骰。
-  "diceExpression": "1d100",
-
-  // attribute：普通检定的主输入字段；这里表示技能值，不填时默认 50。
-  "attribute": {
-    "label": "技能值",
-    "placeholder": "留空=50",
-    "defaultValue": 50,
-    "key": "技能值"
-  },
-
-  // dc / mod / skillMod 是内置字段；不使用时隐藏并给出默认值，避免表达式里出现空值。
-  "dc": {
-    "hidden": true,
-    "defaultValue": 0
-  },
-  "mod": {
-    "hidden": true,
-    "defaultValue": 0
-  },
-
-  // customFields：规则专属输入。select 适合固定选项，number 适合奖惩骰、难度值等数字。
-  "customFields": [
-    {
-      "id": "bonusPenalty",
-      "type": "number",
-      "label": "奖惩骰",
-      "defaultValue": "",
-      "placeholder": "+1 奖励，-1 惩罚"
-    },
-    {
-      "id": "requiredRank",
-      "type": "select",
-      "label": "最低成功等级",
-      "defaultValue": 1,
-      "options": [
-        { "label": "成功", "value": 1 },
-        { "label": "困难成功", "value": 2 },
-        { "label": "极难成功", "value": 3 }
-      ],
-      "contestOverride": { "hidden": true }
-    }
-  ],
-
-  // derivedVars：中间变量，适合复用复杂公式；下面把奖惩骰绝对值提取为 $absBp。
-  "derivedVars": [
-    { "id": "absBp", "expr": "abs($bonusPenalty)" }
-  ],
-
-  // dicePatches：按条件修改投骰公式。append 会把 template 追加到 diceExpression 后。
-  "dicePatches": [
-    { "when": "$bonusPenalty > 0", "op": "append", "template": "b$absBp" },
-    { "when": "$bonusPenalty < 0", "op": "append", "template": "p$absBp" }
-  ],
-
-  // outcomes：判定分支。condition 先匹配 priority 更小的项；兜底分支可用较大 priority。
-  "outcomes": [
-    { "id": "crit_success", "name": "大成功", "condition": "$roll.total === 1", "priority": 1, "rank": 4, "contestRank": 100 },
-    { "id": "extreme_success", "name": "极难成功", "condition": "$roll.total <= $attr / 5", "priority": 10, "rank": 3, "contestRank": 100 },
-    { "id": "hard_success", "name": "困难成功", "condition": "$roll.total <= $attr / 2", "priority": 20, "rank": 2, "contestRank": 80 },
-    { "id": "success", "name": "成功", "condition": "$roll.total <= $attr", "priority": 30, "rank": 1, "contestRank": 60 },
-    { "id": "failure", "name": "失败", "condition": "$roll.total > $attr", "displayExpr": "$roll.total <= $attr", "priority": 50, "rank": 0, "contestRank": 40 },
-    { "id": "crit_failure", "name": "大失败", "condition": "($attr < 50 && $roll.total >= 96) || ($attr >= 50 && $roll.total === 100)", "priority": 5, "rank": -1, "contestRank": 20 },
-    { "id": "unmet", "name": "失败", "condition": "false", "priority": 999, "rank": -2 }
-  ],
-
-  // outcomePolicy：命中 outcome 后再做二次裁决；这里用于“最低成功等级”。
-  "outcomePolicy": {
-    "kind": "minRank",
-    "requiredRankVarId": "requiredRank",
-    "unmetOutcomeId": "unmet",
-    "keepActualOutcome": true
-  },
-
-  // contestRule：对抗检定规则；mode=rank 时先比较成功等级，再按 tieBreakers 破平。
-  "contestRule": {
-    "mode": "rank",
-    "tieBreakers": ["higher_attr", "initiator_wins"]
-  },
-
-  // outputTemplate / contestOutputTemplate 必须保留 <meta:检定结果> 包裹，方便隐藏投骰结果和后续解析。
-  "outputTemplate": "<meta:检定结果>\\n$outcomeText\\n元叙事：$initiator 发起了 $attrName 检定，$formula=$roll，判定 $conditionExpr？$judgeResult，判定为【$outcomeName】\\n</meta:检定结果>",
-  "contestOutputTemplate": "<meta:检定结果>\\n元叙事：进行了一次【$initiator $initAttrName vs $opponent $oppAttrName】的对抗检定。\\n$initiator $initAttrName：$initFormula=$initRoll，判定 $initConditionExpr？$initJudgeResult，判定为【$initSuccessName】；\\n$opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJudgeResult，判定为【$oppSuccessName】。\\n最终结果：【$winner】\\n</meta:检定结果>",
-
-  // checkSuggestionGuide：同步到表格模板 <检定规则>，让 AI 知道如何生成“检定/对抗”命令。
-  "checkSuggestionGuide": {
-    "rule": "使用 CoC7 的 1d100 检定：掷 1d100，结果小于等于属性值则成功。需要更高门槛时，可写 难度=困难 或 难度=极难。",
-    "dsl": "普通检定：检定 <角色> <属性> [难度=普通|困难|极难] [奖惩=奖励1|惩罚1]\\n对抗检定：对抗 <发起者> <属性> vs <对手> <属性> [难度=普通|困难|极难] [奖惩=奖励1|惩罚1]\\n固定成功：必成\\n固定失败：必败\\n无需检定：无",
-    "examples": "1. 展示文本：<user>在昏暗走廊里寻找血迹。\\n   骰子命令：检定 <user> 侦查 难度=困难\\n2. 展示文本：<user>盯紧<角色>的眼睛，尝试判断她是否隐瞒了真相。\\n   骰子命令：对抗 <user> 心理学 vs <角色> 话术"
-  },
-
-  // checkSuggestionAliases：把中文 DSL 参数和值映射到 customFields / 内部变量。
-  "checkSuggestionAliases": {
-    "params": {
-      "难度": "requiredRank",
-      "最低成功等级": "requiredRank",
-      "奖惩": "bonusPenalty",
-      "奖惩骰": "bonusPenalty"
-    },
-    "values": {
-      "requiredRank": {
-        "普通": 1,
-        "成功": 1,
-        "普通成功": 1,
-        "困难": 2,
-        "困难成功": 2,
-        "极难": 3,
-        "极难成功": 3
-      },
-      "bonusPenalty": {
-        "奖励1": 1,
-        "奖励骰1": 1,
-        "惩罚1": -1,
-        "惩罚骰1": -1
-      }
-    }
-  }
-}`;
+  });
 
   const buildAdvancedPresetAgentPromptFilename = (presetName: string): string => {
     const safeName =
@@ -18002,62 +17152,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `${normalizedReason}${separator}解决方法：请重新填写“检定建议表”，或检查表格模板中的提示词；骰子命令应写成“检定 角色 属性”或“对抗 角色 属性 vs 角色 属性”。`;
   };
 
-  const parseCheckSuggestionCommand = (rawCommand: string): CheckSuggestionParsedCommand => {
-    const command = normalizeCheckSuggestionCommandInput(rawCommand);
-    if (!command) return { kind: 'invalid', reason: '骰子命令为空' };
-    if (/^(必成|必定成功|自动成功)(?:\s|$)/.test(command)) return { kind: 'fixed', success: true };
-    if (/^(必败|必定失败|自动失败)(?:\s|$)/.test(command)) return { kind: 'fixed', success: false };
-    if (/^(无|无需检定|不检定|无检定)(?:\s|$)/.test(command)) return { kind: 'none' };
-
-    if (command.startsWith('检定 ')) {
-      const withoutPrefix = command.replace(/^检定\s+/, '').trim();
-      const paramsExtracted = extractCheckSuggestionParams(withoutPrefix);
-      const targetExtracted = extractCheckSuggestionTarget(paramsExtracted.rest);
-      const diceExtracted = extractCheckSuggestionDiceFormula(targetExtracted.rest);
-      const side = parseCheckSuggestionSide(diceExtracted.rest);
-      if (!side) return { kind: 'invalid', reason: '普通检定命令格式应为：检定 <角色> <属性> [key=value ...]' };
-      return {
-        kind: 'check',
-        characterName: side.name,
-        attributeName: side.attribute,
-        diceType: diceExtracted.diceType,
-        hasExplicitDice: diceExtracted.hasExplicitDice,
-        targetValue: targetExtracted.targetValue,
-        criteria: targetExtracted.criteria,
-        rawParams: paramsExtracted.rawParams,
-      };
-    }
-
-    if (command.startsWith('对抗 ')) {
-      const withoutPrefix = command.replace(/^对抗\s+/, '').trim();
-      const tieExtracted = extractCheckSuggestionTieRule(withoutPrefix);
-      const diceExtracted = extractCheckSuggestionDiceFormula(tieExtracted.rest);
-      const paramsExtracted = extractCheckSuggestionParams(diceExtracted.rest);
-      const sides = paramsExtracted.rest.split(/\s+vs\s+/i);
-      if (sides.length !== 2) {
-        return { kind: 'invalid', reason: '对抗检定命令格式应为：对抗 <角色> <属性> vs <角色> <属性> [key=value ...]' };
-      }
-      const left = parseCheckSuggestionSide(sides[0]);
-      const right = parseCheckSuggestionSide(sides[1]);
-      if (!left || !right) {
-        return { kind: 'invalid', reason: '对抗检定需要双方角色和属性' };
-      }
-      return {
-        kind: 'contest',
-        leftName: left.name,
-        leftAttribute: left.attribute,
-        rightName: right.name,
-        rightAttribute: right.attribute,
-        diceType: diceExtracted.diceType,
-        hasExplicitDice: diceExtracted.hasExplicitDice,
-        tieRule: tieExtracted.tieRule,
-        hasExplicitTieRule: tieExtracted.hasExplicitTieRule,
-        rawParams: paramsExtracted.rawParams,
-      };
-    }
-
-    return { kind: 'invalid', reason: `无法识别的骰子命令：${command}` };
-  };
+  const parseCheckSuggestionCommand = createParseCheckSuggestionCommand({
+    extractCheckSuggestionDiceFormula: (...a: any[]) => extractCheckSuggestionDiceFormula(...a),
+    extractCheckSuggestionParams: (...a: any[]) => extractCheckSuggestionParams(...a),
+    extractCheckSuggestionTarget: (...a: any[]) => extractCheckSuggestionTarget(...a),
+    extractCheckSuggestionTieRule: (...a: any[]) => extractCheckSuggestionTieRule(...a),
+    normalizeCheckSuggestionCommandInput: (...a: any[]) => normalizeCheckSuggestionCommandInput(...a),
+    parseCheckSuggestionSide: (...a: any[]) => parseCheckSuggestionSide(...a),
+  });
 
   const normalizeCheckSuggestionActionText = (displayText: string): string => {
     const text = String(displayText || '').trim();
@@ -18379,58 +17481,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     smartInsertToTextarea: smartInsertToTextarea,
   });
 
-  const executeCheckSuggestionCommand = (displayText: string, commandText: string): boolean => {
-    const parsed = parseCheckSuggestionCommand(commandText);
-    if (parsed.kind === 'invalid') {
-      if (window.toastr) showActionableErrorToast(buildCheckSuggestionInvalidCommandMessage(parsed.reason));
-      console.warn('[DICE] 检定建议命令解析失败:', commandText, parsed.reason);
-      return false;
-    }
-
-    try {
-      const actionText = normalizeCheckSuggestionActionText(displayText);
-      const insertActionText = () => {
-        if (actionText) {
-          smartInsertToTextarea(actionText, 'action');
-        }
-      };
-
-      if (parsed.kind === 'none') {
-        insertActionText();
-        return true;
-      }
-      if (parsed.kind === 'fixed') {
-        executeFixedCheckSuggestion(parsed.success);
-        insertActionText();
-        return true;
-      }
-      if (parsed.kind === 'check') {
-        try {
-          executeAdvancedCheckSuggestion(parsed);
-        } catch (advancedError) {
-          if (!parsed.hasExplicitDice && parsed.targetValue === null) throw advancedError;
-          console.warn('[DICE] 检定建议高级预设执行失败，回退旧式检定:', advancedError);
-          executeNormalCheckSuggestion(parsed);
-        }
-        insertActionText();
-        return true;
-      }
-      try {
-        executeAdvancedContestCheckSuggestion(parsed);
-      } catch (advancedError) {
-        if (!parsed.hasExplicitDice) throw advancedError;
-        console.warn('[DICE] 检定建议高级预设对抗执行失败，回退旧式对抗:', advancedError);
-        executeContestCheckSuggestion(parsed);
-      }
-      insertActionText();
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (window.toastr) showActionableErrorToast(message);
-      console.error('[DICE] 执行检定建议失败:', error);
-      return false;
-    }
-  };
+  const executeCheckSuggestionCommand = createExecuteCheckSuggestionCommand({
+    buildCheckSuggestionInvalidCommandMessage: (...a: any[]) => buildCheckSuggestionInvalidCommandMessage(...a),
+    executeAdvancedCheckSuggestion: (...a: any[]) => executeAdvancedCheckSuggestion(...a),
+    executeAdvancedContestCheckSuggestion: (...a: any[]) => executeAdvancedContestCheckSuggestion(...a),
+    executeContestCheckSuggestion: (...a: any[]) => executeContestCheckSuggestion(...a),
+    executeFixedCheckSuggestion: (...a: any[]) => executeFixedCheckSuggestion(...a),
+    executeNormalCheckSuggestion: (...a: any[]) => executeNormalCheckSuggestion(...a),
+    normalizeCheckSuggestionActionText: (...a: any[]) => normalizeCheckSuggestionActionText(...a),
+    parseCheckSuggestionCommand: (...a: any[]) => parseCheckSuggestionCommand(...a),
+    smartInsertToTextarea: (...a: any[]) => smartInsertToTextarea(...a),
+  });
 
   /**
    * AcuDice 公共 API
