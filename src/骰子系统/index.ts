@@ -85,6 +85,38 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createRefreshAutoImageColorForAvatar } from './features/avatars/refresh-auto-image-color-for-avatar';
+import { createProcessJsonData } from './features/dice/process-json-data';
+import { createNormalizeDiceConfigBackupGachaCatalogResourceRecord } from './features/dice/normalize-dice-config-backup-gacha-catalog-resource-record';
+import { createImportAcuDiceGachaCatalog } from './features/gacha/import-acu-dice-gacha-catalog';
+import { createGetUserAvatarUrl } from './features/avatars/get-user-avatar-url';
+import { createGetCore } from './shared/get-core';
+import { createUpdateChangesCount } from './features/validation/update-changes-count';
+import { createSerializeGachaCatalogItemForExport } from './features/gacha/serialize-gacha-catalog-item-for-export';
+import { createRenderGachaSettingsPoolViewerHtml } from './features/gacha/render-gacha-settings-pool-viewer-html';
+import { createIsCustomTableNameIconContextAllowed } from './features/table/is-custom-table-name-icon-context-allowed';
+import { createHslToAvatarHex } from './features/avatars/hsl-to-avatar-hex';
+import { createClearGlobalGachaCatalog } from './features/gacha/clear-global-gacha-catalog';
+import { createBuildGachaDiceEventSettlementKey } from './features/gacha/build-gacha-dice-event-settlement-key';
+import { createSetupViewportBoundsListeners } from './features/ui/setup-viewport-bounds-listeners';
+import { createSettleGachaFortuneForMessage } from './features/gacha/settle-gacha-fortune-for-message';
+import { createRestoreDiceConfigBackupTableTemplateRollbackSnapshot } from './features/dice/restore-dice-config-backup-table-template-rollback-snapshot';
+import { createPrepareSettingsGroupTutorial } from './features/tutorial/prepare-settings-group-tutorial';
+import { createClearDiceSystemCache } from './features/dice/clear-dice-system-cache';
+import { createBindHumanInputTracking } from './features/chat/bind-human-input-tracking';
+import { createValidateAdvancedPresetAgentTests } from './features/presets/validate-advanced-preset-agent-tests';
+import { createSetupFixedWrapperBoundsListeners } from './features/ui/setup-fixed-wrapper-bounds-listeners';
+import { createPickGachaRarity } from './features/gacha/pick-gacha-rarity';
+import { createNormalizeCustomTableNameIconEntry } from './features/table/normalize-custom-table-name-icon-entry';
+import { createMergeDiceConfigBackupCustomRules } from './features/dice/merge-dice-config-backup-custom-rules';
+import { createHydrateGlobalInteractionAvatars } from './features/interactions/hydrate-global-interaction-avatars';
+import { createCollectDiceProfileRegexScriptsFromRecord } from './features/dice/collect-dice-profile-regex-scripts-from-record';
+import { createBuildGachaTableResultFromSheet } from './features/gacha/build-gacha-table-result-from-sheet';
+import { createAddStyles } from './shared/add-styles';
+import { createSetupOverlayClose } from './shared/setup-overlay-close';
+import { createRestoreDiceConfigBackupModuleResources } from './features/dice/restore-dice-config-backup-module-resources';
+import { createRenderGachaPickupHtml } from './features/gacha/render-gacha-pickup-html';
+import { createPrepareAvatarManagerTutorial } from './features/tutorial/prepare-avatar-manager-tutorial';
 import { createNormalizeCheckSuggestionCommandInput } from './features/checks/normalize-check-suggestion-command-input';
 import { createGetViewportBottomOffset } from './features/ui/get-viewport-bottom-offset';
 import { createFormatOutputTemplate } from './features/dice/format-output-template';
@@ -879,32 +911,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
    * @param overlayClass 遮罩层的类名（用于判断点击目标）
    * @param onClose 关闭时的回调函数
    */
-  const setupOverlayClose = ($overlay: JQuery, overlayClass: string, onClose: () => void) => {
-    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const setupOverlayClose = createSetupOverlayClose({
 
-    if (isMobile) {
-      // Mobile: 触摸点击遮罩即关闭
-      $overlay.on('click', function (e) {
-        if ($(e.target).hasClass(overlayClass)) {
-          onClose();
-        }
-      });
-    } else {
-      // PC: 需要 mousedown 和 mouseup 都在遮罩上才关闭
-      let mouseDownOnOverlay = false;
-
-      $overlay.on('mousedown', function (e) {
-        mouseDownOnOverlay = $(e.target).hasClass(overlayClass);
-      });
-
-      $overlay.on('mouseup', function (e) {
-        if (mouseDownOnOverlay && $(e.target).hasClass(overlayClass)) {
-          onClose();
-        }
-        mouseDownOnOverlay = false;
-      });
-    }
-  };
+  });
 
   // [新增] 生成唯一名称（用于预设导入时处理重名）
   const generateUniqueName = (baseName: string, existingNames: string[]): string => {
@@ -1157,34 +1166,15 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return String(lastHumanInputSnapshot || '');
   };
 
-  const bindHumanInputTracking = () => {
-    const textarea = document.getElementById('send_textarea') as AcuDiceTextareaElement | null;
-    if (!textarea || textarea._acuHumanInputTrackingBound) return;
-
-    const updateSnapshot = (target: HTMLTextAreaElement) => {
-      const acuTextarea = target as AcuDiceTextareaElement;
-      const visibleValue = readTextareaVisibleValue(target);
-      const resolvedValue = syncTextareaDiceCacheFromVisibleText(acuTextarea, visibleValue);
-      if (acuTextarea._acuOriginalActionText && !resolvedValue.includes(acuTextarea._acuOriginalActionText)) {
-        acuTextarea._acuOriginalActionText = null;
-        const { $ } = getCore();
-        $(target).removeData('acu-original-action-text');
-      }
-      lastHumanInputSnapshot = stripSystemInjectedContent(resolvedValue, acuTextarea._acuOriginalActionText);
-      markHumanInputActivity();
-    };
-
-    const handleTrustedInput = (event: Event) => {
-      if (!event.isTrusted) return;
-      updateSnapshot(textarea);
-    };
-
-    textarea.addEventListener('input', handleTrustedInput, true);
-    textarea.addEventListener('paste', handleTrustedInput, true);
-    textarea.addEventListener('compositionend', handleTrustedInput, true);
-    textarea._acuHumanInputTrackingBound = true;
-    updateSnapshot(textarea);
-  };
+  const bindHumanInputTracking = createBindHumanInputTracking({
+    getCore: (...a: any[]) => getCore(...a),
+    markHumanInputActivity: (...a: any[]) => markHumanInputActivity(...a),
+    readTextareaVisibleValue: (...a: any[]) => readTextareaVisibleValue(...a),
+    stripSystemInjectedContent: (...a: any[]) => stripSystemInjectedContent(...a),
+    syncTextareaDiceCacheFromVisibleText: (...a: any[]) => syncTextareaDiceCacheFromVisibleText(...a),
+    getLastHumanInputSnapshot: () => lastHumanInputSnapshot,
+    setLastHumanInputSnapshot: (v: any) => { lastHumanInputSnapshot = v; },
+  });
 
   // [新增] 智能填充输入栏函数
   const smartInsertToTextarea = createSmartInsertToTextarea({
@@ -2042,36 +2032,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
 
   // [新增] 获取 SillyTavern 用户头像 URL
-  const getUserAvatarUrl = () => {
-    try {
-      // 方法1: 从页面 DOM 中查找用户头像元素
-      const w = window.parent || window;
-      const $ = w.jQuery || window.jQuery;
-      if ($) {
-        // SillyTavern 用户头像通常在 #user_avatar_block img 或 .avatar[title="You"] img
-        const $avatar = $('#user_avatar_block img').first();
-        if ($avatar.length && $avatar.attr('src')) {
-          return $avatar.attr('src');
-        }
-        // 备选：查找聊天中用户消息的头像
-        const $userMes = $('.mes[is_user="true"]').last().find('.avatar img');
-        if ($userMes.length && $userMes.attr('src')) {
-          return $userMes.attr('src');
-        }
-      }
-      // 方法2: 尝试从 SillyTavern API 获取
-      const ST = w.SillyTavern || window.SillyTavern;
-      if (ST && ST.getContext) {
-        const ctx = ST.getContext();
-        if (ctx && ctx.userAvatar) {
-          return ctx.userAvatar;
-        }
-      }
-    } catch (e) {
-      console.warn('[DICE]ACU getUserAvatarUrl error:', e);
-    }
-    return null;
-  };
+  const getUserAvatarUrl = createGetUserAvatarUrl({
+
+  });
 
   // [新增] 获取主角名字（用于判断是否是主角）
   const getPlayerName = () => {
@@ -2269,35 +2232,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return rgbToAvatarHsl(rgb.r, rgb.g, rgb.b);
   };
 
-  const hslToAvatarHex = (h: number, s: number, l: number): string => {
-    const c = (1 - Math.abs(2 * l - 1)) * s;
-    const hp = h / 60;
-    const x = c * (1 - Math.abs((hp % 2) - 1));
-    let r1 = 0;
-    let g1 = 0;
-    let b1 = 0;
-    if (hp >= 0 && hp < 1) {
-      r1 = c;
-      g1 = x;
-    } else if (hp < 2) {
-      r1 = x;
-      g1 = c;
-    } else if (hp < 3) {
-      g1 = c;
-      b1 = x;
-    } else if (hp < 4) {
-      g1 = x;
-      b1 = c;
-    } else if (hp < 5) {
-      r1 = x;
-      b1 = c;
-    } else {
-      r1 = c;
-      b1 = x;
-    }
-    const m = l - c / 2;
-    return rgbToAvatarHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255);
-  };
+  const hslToAvatarHex = createHslToAvatarHex({
+    rgbToAvatarHex: (...a: any[]) => rgbToAvatarHex(...a),
+  });
 
   const getAvatarFallbackColor = (name: unknown): string => {
     const text = String(name ?? '').trim() || 'avatar';
@@ -3933,33 +3870,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
   });
 
-  const validateAdvancedPresetAgentTests = (
-    preset: AdvancedDicePreset,
-    tests: AdvancedPresetAgentTestCase[],
-    issues: AdvancedPresetValidationIssue[],
-  ): void => {
-    tests.forEach((test, index) => {
-      const context = buildAdvancedPresetEvaluationContext(preset, test.context);
-      const baseOutcome = evaluateOutcomes(preset.outcomes, context as Record<string, number>);
-      const matchedOutcome = applyAdvancedPresetOutcomePolicy(preset, baseOutcome, context).outcome;
-      const expectedId = test.expectedOutcomeId?.trim();
-      const expectedName = test.expectedOutcomeName?.trim();
-      if (expectedId && matchedOutcome.id !== expectedId) {
-        pushAdvancedPresetIssue(
-          issues,
-          `tests[${index}]`,
-          `期望 outcome id 为 "${expectedId}"，实际为 "${matchedOutcome.id}"`,
-        );
-      }
-      if (expectedName && matchedOutcome.name !== expectedName) {
-        pushAdvancedPresetIssue(
-          issues,
-          `tests[${index}]`,
-          `期望 outcome name 为 "${expectedName}"，实际为 "${matchedOutcome.name}"`,
-        );
-      }
-    });
-  };
+  const validateAdvancedPresetAgentTests = createValidateAdvancedPresetAgentTests({
+    applyAdvancedPresetOutcomePolicy: (...a: any[]) => applyAdvancedPresetOutcomePolicy(...a),
+    buildAdvancedPresetEvaluationContext: (...a: any[]) => buildAdvancedPresetEvaluationContext(...a),
+    evaluateOutcomes: (...a: any[]) => evaluateOutcomes(...a),
+    pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
+  });
 
   const throwAdvancedPresetValidationIssues = (issues: AdvancedPresetValidationIssue[]): void => {
     if (issues.length === 0) return;
@@ -5620,36 +5536,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Array.from(nodes);
   };
 
-  const getCore = () => {
-    const w = getTavernHostWindow();
-    // 动态获取 jQuery
-    const $ = w.jQuery || window.jQuery;
-
-    // 只有当缓存存在且宿主窗口/jQuery 仍一致时才复用，避免移动端多层 iframe 下拿到旧 document
-    if (_coreCache && _coreCache.$ && _coreCache.hostWindow === w && _coreCache.$ === $) return _coreCache;
-
-    const core = {
-      $: $,
-      hostWindow: w,
-      getDB: () => w.AutoCardUpdaterAPI || window.AutoCardUpdaterAPI,
-      clipboard: w.navigator?.clipboard || window.navigator.clipboard,
-      // 增强查找：依次尝试 当前窗口 -> 父窗口 -> 顶层窗口 (带跨域保护)
-      ST:
-        w.SillyTavern ||
-        window.SillyTavern ||
-        (() => {
-          try {
-            return window.top ? window.top.SillyTavern : null;
-          } catch (e) {
-            return null;
-          }
-        })(),
-    };
-
-    // 只有成功获取到 jQuery 后才锁定缓存，防止初始化过早导致永久失效
-    if ($) _coreCache = core;
-    return core;
-  };
+  const getCore = createGetCore({
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    get_coreCache: () => _coreCache,
+    set_coreCache: (v: any) => { _coreCache = v; },
+  });
 
   const ACU_DATABASE_NEW_UI_MENU_SELECTOR = '#acu-v2-menu-item';
   const ACU_DATABASE_NEW_UI_API_METHODS = [
@@ -6413,33 +6304,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       .map(normalizeCustomTableNameIconKeyPart)
       .join('||');
 
-  const normalizeCustomTableNameIconEntry = (value: unknown): CustomTableNameIconEntry | null => {
-    const context = normalizeCustomTableNameIconContext(value);
-    if (!context) return null;
-    const raw = value as Record<string, unknown>;
-    const sourceType = raw.sourceType === 'local' ? 'local' : 'url';
-    const imageUrl = typeof raw.imageUrl === 'string' ? raw.imageUrl.trim() : '';
-    const localIconKey = typeof raw.localIconKey === 'string' ? raw.localIconKey.trim() : '';
-    const imageMimeType = typeof raw.imageMimeType === 'string' ? raw.imageMimeType.trim() : '';
-    const imageSize = typeof raw.imageSize === 'number' && Number.isFinite(raw.imageSize) ? raw.imageSize : null;
-    if (sourceType === 'url') {
-      if (!isCustomTableNameIconImageUrlValid(imageUrl)) return null;
-    } else if (!localIconKey) {
-      return null;
-    }
-    const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : 0;
-    const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
-    return {
-      ...context,
-      sourceType,
-      imageUrl,
-      localIconKey: localIconKey || null,
-      imageMimeType: imageMimeType || null,
-      imageSize,
-      createdAt,
-      updatedAt,
-    };
-  };
+  const normalizeCustomTableNameIconEntry = createNormalizeCustomTableNameIconEntry({
+    isCustomTableNameIconImageUrlValid: (...a: any[]) => isCustomTableNameIconImageUrlValid(...a),
+    normalizeCustomTableNameIconContext: (...a: any[]) => normalizeCustomTableNameIconContext(...a),
+  });
 
   const CUSTOM_TABLE_NAME_ICON_ALLOWED_LOCAL_MIME_TYPES = new Set([
     'image/png',
@@ -6476,35 +6344,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   }
 
 
-  const isCustomTableNameIconContextAllowed = (context: CustomTableNameIconContext): boolean => {
-    if (CUSTOM_TABLE_NAME_ICON_DENIED_MODULES.has(context.moduleId)) return false;
-    if (CUSTOM_TABLE_NAME_ICON_DENIED_SECTIONS.has(context.section)) return false;
-    if (isCustomTableNameIconTableDenied(context.tableName)) return false;
-
-    if (context.moduleId === 'table-name') {
-      return context.section === 'table';
-    }
-    if (context.moduleId === 'global-interaction-map-marker') {
-      return context.section === 'map';
-    }
-    if (context.moduleId === 'item') {
-      return context.section === 'item';
-    }
-    if (context.moduleId === 'equipment') {
-      return context.section === 'equipment';
-    }
-    if (context.moduleId === 'faction') {
-      return context.section === 'faction';
-    }
-    if (context.moduleId === 'global-interaction-panel') {
-      return CUSTOM_TABLE_NAME_ICON_ALLOWED_PANEL_SECTIONS.has(context.section);
-    }
-    if (context.moduleId === 'shop') {
-      return context.section === 'shop';
-    }
-
-    return false;
-  };
+  const isCustomTableNameIconContextAllowed = createIsCustomTableNameIconContextAllowed({
+    isCustomTableNameIconTableDenied: (...a: any[]) => isCustomTableNameIconTableDenied(...a),
+    CUSTOM_TABLE_NAME_ICON_ALLOWED_PANEL_SECTIONS: CUSTOM_TABLE_NAME_ICON_ALLOWED_PANEL_SECTIONS,
+    CUSTOM_TABLE_NAME_ICON_DENIED_MODULES: CUSTOM_TABLE_NAME_ICON_DENIED_MODULES,
+    CUSTOM_TABLE_NAME_ICON_DENIED_SECTIONS: CUSTOM_TABLE_NAME_ICON_DENIED_SECTIONS,
+  });
 
   const getCustomTableNameIconFallbackContexts = createGetCustomTableNameIconFallbackContexts({
     getCustomTableNameIconContextKey: (...a: any[]) => getCustomTableNameIconContextKey(...a),
@@ -8215,36 +8060,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     AvatarManager: AvatarManager,
   });
 
-  const refreshAutoImageColorForAvatar = async (
-    name: string,
-    imageSource?: string | null,
-    options: { offsetX?: unknown; offsetY?: unknown; scale?: unknown } = {},
-  ): Promise<string> => {
-    if (AvatarManager.getImageColorSource(name) === 'manual') {
-      return AvatarManager.getImageColor(name);
-    }
-
-    const source = String(imageSource || (await AvatarManager.getAsync(name)) || '').trim();
-    if (!source) {
-      const fallbackColor = getAvatarFallbackColor(name);
-      AvatarManager.setImageColor(name, fallbackColor, 'auto');
-      return fallbackColor;
-    }
-
-    const color = await inferAvatarImageColor(source, {
-      offsetX: options.offsetX ?? AvatarManager.getOffsetX(name),
-      offsetY: options.offsetY ?? AvatarManager.getOffsetY(name),
-      scale: options.scale ?? AvatarManager.getScale(name),
-    });
-
-    if (color) {
-      AvatarManager.setImageColor(name, color, 'auto');
-    } else {
-      AvatarManager.setImageColor(name, getAvatarFallbackColor(name), 'auto');
-    }
-
-    return AvatarManager.getImageColor(name);
-  };
+  const refreshAutoImageColorForAvatar = createRefreshAutoImageColorForAvatar({
+    getAvatarFallbackColor: (...a: any[]) => getAvatarFallbackColor(...a),
+    inferAvatarImageColor: (...a: any[]) => inferAvatarImageColor(...a),
+    AvatarManager: AvatarManager,
+  });
   // 角色头像预设弹窗（简化版 - 使用裁剪弹窗）
   const showAvatarManager = createShowAvatarManager({
     avatarHexToHsl: (...a: any[]) => avatarHexToHsl(...a),
@@ -8272,34 +8092,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   });
 
   // 清理骰子系统脚本缓存
-  const clearDiceSystemCache = async (): Promise<void> => {
-    if (!('caches' in window)) {
-      console.log('[DICE] Cache API 不可用，直接刷新');
-      return;
-    }
+  const clearDiceSystemCache = createClearDiceSystemCache({
 
-    try {
-      const cacheNames = await caches.keys();
-      const urlPatterns = ['jsdelivr.net/gh/jerryzmtz/my-tavern-scripts', '/dist/骰子系统/'];
-
-      for (const cacheName of cacheNames) {
-        const cache = await caches.open(cacheName);
-        const requests = await cache.keys();
-
-        for (const request of requests) {
-          const url = request.url;
-          // 匹配 jsDelivr 上的骰子系统脚本
-          if (urlPatterns.some(pattern => url.includes(pattern))) {
-            await cache.delete(request);
-            console.log('[DICE] 已清理缓存:', url);
-          }
-        }
-      }
-      console.log('[DICE] 脚本缓存清理完成');
-    } catch (err) {
-      console.warn('[DICE] 缓存清理失败:', err);
-    }
-  };
+  });
 
   const clearDiceLocalCacheData = async (): Promise<number> => {
     let removedLocalStorageKeys = 0;
@@ -9029,33 +8824,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return result;
   };
 
-  const mergeDiceConfigBackupCustomRules = (
-    currentRules: readonly Record<string, unknown>[],
-    incomingRules: readonly Record<string, unknown>[],
-    builtinKeys: ReadonlySet<string>,
-    getRuleKey: (rule: Record<string, unknown>) => string,
-  ): Record<string, unknown>[] => {
-    const result: Record<string, unknown>[] = [];
-    const indexByKey = new Map<string, number>();
-
-    const addRule = (rule: Record<string, unknown>, overwrite: boolean): void => {
-      if (rule.builtin === true) return;
-      const key = getRuleKey(rule);
-      if (key && builtinKeys.has(key)) return;
-      const cloned = cloneDiceConfigBackupValue(rule);
-      cloned.builtin = false;
-      if (key && indexByKey.has(key)) {
-        if (overwrite) result[indexByKey.get(key)!] = cloned;
-        return;
-      }
-      if (key) indexByKey.set(key, result.length);
-      result.push(cloned);
-    };
-
-    currentRules.forEach(rule => addRule(rule, false));
-    incomingRules.forEach(rule => addRule(rule, true));
-    return result;
-  };
+  const mergeDiceConfigBackupCustomRules = createMergeDiceConfigBackupCustomRules({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+  });
 
   const mergeDiceConfigBackupValidationRules = (current: unknown, incoming: unknown): Record<string, unknown>[] => {
     const currentRules = getDiceConfigBackupRuleRecords(current, sanitizeDiceConfigBackupValidationRule);
@@ -9286,36 +9057,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     validateGachaCatalogImportItemTarget: (...a: any[]) => validateGachaCatalogImportItemTarget(...a),
   });
 
-  const normalizeDiceConfigBackupGachaCatalogResourceRecord = (
-    rawRecord: unknown,
-    warnings: string[],
-    rawData?: unknown,
-  ): GachaCatalogRecord | null => {
-    if (!isDiceConfigBackupRecord(rawRecord)) {
-      warnings.push('骰子商城配置与自定义物品: 存在无效的自定义目录记录，已跳过。');
-      return null;
-    }
-    const scopeKey = String(rawRecord.scopeKey || '').trim();
-    if (!scopeKey) {
-      warnings.push('骰子商城配置与自定义物品: 存在缺少 scopeKey 的自定义目录记录，已跳过。');
-      return null;
-    }
-    if (!Array.isArray(rawRecord.items)) {
-      warnings.push(`骰子商城配置与自定义物品: ${scopeKey} 的自定义物品不是数组，已跳过。`);
-      return null;
-    }
-    const items = normalizeDiceConfigBackupGachaCatalogItems(rawRecord.items, warnings, scopeKey, rawData);
-    if (items.length === 0) {
-      warnings.push(`骰子商城配置与自定义物品: ${scopeKey} 没有有效自定义物品，已跳过。`);
-      return null;
-    }
-    return {
-      scopeKey,
-      version: Number(rawRecord.version) || GACHA_CATALOG_VERSION,
-      items,
-      updatedAt: Math.max(0, Number(rawRecord.updatedAt) || 0),
-    };
-  };
+  const normalizeDiceConfigBackupGachaCatalogResourceRecord = createNormalizeDiceConfigBackupGachaCatalogResourceRecord({
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    normalizeDiceConfigBackupGachaCatalogItems: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogItems(...a),
+  });
 
   const getDiceConfigBackupGachaItemNameKey = (item: Pick<GachaItemDefinition, 'name' | 'type' | 'quality'>): string =>
     `${String(item.name || '').trim()}|${String(item.type || '').trim()}|${String(item.quality || '').trim()}`.toLowerCase();
@@ -9344,34 +9089,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const restoreDiceConfigBackupTableTemplateRollbackSnapshot = async (snapshot: unknown): Promise<string[]> => {
-    const warnings: string[] = [];
-    const template =
-      isDiceConfigBackupRecord(snapshot) && 'template' in snapshot
-        ? (snapshot as DiceConfigBackupTableTemplateRollbackSnapshot).template
-        : snapshot;
-    if (!isDiceConfigBackupRecord(template)) {
-      warnings.push('当前数据库表格模板: 恢复前没有可用模板快照，无法自动撤回已导入的模板。');
-      return warnings;
-    }
-    const api = getDiceConfigBackupTableTemplateApi();
-    if (!api || typeof api.importTemplateFromData !== 'function') {
-      warnings.push('当前数据库表格模板: 数据库模板导入 API 不可用，无法自动回滚模板。');
-      return warnings;
-    }
-    try {
-      const result = await Promise.resolve(api.importTemplateFromData(cloneDiceConfigBackupValue(template), { scope: 'chat' }));
-      if (isDiceConfigBackupRecord(result) && result.success === false) {
-        const message = typeof result.message === 'string' ? result.message : '未知错误';
-        warnings.push(`当前数据库表格模板: 回滚失败：${message}`);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      warnings.push(`当前数据库表格模板: 回滚异常：${message}`);
-    }
-    warnings.forEach(warning => console.warn('[DICE]配置备份回滚数据库表格模板提示:', warning));
-    return warnings;
-  };
+  const restoreDiceConfigBackupTableTemplateRollbackSnapshot = createRestoreDiceConfigBackupTableTemplateRollbackSnapshot({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupTableTemplateApi: (...a: any[]) => getDiceConfigBackupTableTemplateApi(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const restoreDiceConfigBackupGachaCatalogRecords = createRestoreDiceConfigBackupGachaCatalogRecords({
     cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
@@ -9394,32 +9116,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
   });
 
-  const restoreDiceConfigBackupModuleResources = async (
-    moduleId: DiceConfigBackupModuleId,
-    payload: DiceConfigBackupModulePayload,
-    stats: DiceConfigBackupApplyStats,
-    options: {
-      gachaItemIdMap?: Map<string, string>;
-      onTableTemplateImportAttempt?: () => void;
-      rawData?: unknown;
-    } = {},
-  ): Promise<void> => {
-    if (moduleId === 'tableTemplate') {
-      await restoreDiceConfigBackupTableTemplate(
-        payload.resources?.[DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY],
-        stats,
-        options.onTableTemplateImportAttempt,
-      );
-      return;
-    }
-    if (moduleId !== 'gachaSettings') return;
-    await restoreDiceConfigBackupGachaCatalogRecords(
-      payload.resources?.[DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY],
-      stats,
-      options.gachaItemIdMap,
-      options.rawData,
-    );
-  };
+  const restoreDiceConfigBackupModuleResources = createRestoreDiceConfigBackupModuleResources({
+    restoreDiceConfigBackupGachaCatalogRecords: (...a: any[]) => restoreDiceConfigBackupGachaCatalogRecords(...a),
+    restoreDiceConfigBackupTableTemplate: (...a: any[]) => restoreDiceConfigBackupTableTemplate(...a),
+    DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY: DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY,
+    DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY: DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY,
+  });
 
   const restoreDiceConfigBackupGachaCatalogSnapshot = async (
     snapshot: DiceConfigBackupGachaCatalogRollbackSnapshot | null,
@@ -9870,33 +9572,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
   });
 
-  const collectDiceProfileRegexScriptsFromRecord = (record: Record<string, unknown>): unknown[] => {
-    const scripts: unknown[] = [];
-    const pushScripts = (value: unknown): void => {
-      if (Array.isArray(value)) scripts.push(...value);
-    };
-    const data = isDiceConfigBackupRecord(record.data) ? record.data : null;
-    const extensions = isDiceConfigBackupRecord(record.extensions) ? record.extensions : null;
-    const dataExtensions = isDiceConfigBackupRecord(data?.extensions) ? data.extensions : null;
-    pushScripts(record.regex_scripts);
-    pushScripts(extensions?.regex_scripts);
-    pushScripts(dataExtensions?.regex_scripts);
-
-    try {
-      const RawCharacterCtor =
-        (globalThis as Record<string, any>).RawCharacter ||
-        (window as unknown as Record<string, any>).RawCharacter ||
-        (window.parent as unknown as Record<string, any>).RawCharacter;
-      if (typeof RawCharacterCtor === 'function') {
-        const rawCharacter = new RawCharacterCtor(record);
-        if (rawCharacter && typeof rawCharacter.getRegexScripts === 'function') pushScripts(rawCharacter.getRegexScripts());
-      }
-    } catch {
-      // ignore
-    }
-
-    return scripts;
-  };
+  const collectDiceProfileRegexScriptsFromRecord = createCollectDiceProfileRegexScriptsFromRecord({
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const collectDiceCharacterProfileTexts = (): Array<{ kind: DiceCharacterProfileDetection['sourceTextKind']; text: string }> => {
     const ST = getDiceProfileSillyTavern();
@@ -10207,32 +9885,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   let tutorialButtonEventsBound = false;
 
-  const prepareAvatarManagerTutorial = (button: Element): boolean => {
-    const { $ } = getCore();
-    const $manager = $(button).closest('.acu-avatar-manager');
-    if (!$manager.length) return false;
-
-    const $userItem = $manager.find('#acu-avatar-list-container .acu-avatar-user-item').first();
-    if (!$userItem.length) return false;
-
-    const $otherExpandedItems = $manager.find('#acu-avatar-list-container .acu-avatar-item.expanded').not($userItem);
-    $otherExpandedItems.removeClass('expanded');
-    $otherExpandedItems.find('.acu-btn-edit i').removeClass('fa-chevron-up').addClass('fa-pencil');
-
-    if (!$userItem.hasClass('expanded')) {
-      const $editButton = $userItem.find('.acu-btn-edit').first();
-      if ($editButton.length) {
-        $editButton.trigger('click');
-      }
-      if (!$userItem.hasClass('expanded')) {
-        $userItem.addClass('expanded');
-        $editButton.find('i').removeClass('fa-pencil').addClass('fa-chevron-up');
-      }
-    }
-
-    $userItem[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    return true;
-  };
+  const prepareAvatarManagerTutorial = createPrepareAvatarManagerTutorial({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   const prepareMvuTutorial = (): boolean => {
     const { $ } = getCore();
@@ -10281,34 +9936,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     settingsAdvanced: 'advanced',
   };
 
-  const prepareSettingsGroupTutorial = (scope: TutorialScope, button: Element): boolean => {
-    const groupId = SETTINGS_GROUP_TUTORIAL_MAP[scope];
-    if (!groupId) return true;
-
-    const { $ } = getCore();
-    const $dialog = $(button).closest('.acu-settings-dialog');
-    if (!$dialog.length) return false;
-
-    const $group = $dialog.find(`.acu-settings-group[data-group="${groupId}"]`).first();
-    if (!$group.length) return false;
-
-    const $body = $group.find('.acu-settings-group-body').first();
-    const $chevron = $group.find('.acu-group-chevron').first();
-    if ($group.hasClass('collapsed')) {
-      $group.removeClass('collapsed');
-      $body.stop(true, true).show().css('height', '').removeClass('acu-animating');
-      $chevron.removeClass('fa-chevron-right').addClass('fa-chevron-down');
-
-      const savedGroups = Store.get('acu_settings_expanded', ['appearance']);
-      const expandedGroups = Array.isArray(savedGroups) ? savedGroups.map(String) : ['appearance'];
-      if (!expandedGroups.includes(groupId)) {
-        Store.set('acu_settings_expanded', [...expandedGroups, groupId]);
-      }
-    }
-
-    $group[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    return true;
-  };
+  const prepareSettingsGroupTutorial = createPrepareSettingsGroupTutorial({
+    getCore: (...a: any[]) => getCore(...a),
+    SETTINGS_GROUP_TUTORIAL_MAP: SETTINGS_GROUP_TUTORIAL_MAP,
+  });
 
   const startTutorialFromButton = createStartTutorialFromButton({
     getCore: (...a: any[]) => getCore(...a),
@@ -10589,33 +10220,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    *
    * @see ./styles.ts - MAIN_STYLES 常量
    */
-  const addStyles = () => {
-    const targetDocument = getTavernHostDocument();
-    targetDocument.getElementById('dice-db-theme-sync')?.remove();
-    if (targetDocument !== document) {
-      document.getElementById('dice-db-theme-sync')?.remove();
-    }
-    if (window._acuStylesInjected && targetDocument.getElementById(`${SCRIPT_ID}-styles`)) return;
-    window._acuStylesInjected = true;
-
-    // 动态加载 Tabler Icons 字体（用于 ti:xxx 图标）
-    if (!targetDocument.getElementById('tabler-icons-css')) {
-      const iconLink = targetDocument.createElement('link');
-      iconLink.id = 'tabler-icons-css';
-      iconLink.rel = 'stylesheet';
-      iconLink.href = 'https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css';
-      targetDocument.head.appendChild(iconLink);
-    }
-
-    targetDocument.getElementById(`${SCRIPT_ID}-styles`)?.remove();
-    if (targetDocument !== document) {
-      document.getElementById(`${SCRIPT_ID}-styles`)?.remove();
-    }
-    const styleEl = targetDocument.createElement('style');
-    styleEl.id = `${SCRIPT_ID}-styles`;
-    styleEl.textContent = MAIN_STYLES;
-    targetDocument.head.appendChild(styleEl);
-  };
+  const addStyles = createAddStyles({
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+  });
 
   const cloneRuntimeDataValue = <T>(value: T): T => {
     if (value === null || value === undefined) return value;
@@ -11730,36 +11337,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     });
   };
 
-  const processJsonData = json => {
-    const tables = {};
-    if (!json || typeof json !== 'object') return tables;
-    for (const sheetId in json) {
-      if (json[sheetId]?.name) {
-        const sheet = json[sheetId];
-        const rows = sheet.content
-          ? sheet.content.slice(1).map((row, rowIndex) => {
-              if (row && typeof row === 'object') {
-                Object.defineProperty(row, GACHA_CATALOG_RAW_ROW_INDEX_PROP, {
-                  value: rowIndex,
-                  configurable: true,
-                });
-              }
-              return row;
-            })
-          : [];
-        tables[sheet.name] = {
-          key: sheetId,
-          headers: sheet.content ? sheet.content[0] || [] : [],
-          rows,
-          rawContent: sheet.content || [],
-          exportConfig: sheet.exportConfig || {},
-          updateConfig: sheet.updateConfig || {},
-          ...sheet,
-        };
-      }
-    }
-    return tables;
-  };
+  const processJsonData = createProcessJsonData({
+    GACHA_CATALOG_RAW_ROW_INDEX_PROP: GACHA_CATALOG_RAW_ROW_INDEX_PROP,
+  });
 
   // ========================================
   // 智能修改辅助函数
@@ -13481,33 +13061,20 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     fixedWrapperBoundsRefreshHandler = null;
   };
 
-  const setupFixedWrapperBoundsListeners = () => {
-    const config = getConfig();
-    if (config.positionMode !== 'fixed' || isFloatingCollapseActive(config)) {
-      clearFixedWrapperBoundsListeners();
-      return;
-    }
-
-    const targetWindow = getTavernHostWindow();
-    const targetDocument = getTavernHostDocument();
-    if (fixedWrapperBoundsListenerWindow === targetWindow && fixedWrapperBoundsRefreshHandler) {
-      refreshFixedAnchorResizeObserver(targetWindow, targetDocument);
-      setupFixedAnchorMutationObserver(targetWindow, targetDocument);
-      return;
-    }
-
-    clearFixedWrapperBoundsListeners();
-
-    const refreshBounds = scheduleFixedWrapperBoundsRefresh;
-    targetWindow.addEventListener('resize', refreshBounds, { passive: true });
-    targetWindow.addEventListener('orientationchange', refreshBounds, { passive: true });
-    targetWindow.visualViewport?.addEventListener('resize', refreshBounds, { passive: true });
-    targetWindow.visualViewport?.addEventListener('scroll', refreshBounds, { passive: true });
-    fixedWrapperBoundsListenerWindow = targetWindow;
-    fixedWrapperBoundsRefreshHandler = refreshBounds;
-    refreshFixedAnchorResizeObserver(targetWindow, targetDocument);
-    setupFixedAnchorMutationObserver(targetWindow, targetDocument);
-  };
+  const setupFixedWrapperBoundsListeners = createSetupFixedWrapperBoundsListeners({
+    clearFixedWrapperBoundsListeners: (...a: any[]) => clearFixedWrapperBoundsListeners(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
+    refreshFixedAnchorResizeObserver: (...a: any[]) => refreshFixedAnchorResizeObserver(...a),
+    scheduleFixedWrapperBoundsRefresh: (...a: any[]) => scheduleFixedWrapperBoundsRefresh(...a),
+    setupFixedAnchorMutationObserver: (...a: any[]) => setupFixedAnchorMutationObserver(...a),
+    getFixedWrapperBoundsListenerWindow: () => fixedWrapperBoundsListenerWindow,
+    setFixedWrapperBoundsListenerWindow: (v: any) => { fixedWrapperBoundsListenerWindow = v; },
+    getFixedWrapperBoundsRefreshHandler: () => fixedWrapperBoundsRefreshHandler,
+    setFixedWrapperBoundsRefreshHandler: (v: any) => { fixedWrapperBoundsRefreshHandler = v; },
+  });
 
   const scheduleFloatingCollapseBoundsRefresh = () => {
     if (!isFloatingCollapseActive()) return;
@@ -13682,34 +13249,22 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     viewportBoundsListenerAttached = false;
   };
 
-  const setupViewportBoundsListeners = () => {
-    const config = getConfig();
-    if (config.positionMode !== 'viewport' || isFloatingCollapseActive(config)) {
-      clearViewportBoundsListeners();
-      return;
-    }
-
-    const targetWindow = getTavernHostWindow();
-    const targetDocument = getTavernHostDocument();
-    if (viewportBoundsListenerAttached && viewportBoundsListenerWindow === targetWindow) {
-      refreshViewportInputTargetListeners(targetWindow, targetDocument);
-      setupViewportInputMutationObserver(targetWindow, targetDocument);
-      return;
-    }
-
-    clearViewportBoundsListeners();
-
-    const refreshBounds = scheduleViewportBoundsRefresh;
-    targetWindow.addEventListener('resize', refreshBounds, { passive: true });
-    targetWindow.addEventListener('orientationchange', refreshBounds, { passive: true });
-    targetWindow.visualViewport?.addEventListener('resize', refreshBounds, { passive: true });
-    targetWindow.visualViewport?.addEventListener('scroll', refreshBounds, { passive: true });
-    viewportBoundsListenerWindow = targetWindow;
-    viewportBoundsRefreshHandler = refreshBounds;
-    viewportBoundsListenerAttached = true;
-    refreshViewportInputTargetListeners(targetWindow, targetDocument);
-    setupViewportInputMutationObserver(targetWindow, targetDocument);
-  };
+  const setupViewportBoundsListeners = createSetupViewportBoundsListeners({
+    clearViewportBoundsListeners: (...a: any[]) => clearViewportBoundsListeners(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
+    refreshViewportInputTargetListeners: (...a: any[]) => refreshViewportInputTargetListeners(...a),
+    scheduleViewportBoundsRefresh: (...a: any[]) => scheduleViewportBoundsRefresh(...a),
+    setupViewportInputMutationObserver: (...a: any[]) => setupViewportInputMutationObserver(...a),
+    getViewportBoundsListenerWindow: () => viewportBoundsListenerWindow,
+    setViewportBoundsListenerWindow: (v: any) => { viewportBoundsListenerWindow = v; },
+    getViewportBoundsRefreshHandler: () => viewportBoundsRefreshHandler,
+    setViewportBoundsRefreshHandler: (v: any) => { viewportBoundsRefreshHandler = v; },
+    getViewportBoundsListenerAttached: () => viewportBoundsListenerAttached,
+    setViewportBoundsListenerAttached: (v: any) => { viewportBoundsListenerAttached = v; },
+  });
 
   const renderInterface = () => {
     // 设置面板打开时跳过重绘，防止事件丢失
@@ -14003,33 +13558,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     renderGlobalInteractionsSection: (...a: any[]) => renderGlobalInteractionsSection(...a),
   });
 
-  const hydrateGlobalInteractionAvatars = ($panel: JQuery): void => {
-    const { $ } = getCore();
-    $panel.find<HTMLElement>('.acu-global-interaction-avatar[data-avatar-name]').each(function () {
-      const $avatar = $(this);
-      const rowTitle = safeDecodeURIComponent($avatar.attr('data-avatar-name') || '').trim();
-      if (!rowTitle) return;
-      const lookupNames = getGlobalInteractionAvatarLookupNames(rowTitle);
-
-      void Promise.all(lookupNames.map(name => AvatarManager.getAsync(name).then(avatarUrl => ({ name, avatarUrl }))))
-        .then(avatarUrl => {
-          const matched = avatarUrl.find(item => Boolean(item.avatarUrl));
-          if (!matched?.avatarUrl) return;
-          const cssImageUrl = formatCssImageUrl(matched.avatarUrl, { allowInternalObjectUrl: true });
-          if (!cssImageUrl) return;
-          $avatar
-            .css({
-              'background-image': cssImageUrl,
-              'background-size': `${AvatarManager.getScale(matched.name)}%`,
-              'background-position': `${AvatarManager.getOffsetX(matched.name)}% ${AvatarManager.getOffsetY(matched.name)}%`,
-            })
-            .empty();
-        })
-        .catch(error => {
-          console.warn('[DICE] 交互总览头像加载失败:', error);
-        });
-    });
-  };
+  const hydrateGlobalInteractionAvatars = createHydrateGlobalInteractionAvatars({
+    formatCssImageUrl: (...a: any[]) => formatCssImageUrl(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getGlobalInteractionAvatarLookupNames: (...a: any[]) => getGlobalInteractionAvatarLookupNames(...a),
+    safeDecodeURIComponent: (...a: any[]) => safeDecodeURIComponent(...a),
+    AvatarManager: AvatarManager,
+  });
 
   const bindGlobalInteractionEvents = createBindGlobalInteractionEvents({
     bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
@@ -14119,35 +13654,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   };
 
   // [新增] 更新审核按钮计数（包含变更数 + 验证错误数）
-  const updateChangesCount = rawData => {
-    const { $ } = getCore();
-    const snapshot = loadSnapshot();
-    const changesCount = countRuntimeDataChanges(snapshot, rawData);
-
-    // 获取验证错误数量
-    const validationErrorCount = rawData ? ValidationEngine.getErrorCount(rawData) : 0;
-
-    // 根据模式决定显示的数量：数据验证模式只计错误数，完整审核模式只计变更数
-    const isValidationMode = Store.get(STORAGE_KEY_VALIDATION_MODE, false);
-    const displayCount = isValidationMode ? validationErrorCount : changesCount;
-    // 警告图标只在数据验证模式下且有错误时显示
-    const showWarningIcon = isValidationMode && validationErrorCount > 0;
-
-    const $btn = $('#acu-btn-changes');
-    const $span = $btn.find('span');
-    $span.html(displayCount > 0 ? `审核(${displayCount})` : '审核');
-
-    // 更新警告图标
-    if (showWarningIcon) {
-      if (!$btn.find('.acu-nav-warning-icon').length) {
-        $span.append(' <i class="fa-solid fa-triangle-exclamation acu-nav-warning-icon"></i>');
-      }
-      $btn.addClass('has-validation-errors');
-    } else {
-      $btn.find('.acu-nav-warning-icon').remove();
-      $btn.removeClass('has-validation-errors');
-    }
-  };
+  const updateChangesCount = createUpdateChangesCount({
+    countRuntimeDataChanges: (...a: any[]) => countRuntimeDataChanges(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    ValidationEngine: ValidationEngine,
+  });
   // [新增] 变更面板专用编辑弹窗（保存后只更新单行快照）
   const showChangeEditModal = createShowChangeEditModal({
     bindChangesEvents: (...a: any[]) => bindChangesEvents(...a),
@@ -15208,35 +14720,21 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     STORAGE_KEY_GACHA_POOL_SETTINGS: STORAGE_KEY_GACHA_POOL_SETTINGS,
   });
 
-  const clearGlobalGachaCatalog = async () => {
-    await runInSaveQueue(async () => {
-      const rawData = getRuntimeGachaRawData();
-      await ensureGachaCatalogLoaded(rawData);
-      const originalItems = cloneGachaCatalogItems(getCustomGachaItemDefinitions(rawData));
-      const localStorageSnapshot = collectGachaLocalStorageSnapshot([STORAGE_KEY_GACHA_ITEM_SETTINGS]);
-      const customIds = getCustomGachaItemDefinitions(rawData).map(item => item.id);
-      const count = customIds.length;
-      const savedCatalog = await saveStoredGachaCatalog([]);
-      if (!savedCatalog) throw new Error('自定义物品清空失败');
-      try {
-        customIds.forEach(deleteGachaItemSetting);
-      } catch (error) {
-        const rolledBackCatalog = await saveStoredGachaCatalog(originalItems);
-        const rollbackWarnings = restoreGachaLocalStorageSnapshot(localStorageSnapshot);
-        const message = getRuntimeErrorMessage(error) || '清空自定义物品设置失败';
-        const rollbackMessage = [
-          !rolledBackCatalog ? '自定义物品目录回滚失败' : '',
-          ...rollbackWarnings,
-        ].filter(Boolean).join('；');
-        if (rollbackMessage) throw new Error(`${message}；${rollbackMessage}`);
-        throw error;
-      }
-      refreshGachaVisualization();
-      refreshGachaShardShop();
-      if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
-      if (window.toastr) window.toastr.success(`已清空全局目录的 ${count} 个自定义物品`);
-    });
-  };
+  const clearGlobalGachaCatalog = createClearGlobalGachaCatalog({
+    cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
+    collectGachaLocalStorageSnapshot: (...a: any[]) => collectGachaLocalStorageSnapshot(...a),
+    deleteGachaItemSetting: (...a: any[]) => deleteGachaItemSetting(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    restoreGachaLocalStorageSnapshot: (...a: any[]) => restoreGachaLocalStorageSnapshot(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    saveStoredGachaCatalog: (...a: any[]) => saveStoredGachaCatalog(...a),
+    showGachaSettingsDialog: (...a: any[]) => showGachaSettingsDialog(...a),
+  });
 
   const showGachaCatalogClearDialog = createShowGachaCatalogClearDialog({
     clearGlobalGachaCatalog: (...a: any[]) => clearGlobalGachaCatalog(...a),
@@ -15254,35 +14752,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const serializeGachaCatalogItemForExport = (item: GachaItemDefinition): GachaItemDefinition => {
-    const exported: GachaItemDefinition = {
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      quality: item.quality,
-      ...(item.tags ? { tags: item.tags } : {}),
-      ...(item.effect ? { effect: item.effect } : {}),
-      description: item.description,
-      poolTags: [...item.poolTags],
-      enabled: isGachaItemEnabled(item),
-      order: normalizeGachaItemOrder(item.order),
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      weight: item.weight,
-      stackable: item.stackable,
-      unique: item.unique,
-      grantQuantity: item.grantQuantity,
-      rewardTarget: item.rewardTarget,
-    };
-    const targetTable = normalizeGachaTargetTable(item.targetTable);
-    if (targetTable) exported.targetTable = targetTable;
-    const targetColumns = normalizeGachaTargetColumns(item.targetColumns);
-    if (targetColumns) exported.targetColumns = targetColumns;
-    if (item.icon) exported.icon = item.icon;
-    const customFields = normalizeGachaCustomFields(item.customFields);
-    if (customFields) exported.customFields = customFields;
-    return exported;
-  };
+  const serializeGachaCatalogItemForExport = createSerializeGachaCatalogItemForExport({
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    normalizeGachaCustomFields: (...a: any[]) => normalizeGachaCustomFields(...a),
+    normalizeGachaItemOrder: (...a: any[]) => normalizeGachaItemOrder(...a),
+    normalizeGachaTargetColumns: (...a: any[]) => normalizeGachaTargetColumns(...a),
+    normalizeGachaTargetTable: (...a: any[]) => normalizeGachaTargetTable(...a),
+  });
 
   const serializeGachaPoolDefinitionForExport = (pool: GachaPoolDefinition) => ({
     id: pool.id,
@@ -15438,35 +14914,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const getObjectRecord = (value: unknown): Record<string, unknown> =>
     value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
-  const buildGachaDiceEventSettlementKey = (event: string, payload: unknown): string => {
-    const record = getObjectRecord(payload);
-    const detailId = String(record.detailId || '').trim();
-    if (detailId) return `${event}:detail:${detailId}`;
-
-    const timestamp = String(record.timestamp || Date.now()).trim();
-    if (event === 'check') {
-      return [
-        event,
-        timestamp,
-        String(record.attrName || '').trim(),
-        String(record.formula || '').trim(),
-        String(record.total || '').trim(),
-        String(record.target || '').trim(),
-      ].join(':');
-    }
-
-    const left = getObjectRecord(record.left);
-    const right = getObjectRecord(record.right);
-    return [
-      event,
-      timestamp,
-      String(left.attribute || '').trim(),
-      String(right.attribute || '').trim(),
-      String(left.roll || '').trim(),
-      String(right.roll || '').trim(),
-      String(record.winner || '').trim(),
-    ].join(':');
-  };
+  const buildGachaDiceEventSettlementKey = createBuildGachaDiceEventSettlementKey({
+    getObjectRecord: (...a: any[]) => getObjectRecord(...a),
+  });
 
   const getGachaDiceEventDetail = (event: string, payload: unknown): string => {
     const record = getObjectRecord(payload);
@@ -15736,33 +15186,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const isGachaPickupItem = (poolTag: GachaPoolTag, item: GachaItemDefinition): boolean =>
     getGachaPickupItems(poolTag).some(pickup => pickup.id === item.id);
 
-  const pickGachaRarity = (
-    poolTag: GachaPoolTag,
-    minimumRarity: GachaRarity | null,
-    rawData = getRuntimeGachaRawData(),
-    availableTargets?: ReadonlySet<GachaRewardTarget>,
-  ): GachaRarity | null => {
-    const availableItems = getGachaPoolDefinitions(poolTag, rawData).filter(
-      item => !availableTargets || availableTargets.has(item.rewardTarget),
-    );
-    if (availableItems.length === 0) return null;
-    const minimumRank = minimumRarity ? getGachaRarityRank(minimumRarity) : -1;
-    const rarityCandidates = GACHA_RARITY_ORDER.filter(rarity => {
-      if (minimumRank >= 0 && getGachaRarityRank(rarity) < minimumRank) return false;
-      return availableItems.some(item => item.quality === rarity);
-    });
-    const fallbackCandidates =
-      rarityCandidates.length > 0
-        ? rarityCandidates
-        : GACHA_RARITY_ORDER.filter(rarity => availableItems.some(item => item.quality === rarity));
-    if (fallbackCandidates.length === 0) return null;
-    return pickWeightedValue(
-      fallbackCandidates.map(rarity => ({
-        value: rarity,
-        weight: Number(GACHA_RARITY_WEIGHTS[rarity] || 0),
-      })),
-    );
-  };
+  const pickGachaRarity = createPickGachaRarity({
+    getGachaPoolDefinitions: (...a: any[]) => getGachaPoolDefinitions(...a),
+    getGachaRarityRank: (...a: any[]) => getGachaRarityRank(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    pickWeightedValue: (...a: any[]) => pickWeightedValue(...a),
+  });
 
   const pickGachaItemDefinition = (
     poolTag: GachaPoolTag,
@@ -16256,32 +15685,16 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `${reward.name} ×${reward.quantity}`;
   };
 
-  const renderGachaPickupHtml = (poolTag: GachaPoolTag): string => {
-    const pickupItems = getGachaPickupItems(poolTag);
-    if (pickupItems.length === 0) return '';
-    return `
-      <section class="acu-gacha-pickup-section">
-        <div class="acu-gacha-pickup-title"><i class="fa-solid fa-bullhorn"></i><span>PICK UP</span></div>
-        <div class="acu-gacha-pickup-grid">
-          ${pickupItems
-            .map(item => {
-              const customIconContext = getGachaItemCustomTableNameIconContext(item);
-              return `
-<button class="acu-gacha-pickup-card acu-gacha-pickup-detail-btn" type="button" data-item-id="${escapeHtml(item.id)}">
-                    <span class="acu-gacha-pickup-rarity">${escapeHtml(item.quality)}</span>
-                    <strong><span class="acu-gacha-pickup-card-icon">${renderGachaItemIconContent(item, customIconContext)}</span><span>${escapeHtml(item.name)}</span></strong>
-                    <span class="acu-gacha-item-card-meta">${escapeHtml(formatGachaItemCardMeta(item))}</span>
-                    <span class="acu-gacha-item-card-effect"><b>效果</b>${escapeHtml(getGachaItemEffectText(item) || '暂无效果')}</span>
-                    <span class="acu-gacha-item-card-description"><b>描述</b>${escapeHtml(getGachaItemDescriptionText(item) || '暂无描述')}</span>
-                    ${renderGachaCustomFieldsPreviewHtml(item, { limit: 2, showOverflowCount: true })}
-                  </button>
-               `;
-            })
-            .join('')}
-        </div>
-      </section>
-    `;
-  };
+  const renderGachaPickupHtml = createRenderGachaPickupHtml({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    formatGachaItemCardMeta: (...a: any[]) => formatGachaItemCardMeta(...a),
+    getGachaItemCustomTableNameIconContext: (...a: any[]) => getGachaItemCustomTableNameIconContext(...a),
+    getGachaItemDescriptionText: (...a: any[]) => getGachaItemDescriptionText(...a),
+    getGachaItemEffectText: (...a: any[]) => getGachaItemEffectText(...a),
+    getGachaPickupItems: (...a: any[]) => getGachaPickupItems(...a),
+    renderGachaCustomFieldsPreviewHtml: (...a: any[]) => renderGachaCustomFieldsPreviewHtml(...a),
+    renderGachaItemIconContent: (...a: any[]) => renderGachaItemIconContent(...a),
+  });
 
   const formatGachaDuration = (ms: number): string => {
     const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -16578,35 +15991,18 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     getGachaCatalogItemsForExport: (...a: any[]) => getGachaCatalogItemsForExport(...a),
   });
 
-  const renderGachaSettingsPoolViewerHtml = (rawData, selectedPoolId: GachaPoolTag): string => {
-    const pool = getVisibleGachaPoolConfigDefinitions(rawData).find(candidate => candidate.id === selectedPoolId);
-    const safePoolId = pool?.id || GACHA_ALL_POOL_TAG;
-    const items = getGachaSettingsPoolItems(rawData, safePoolId);
-    return `
-      <section class="acu-gacha-settings-section acu-gacha-settings-items-section" data-pool-id="${escapeHtml(safePoolId)}">
-        <div class="acu-gacha-settings-section-head">
-          <div>
-            <strong>卡池物品：${escapeHtml(pool?.name || safePoolId)}</strong>
-            <span class="acu-gacha-settings-count">当前 ${escapeHtml(String(items.length))} 个</span>
-          </div>
-          <div class="acu-gacha-settings-toolbar">
-            ${renderGachaSettingsFilterMenuHtml('source', GACHA_SETTINGS_SOURCE_FILTER_OPTIONS, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.source)}
-            ${renderGachaSettingsFilterMenuHtml('status', GACHA_SETTINGS_STATUS_FILTER_OPTIONS, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.status)}
-            ${renderGachaSettingsFilterMenuHtml('sort', GACHA_SETTINGS_SORT_OPTIONS, DEFAULT_GACHA_SETTINGS_ITEM_FILTERS.sort)}
-            <label class="acu-gacha-settings-search">
-              <i class="fa-solid fa-search"></i>
-              <input class="acu-gacha-settings-item-search" type="text" placeholder="名称、类型、描述" autocomplete="off" />
-            </label>
-          </div>
-        </div>
-        ${renderGachaSettingsPoolTabsHtml(rawData, safePoolId)}
-        <div class="acu-gacha-settings-item-list">
-          ${renderGachaSettingsPoolItemsHtml(rawData, safePoolId)}
-          <div class="acu-inventory-empty compact acu-gacha-settings-filter-empty" hidden><i class="fa-solid fa-filter-circle-xmark"></i><span>没有符合筛选条件的物品</span></div>
-        </div>
-      </section>
-    `;
-  };
+  const renderGachaSettingsPoolViewerHtml = createRenderGachaSettingsPoolViewerHtml({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getGachaSettingsPoolItems: (...a: any[]) => getGachaSettingsPoolItems(...a),
+    getVisibleGachaPoolConfigDefinitions: (...a: any[]) => getVisibleGachaPoolConfigDefinitions(...a),
+    renderGachaSettingsFilterMenuHtml: (...a: any[]) => renderGachaSettingsFilterMenuHtml(...a),
+    renderGachaSettingsPoolItemsHtml: (...a: any[]) => renderGachaSettingsPoolItemsHtml(...a),
+    renderGachaSettingsPoolTabsHtml: (...a: any[]) => renderGachaSettingsPoolTabsHtml(...a),
+    DEFAULT_GACHA_SETTINGS_ITEM_FILTERS: DEFAULT_GACHA_SETTINGS_ITEM_FILTERS,
+    GACHA_SETTINGS_SORT_OPTIONS: GACHA_SETTINGS_SORT_OPTIONS,
+    GACHA_SETTINGS_SOURCE_FILTER_OPTIONS: GACHA_SETTINGS_SOURCE_FILTER_OPTIONS,
+    GACHA_SETTINGS_STATUS_FILTER_OPTIONS: GACHA_SETTINGS_STATUS_FILTER_OPTIONS,
+  });
 
   const showGachaSettingsDialog = createShowGachaSettingsDialog({
     bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
@@ -16782,34 +16178,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `text:${countUnicodeCharacters(normalizedText)}:${normalizedText.slice(0, 80)}:${normalizedText.slice(-80)}`;
   };
 
-  const settleGachaFortuneForMessage = (messageId?: unknown) => {
-    const state = touchGachaActivity(getGachaState(undefined, true));
-    if (!state) return;
-
-    const normalizedMessageId = normalizeGachaMessageId(messageId);
-    const humanInput = consumePendingHumanInputSnapshot() || getGachaChatMessageText(messageId);
-    const settlementKey = buildGachaSettlementKey(normalizedMessageId, humanInput);
-    if (settlementKey && state.inputStats.lastSettledMessageId === settlementKey) return;
-    const typedChars = countUnicodeCharacters(stripSystemInjectedContent(humanInput));
-    const totalChars = state.inputStats.pendingCharCarry + typedChars;
-    const charReward = Math.floor(totalChars / GACHA_CHARS_PER_FORTUNE);
-
-    state.inputStats.totalTypedMessages += 1;
-    state.inputStats.totalTypedChars += typedChars;
-    state.inputStats.pendingCharCarry = totalChars % GACHA_CHARS_PER_FORTUNE;
-    if (settlementKey) state.inputStats.lastSettledMessageId = settlementKey;
-    const totalReward = GACHA_MESSAGE_REWARD + charReward;
-    state.wallet.fortune += totalReward;
-    recordGachaFortuneGain(
-      state,
-      totalReward,
-      '发送消息',
-      `发送 ${typedChars} 字，基础 ${GACHA_MESSAGE_REWARD}${charReward > 0 ? `，字数奖励 ${charReward}` : ''}`,
-    );
-
-    if (!saveStoredGachaStateSnapshot(state)) return;
-    refreshGachaVisualization();
-  };
+  const settleGachaFortuneForMessage = createSettleGachaFortuneForMessage({
+    buildGachaSettlementKey: (...a: any[]) => buildGachaSettlementKey(...a),
+    consumePendingHumanInputSnapshot: (...a: any[]) => consumePendingHumanInputSnapshot(...a),
+    countUnicodeCharacters: (...a: any[]) => countUnicodeCharacters(...a),
+    getGachaChatMessageText: (...a: any[]) => getGachaChatMessageText(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    normalizeGachaMessageId: (...a: any[]) => normalizeGachaMessageId(...a),
+    recordGachaFortuneGain: (...a: any[]) => recordGachaFortuneGain(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    saveStoredGachaStateSnapshot: (...a: any[]) => saveStoredGachaStateSnapshot(...a),
+    stripSystemInjectedContent: (...a: any[]) => stripSystemInjectedContent(...a),
+    touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
+  });
 
   const flushGachaHeartbeatProgress = createFlushGachaHeartbeatProgress({
     getGachaState: (...a: any[]) => getGachaState(...a),
@@ -16978,33 +16359,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       .map(([key, sheet]) => ({ key, sheet }));
   };
 
-  const buildGachaTableResultFromSheet = (entry: { key: string; sheet: any }, config) => {
-    const sheet = entry.sheet || {};
-    const content = Array.isArray(sheet.content) ? sheet.content : [];
-    const rows = content.slice(1).map((row, rowIndex) => {
-      if (row && typeof row === 'object') {
-        Object.defineProperty(row, GACHA_CATALOG_RAW_ROW_INDEX_PROP, {
-          value: rowIndex,
-          configurable: true,
-        });
-      }
-      return row;
-    });
-    return {
-      data: {
-        key: entry.key,
-        headers: content[0] || [],
-        rows,
-        rawContent: content,
-        exportConfig: sheet.exportConfig || {},
-        updateConfig: sheet.updateConfig || {},
-        ...sheet,
-      },
-      name: sheet.name || entry.key,
-      key: entry.key,
-      config,
-    };
-  };
+  const buildGachaTableResultFromSheet = createBuildGachaTableResultFromSheet({
+    GACHA_CATALOG_RAW_ROW_INDEX_PROP: GACHA_CATALOG_RAW_ROW_INDEX_PROP,
+  });
 
   const resolveGachaTargetTableOverride = (rawData, target: GachaRewardTarget, options: GachaRewardParseOptions) => {
     const targetTable = normalizeGachaTargetTable(options.targetTable);
@@ -18401,36 +17758,22 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return value === 'skip' || value === 'rename' || value === 'overwrite' ? value : 'overwrite';
   };
 
-  const importAcuDiceGachaCatalog = async (
-    input: unknown,
-    options: { mode?: GachaCatalogImportMode; silent?: boolean } = {},
-  ) => {
-    const jsonString = stringifyAcuDiceGachaCatalogInput(input);
-    const mode = normalizeAcuDiceGachaImportMode(options.mode);
-    let stats: GachaCatalogImportStats | null = null;
-
-    await runInSaveQueue(async () => {
-      const rawData = getRuntimeGachaRawData();
-      await ensureGachaCatalogLoaded(rawData);
-      const analysis = analyzeGachaCatalogImport(jsonString, rawData);
-      if (!analysis || analysis.items.length === 0) {
-        throw new Error(getGachaCatalogImportFailureMessage(analysis));
-      }
-      stats = await applyGachaCatalogImport(rawData, analysis, mode);
-      refreshGachaVisualization();
-      refreshGachaShardShop();
-      if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
-    });
-
-    if (!stats) throw new Error('骰子商店目录导入失败');
-    if (!options.silent && window.toastr) {
-      const title = stats.warnings.length > 0 ? '骰子商店导入完成，有部分跳过' : '骰子商店导入完成';
-      window.toastr.success(formatGachaCatalogImportStatsText(stats), title);
-    }
-    const result = cloneAcuDiceApiValue(stats);
-    emitEvent('gacha:catalog', { action: 'import', mode, stats: result });
-    return result;
-  };
+  const importAcuDiceGachaCatalog = createImportAcuDiceGachaCatalog({
+    analyzeGachaCatalogImport: (...a: any[]) => analyzeGachaCatalogImport(...a),
+    applyGachaCatalogImport: (...a: any[]) => applyGachaCatalogImport(...a),
+    cloneAcuDiceApiValue: (...a: any[]) => cloneAcuDiceApiValue(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    formatGachaCatalogImportStatsText: (...a: any[]) => formatGachaCatalogImportStatsText(...a),
+    getGachaCatalogImportFailureMessage: (...a: any[]) => getGachaCatalogImportFailureMessage(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    normalizeAcuDiceGachaImportMode: (...a: any[]) => normalizeAcuDiceGachaImportMode(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    showGachaSettingsDialog: (...a: any[]) => showGachaSettingsDialog(...a),
+    stringifyAcuDiceGachaCatalogInput: (...a: any[]) => stringifyAcuDiceGachaCatalogInput(...a),
+  });
 
   const upsertAcuDiceGachaPool = createUpsertAcuDiceGachaPool({
     buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
