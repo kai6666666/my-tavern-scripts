@@ -85,6 +85,42 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createWithGachaItemSettings } from './features/gacha/with-gacha-item-settings';
+import { createWaitForDatabaseManualUpdateSurface } from './features/table/wait-for-database-manual-update-surface';
+import { createToggleTableReverse } from './features/table/toggle-table-reverse';
+import { createSetDiffDataCell } from './features/table/set-diff-data-cell';
+import { createSetAllTablesReverse } from './features/table/set-all-tables-reverse';
+import { createScheduleViewportInputTargetRefresh } from './features/ui/schedule-viewport-input-target-refresh';
+import { createScheduleFixedAnchorTargetRefresh } from './features/ui/schedule-fixed-anchor-target-refresh';
+import { createRefreshDiceProfileIndex } from './features/dice/refresh-dice-profile-index';
+import { createReadRuntimeTableData } from './features/table/read-runtime-table-data';
+import { createPickFallbackAttributeColumn } from './features/dice/pick-fallback-attribute-column';
+import { createPatchCrudRowIdIfMissing } from './features/table/patch-crud-row-id-if-missing';
+import { createParseAdvancedPresetSourceText } from './features/presets/parse-advanced-preset-source-text';
+import { createNormalizeDiceConfigBackupGachaPoolSettings } from './features/dice/normalize-dice-config-backup-gacha-pool-settings';
+import { createLoadSnapshot } from './features/table/load-snapshot';
+import { createLoadAvatarImageForColor } from './features/avatars/load-avatar-image-for-color';
+import { createIsNumericCell } from './shared/is-numeric-cell';
+import { createIsNpcLikeTableName } from './features/table/is-npc-like-table-name';
+import { createImportDiceProfile } from './features/dice/import-dice-profile';
+import { createHasGachaRewardTableForItem } from './features/gacha/has-gacha-reward-table-for-item';
+import { createGetPanelHostMessage } from './features/ui/get-panel-host-message';
+import { createGetNavigationFontMetrics } from './features/ui/get-navigation-font-metrics';
+import { createGetGachaChatIdSeed } from './features/gacha/get-gacha-chat-id-seed';
+import { createGetGachaCatalogItemsForExport } from './features/gacha/get-gacha-catalog-items-for-export';
+import { createGetEmojiCandidates } from './features/table/get-emoji-candidates';
+import { createGetDiceConfigBackupValueIdentity } from './features/dice/get-dice-config-backup-value-identity';
+import { createGetDiceConfigBackupRestoreWarnings } from './features/dice/get-dice-config-backup-restore-warnings';
+import { createGetAdvancedPresetMappedTarget } from './features/presets/get-advanced-preset-mapped-target';
+import { createCreateDiffRowMatcher } from './features/table/create-diff-row-matcher';
+import { createCloseGachaVisualization } from './features/gacha/close-gacha-visualization';
+import { createBuildTableTemplateRequirementPresetAgentPromptFilename } from './features/presets/build-table-template-requirement-preset-agent-prompt-filename';
+import { createBuildRenderPresetAgentPromptFilename } from './features/presets/build-render-preset-agent-prompt-filename';
+import { createBuildGachaInventoryMetaRecord } from './features/gacha/build-gacha-inventory-meta-record';
+import { createBuildGachaCatalogAgentPromptFilename } from './features/presets/build-gacha-catalog-agent-prompt-filename';
+import { createBuildDashboardPresetAgentPromptFilename } from './features/presets/build-dashboard-preset-agent-prompt-filename';
+import { createBuildAdvancedPresetAgentPromptFilename } from './features/presets/build-advanced-preset-agent-prompt-filename';
+import { createBuildActionPresetAgentPromptFilename } from './features/presets/build-action-preset-agent-prompt-filename';
 import { createStoreTextareaDiceCache } from './features/chat/store-textarea-dice-cache';
 import { createShowDatabaseManualUpdateFailure } from './features/table/show-database-manual-update-failure';
 import { createSetupFloatingCollapseBoundsListeners } from './features/ui/setup-floating-collapse-bounds-listeners';
@@ -2160,17 +2196,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return hslToAvatarHex(hsl.h, s, l);
   };
 
-  const loadAvatarImageForColor = (source: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const image = new Image();
-      image.decoding = 'async';
-      if (!/^(blob|data):/i.test(source)) {
-        image.crossOrigin = 'anonymous';
-      }
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error('头像图片无法读取'));
-      image.src = source;
-    });
+  const loadAvatarImageForColor = createLoadAvatarImageForColor({
+
+  });
 
   const inferAvatarImageColor = createInferAvatarImageColor({
     clampAvatarNumber: (...a: any[]) => clampAvatarNumber(...a),
@@ -2390,17 +2418,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return tableName.includes('主角') || tableName.includes('玩家') || normalized.includes('player');
   };
 
-  const isNpcLikeTableName = (tableName: string): boolean => {
-    const normalized = String(tableName || '').toLowerCase();
-    return (
-      isNpcTableName(tableName) ||
-      tableName.includes('人物') ||
-      tableName.includes('NPC') ||
-      tableName.includes('角色') ||
-      tableName.includes('对象') ||
-      normalized.includes('character')
-    );
-  };
+  const isNpcLikeTableName = createIsNpcLikeTableName({
+
+  });
 
   const findAttributeColumnIndices = (headers: unknown[], includeSkill = false): number[] => {
     const cols: number[] = [];
@@ -2413,17 +2433,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return cols;
   };
 
-  const pickFallbackAttributeColumn = (cols: number[], headers: unknown[]): number => {
-    if (cols.length === 0) return -1;
-    const baseCol = cols.find(col => String(headers[col] || '').includes('基础属性'));
-    if (baseCol !== undefined) return baseCol;
-    const specialCol = cols.find(col => {
-      const text = String(headers[col] || '');
-      return text.includes('特有属性') || text.includes('特别属性');
-    });
-    if (specialCol !== undefined) return specialCol;
-    return cols[0];
-  };
+  const pickFallbackAttributeColumn = createPickFallbackAttributeColumn({
+
+  });
 
   const findPrimaryAttributeColumns = (headers: unknown[]): { baseColIndex: number; specialColIndex: number } => {
     let baseColIndex = -1;
@@ -2493,17 +2505,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   };
 
   // 获取地点名的所有候选emoji（用于去重分配）
-  const getEmojiCandidates = (name: string): string[] => {
-    if (!name) return [];
-    const lowerName = name.toLowerCase();
-    const candidates: string[] = [];
-    for (const [pattern, emoji] of LOCATION_EMOJI_MAP) {
-      if (pattern.test(lowerName)) {
-        candidates.push(emoji);
-      }
-    }
-    return candidates;
-  };
+  const getEmojiCandidates = createGetEmojiCandidates({
+
+  });
 
   // 批量分配emoji，实现去重（最短名称优先）
   const resolveBatchLocationEmojis = createResolveBatchLocationEmojis({
@@ -3414,17 +3418,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const parseAdvancedPresetSourceText = (sourceText: string): unknown => {
-    const errors: string[] = [];
-    for (const candidate of extractAdvancedPresetJsonCandidates(sourceText)) {
-      try {
-        return parseAdvancedPresetJsonCandidate(candidate);
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : String(error));
-      }
-    }
-    throw new Error(`无法解析 JSON/JSONC：${errors[0] || '未找到有效对象'}`);
-  };
+  const parseAdvancedPresetSourceText = createParseAdvancedPresetSourceText({
+    extractAdvancedPresetJsonCandidates: (...a: any[]) => extractAdvancedPresetJsonCandidates(...a),
+    parseAdvancedPresetJsonCandidate: (...a: any[]) => parseAdvancedPresetJsonCandidate(...a),
+  });
 
   const normalizeAdvancedPresetNotes = (rawNotes: unknown): string[] => {
     if (typeof rawNotes === 'string' && rawNotes.trim()) return [rawNotes.trim()];
@@ -4820,17 +4817,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     smartInsertToTextarea: (...a: any[]) => smartInsertToTextarea(...a),
   });
 
-  const isNumericCell = value => {
-    if (value === null || value === undefined || value === '') return false;
-    const str = String(value).trim();
-    // 匹配: 纯数字、百分比、分数(50/100)、任意中文/英文标签:数字 格式
-    return (
-      /^-?\d+(\.\d+)?%?$/.test(str) ||
-      /^\d+\/\d+$/.test(str) ||
-      /^[\u4e00-\u9fa5a-zA-Z]+[:\s：]\s*\d+/i.test(str) ||
-      /\d+/.test(str)
-    );
-  };
+  const isNumericCell = createIsNumericCell({
+
+  });
 
   const extractNumericValue = value => {
     if (!value) return 0;
@@ -5081,17 +5070,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return COLLAPSE_STYLES.includes(style as CollapseStyle) ? (style as CollapseStyle) : 'bar';
   };
 
-  const getNavigationFontMetrics = (size: unknown) => {
-    const rawFontSize = typeof size === 'number' && Number.isFinite(size) ? size : DEFAULT_CONFIG.navFontSize;
-    const fontSize = Math.max(10, Math.min(20, Math.round(rawFontSize)));
+  const getNavigationFontMetrics = createGetNavigationFontMetrics({
 
-    return {
-      fontSize,
-      buttonSize: Math.max(28, Math.min(48, Math.round(fontSize * 2.46))),
-      iconSize: Math.max(14, Math.min(22, Math.round(fontSize * 1.08))),
-      paddingX: Math.max(10, Math.min(20, Math.round(fontSize * 0.92))),
-    };
-  };
+  });
 
   const FONTS = [
     { id: 'default', name: '系统默认 (Modern)', val: `'Segoe UI', 'Microsoft YaHei', sans-serif` },
@@ -5399,17 +5380,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return false;
   };
 
-  const waitForDatabaseManualUpdateSurface = async (timeoutMs = ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS) => {
-    const start = Date.now();
-
-    do {
-      if (hasDatabaseManualUpdateSurface()) return true;
-
-      await waitForDatabaseUiTick(ACU_DATABASE_MANUAL_UPDATE_BUTTON_POLL_MS);
-    } while (Date.now() - start < timeoutMs);
-
-    return false;
-  };
+  const waitForDatabaseManualUpdateSurface = createWaitForDatabaseManualUpdateSurface({
+    hasDatabaseManualUpdateSurface: (...a: any[]) => hasDatabaseManualUpdateSurface(...a),
+    waitForDatabaseUiTick: (...a: any[]) => waitForDatabaseUiTick(...a),
+    ACU_DATABASE_MANUAL_UPDATE_BUTTON_POLL_MS: ACU_DATABASE_MANUAL_UPDATE_BUTTON_POLL_MS,
+    ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS: ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS,
+  });
 
   const clickDatabaseNewUiFormFillNavigation = (): boolean => {
     for (const targetWindow of collectAccessibleRuntimeWindows()) {
@@ -6260,17 +6236,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const getOptionsCollapsedState = () => Store.get(STORAGE_KEY_OPTIONS_COLLAPSED, false);
   const saveOptionsCollapsedState = v => Store.set(STORAGE_KEY_OPTIONS_COLLAPSED, v);
   // [修改] 读取快照时，严格核对身份证 (Chat ID)
-  const loadSnapshot = () => {
-    const data = Store.get(STORAGE_KEY_LAST_SNAPSHOT);
-    if (!data) return null;
-    // 获取当前环境指纹
-    const currentCtx = getCurrentContextFingerprint();
-    // 如果快照里的指纹存在，但和当前不一致，说明是上个角色的数据，必须作废
-    if (data._contextId && data._contextId !== currentCtx) {
-      return null;
-    }
-    return data;
-  };
+  const loadSnapshot = createLoadSnapshot({
+    getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
+  });
 
   // [修改] 保存快照时，自动注入当前的身份证
   const saveSnapshot = v => {
@@ -6442,30 +6410,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return names.every(name => reverseSet.has(name));
   };
 
-  const setAllTablesReverse = (tableNames, enabled) => {
-    const targetNames = normalizeTableNameList(tableNames);
-    if (targetNames.length === 0) return;
-
-    const targetSet = new Set(targetNames);
-    if (enabled) {
-      saveReverseTables(Array.from(new Set([...getNormalizedReverseTables(), ...targetNames])));
-    } else {
-      saveReverseTables(getNormalizedReverseTables().filter(name => !targetSet.has(name)));
-    }
-  };
+  const setAllTablesReverse = createSetAllTablesReverse({
+    getNormalizedReverseTables: (...a: any[]) => getNormalizedReverseTables(...a),
+    normalizeTableNameList: (...a: any[]) => normalizeTableNameList(...a),
+    saveReverseTables: (...a: any[]) => saveReverseTables(...a),
+  });
 
   // 切换表格倒序状态
-  const toggleTableReverse = tableName => {
-    const list = getNormalizedReverseTables();
-    const idx = list.indexOf(tableName);
-    if (idx >= 0) {
-      list.splice(idx, 1);
-    } else {
-      list.push(tableName);
-    }
-    saveReverseTables(list);
-    console.log('[DICE]ACU toggleTableReverse:', tableName, 'reversed:', idx < 0);
-  };
+  const toggleTableReverse = createToggleTableReverse({
+    getNormalizedReverseTables: (...a: any[]) => getNormalizedReverseTables(...a),
+    saveReverseTables: (...a: any[]) => saveReverseTables(...a),
+  });
   // [新增] 根据角色名获取属性列表
   const getAttributesForCharacter = characterName => {
     return getFullAttributesForCharacter(characterName).map(attr => attr.name);
@@ -6588,17 +6543,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     DashboardDataParser: DashboardDataParser,
   });
 
-  const getAdvancedPresetMappedTarget = (
-    preset: QuickSelectCheckPresetConfig | null | undefined,
-    attrName: string,
-  ): AttributeQuickSelectTarget | null => {
-    const mapping = preset?.attrTargetMapping || {};
-    for (const [target, names] of Object.entries(mapping)) {
-      if (!isAttributeQuickSelectTarget(target)) continue;
-      if (Array.isArray(names) && names.includes(attrName)) return target;
-    }
-    return null;
-  };
+  const getAdvancedPresetMappedTarget = createGetAdvancedPresetMappedTarget({
+    isAttributeQuickSelectTarget: (...a: any[]) => isAttributeQuickSelectTarget(...a),
+  });
 
   const getAttributePresetMappedTarget = (
     preset: AttributePresetConfig | null | undefined,
@@ -7741,17 +7688,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     DICE_CONFIG_BACKUP_SCHEMA_VERSION: DICE_CONFIG_BACKUP_SCHEMA_VERSION,
   });
 
-  const getDiceConfigBackupValueIdentity = (value: unknown): string => {
-    if (value === null) return 'null:null';
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      return `${typeof value}:${String(value)}`;
-    }
-    try {
-      return `json:${JSON.stringify(value)}`;
-    } catch {
-      return `string:${String(value)}`;
-    }
-  };
+  const getDiceConfigBackupValueIdentity = createGetDiceConfigBackupValueIdentity({
+
+  });
 
   const isDiceConfigBackupSameValue = (left: unknown, right: unknown): boolean => {
     try {
@@ -7888,17 +7827,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     STORAGE_KEY_PRESETS: STORAGE_KEY_PRESETS,
   });
 
-  const normalizeDiceConfigBackupGachaPoolSettings = (value: unknown): GachaPoolSettingsRecord | null => {
-    if (!isDiceConfigBackupRecord(value)) return null;
-    const pools = Array.isArray(value.pools)
-      ? value.pools.map(normalizeGachaPoolDefinition).filter((pool): pool is GachaPoolDefinition => Boolean(pool))
-      : [];
-    return {
-      version: Number(value.version) || 1,
-      pools,
-      updatedAt: Math.max(0, Number(value.updatedAt) || 0),
-    };
-  };
+  const normalizeDiceConfigBackupGachaPoolSettings = createNormalizeDiceConfigBackupGachaPoolSettings({
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    normalizeGachaPoolDefinition: (...a: any[]) => normalizeGachaPoolDefinition(...a),
+  });
 
   const mergeDiceConfigBackupGachaPoolSettings = createMergeDiceConfigBackupGachaPoolSettings({
     buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
@@ -8156,17 +8088,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     );
 
 
-  const refreshDiceProfileIndex = async (): Promise<DiceProfileSummary[]> => {
-    try {
-      const records = await DiceProfileDB.getAll();
-      const summaries = records.map(toDiceProfileSummary);
-      saveDiceProfileIndex(summaries);
-      return summaries;
-    } catch (error) {
-      console.warn('[DICE][PROFILE]Profile 索引刷新失败，使用本地索引兜底:', error);
-      return getDiceProfileIndex();
-    }
-  };
+  const refreshDiceProfileIndex = createRefreshDiceProfileIndex({
+    getDiceProfileIndex: (...a: any[]) => getDiceProfileIndex(...a),
+    saveDiceProfileIndex: (...a: any[]) => saveDiceProfileIndex(...a),
+    toDiceProfileSummary: (...a: any[]) => toDiceProfileSummary(...a),
+  });
 
   const getDiceProfileRecords = async (): Promise<DiceProfileRecord[]> => {
     try {
@@ -8208,17 +8134,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return deleted;
   };
 
-  const importDiceProfile = async (input: unknown, options: DiceProfileImportOptions = {}): Promise<DiceProfileRecord> => {
-    const record = parseDiceProfileInput(input, {
-      name: options.name,
-      source: options.source || { type: 'imported' },
-    });
-    const saved = await upsertDiceProfileRecord(record);
-    if (options.apply) {
-      await applyDiceProfile(saved.id, { createSnapshot: true, confirm: true });
-    }
-    return saved;
-  };
+  const importDiceProfile = createImportDiceProfile({
+    applyDiceProfile: (...a: any[]) => applyDiceProfile(...a),
+    parseDiceProfileInput: (...a: any[]) => parseDiceProfileInput(...a),
+    upsertDiceProfileRecord: (...a: any[]) => upsertDiceProfileRecord(...a),
+  });
 
   const saveCurrentDiceProfile = createSaveCurrentDiceProfile({
     buildDiceConfigBackup: (...a: any[]) => buildDiceConfigBackup(...a),
@@ -8463,17 +8383,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
         .get(),
     );
 
-  const getDiceConfigBackupRestoreWarnings = (
-    backup: DiceConfigBackupDocument,
-    warnings: readonly string[],
-    moduleIds: readonly DiceConfigBackupModuleId[],
-  ): string[] =>
-    Array.from(
-      new Set([
-        ...warnings,
-        ...moduleIds.flatMap(moduleId => backup.modules[moduleId]?.warnings || []),
-      ]),
-    );
+  const getDiceConfigBackupRestoreWarnings = createGetDiceConfigBackupRestoreWarnings({
+
+  });
 
   const getDiceConfigBackupModuleCountText = (
     moduleId: DiceConfigBackupModuleId,
@@ -8813,17 +8725,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return true;
   };
 
-  const setDiffDataCell = (
-    sheet: DiffSheet | null | undefined,
-    rowIndex: number,
-    colIndex: number,
-    value: unknown,
-  ): boolean => {
-    const row = getDiffDataRow(sheet, rowIndex);
-    if (!row) return false;
-    row[colIndex] = value;
-    return true;
-  };
+  const setDiffDataCell = createSetDiffDataCell({
+    getDiffDataRow: (...a: any[]) => getDiffDataRow(...a),
+  });
 
   const removeDiffDataRow = (sheet: DiffSheet | null | undefined, rowIndex: number): boolean => {
     if (!Array.isArray(sheet?.content) || !sheet.content[rowIndex + 1]) return false;
@@ -8887,17 +8791,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return normalizeDiffText(row[0]) || `行 ${rowIndex + 1}`;
   };
 
-  const createDiffRowMatcher = (headers: DiffRow, rows: DiffRow[]): DiffRowMatcher => {
-    const byKey = new Map<string, DiffRowMatch[]>();
-    rows.forEach((row, index) => {
-      getDiffRowIdentityKeys(headers, row).forEach(key => {
-        const queue = byKey.get(key) ?? [];
-        queue.push({ index, row });
-        byKey.set(key, queue);
-      });
-    });
-    return { byKey, rows, usedIndices: new Set<number>() };
-  };
+  const createDiffRowMatcher = createCreateDiffRowMatcher({
+    getDiffRowIdentityKeys: (...a: any[]) => getDiffRowIdentityKeys(...a),
+  });
 
   const takeDiffRowMatch = createTakeDiffRowMatch({
     getDiffRowIdentityKeys: (...a: any[]) => getDiffRowIdentityKeys(...a),
@@ -8990,17 +8886,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     silent?: boolean;
   };
 
-  const readRuntimeTableData = (api: unknown): unknown => {
-    const record = api as Record<string, unknown> | null | undefined;
-    if (typeof record?.getCurrentData === 'function') {
-      return (record.getCurrentData as () => unknown).call(api);
-    }
-    // 数据库本体当前公开面仍把只读快照暴露在 exportTableAsJson；写入保存必须走下方 CRUD。
-    if (typeof record?.exportTableAsJson === 'function') {
-      return (record.exportTableAsJson as () => unknown).call(api);
-    }
-    return null;
-  };
+  const readRuntimeTableData = createReadRuntimeTableData({
+
+  });
 
   const readRuntimeTableDataReference = (api: unknown): unknown => {
     const record = api as Record<string, unknown> | null | undefined;
@@ -9547,17 +9435,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     readRuntimeTableDataReference: (...a: any[]) => readRuntimeTableDataReference(...a),
   });
 
-  const patchCrudRowIdIfMissing = (
-    row: DiffRow | null | undefined,
-    rowId: unknown,
-    patchedRows: CrudRowIdPatch[],
-    seenRows: Set<DiffRow>,
-  ): void => {
-    if (!Array.isArray(row) || seenRows.has(row) || !isCrudRowIdMissing(row[0])) return;
-    seenRows.add(row);
-    patchedRows.push({ row, originalValue: row[0] });
-    row[0] = rowId;
-  };
+  const patchCrudRowIdIfMissing = createPatchCrudRowIdIfMissing({
+    isCrudRowIdMissing: (...a: any[]) => isCrudRowIdMissing(...a),
+  });
 
   const prepareCrudRowIdForUpdateCell = createPrepareCrudRowIdForUpdateCell({
     findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
@@ -10075,77 +9955,29 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const buildAdvancedPresetAgentPromptFilename = (presetName: string): string => {
-    const safeName =
-      presetName
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 60) || 'preset';
-    const datePart = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    return `acu_advanced_preset_ai_prompt_${safeName}_${datePart}.md`;
-  };
+  const buildAdvancedPresetAgentPromptFilename = createBuildAdvancedPresetAgentPromptFilename({
 
-  const buildDashboardPresetAgentPromptFilename = (presetName: string): string => {
-    const safeName =
-      presetName
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 60) || 'dashboard_preset';
-    const datePart = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    return `acu_dashboard_preset_ai_prompt_${safeName}_${datePart}.md`;
-  };
+  });
 
-  const buildActionPresetAgentPromptFilename = (presetName: string): string => {
-    const safeName =
-      presetName
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 60) || 'action_preset';
-    const datePart = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    return `acu_action_preset_ai_prompt_${safeName}_${datePart}.md`;
-  };
+  const buildDashboardPresetAgentPromptFilename = createBuildDashboardPresetAgentPromptFilename({
 
-  const buildRenderPresetAgentPromptFilename = (presetName: string): string => {
-    const safeName =
-      presetName
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 60) || 'render_preset';
-    const datePart = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    return `acu_render_preset_ai_prompt_${safeName}_${datePart}.md`;
-  };
+  });
 
-  const buildTableTemplateRequirementPresetAgentPromptFilename = (presetName: string): string => {
-    const safeName =
-      presetName
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 60) || 'table_template_requirement_preset';
-    const datePart = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    return `acu_table_template_requirement_preset_ai_prompt_${safeName}_${datePart}.md`;
-  };
+  const buildActionPresetAgentPromptFilename = createBuildActionPresetAgentPromptFilename({
 
-  const buildGachaCatalogAgentPromptFilename = (poolName: string): string => {
-    const safeName =
-      poolName
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '_')
-        .replace(/\s+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 60) || 'gacha_catalog';
-    const datePart = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    return `acu_gacha_catalog_ai_prompt_${safeName}_${datePart}.md`;
-  };
+  });
+
+  const buildRenderPresetAgentPromptFilename = createBuildRenderPresetAgentPromptFilename({
+
+  });
+
+  const buildTableTemplateRequirementPresetAgentPromptFilename = createBuildTableTemplateRequirementPresetAgentPromptFilename({
+
+  });
+
+  const buildGachaCatalogAgentPromptFilename = createBuildGachaCatalogAgentPromptFilename({
+
+  });
 
   const showAdvancedPresetEditor = createShowAdvancedPresetEditor({
     bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
@@ -11368,17 +11200,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setFixedAnchorResizeObserver: (v: any) => { fixedAnchorResizeObserver = v; },
   });
 
-  const scheduleFixedAnchorTargetRefresh = () => {
-    if (fixedAnchorTargetsRaf !== null) return;
-
-    fixedAnchorTargetsRaf = requestAnimationFrame(() => {
-      fixedAnchorTargetsRaf = null;
-      const targetWindow = getTavernHostWindow();
-      const targetDocument = getTavernHostDocument();
-      refreshFixedAnchorResizeObserver(targetWindow, targetDocument);
-      scheduleFixedWrapperBoundsRefresh();
-    });
-  };
+  const scheduleFixedAnchorTargetRefresh = createScheduleFixedAnchorTargetRefresh({
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    refreshFixedAnchorResizeObserver: (...a: any[]) => refreshFixedAnchorResizeObserver(...a),
+    scheduleFixedWrapperBoundsRefresh: (...a: any[]) => scheduleFixedWrapperBoundsRefresh(...a),
+    getFixedAnchorTargetsRaf: () => fixedAnchorTargetsRaf,
+    setFixedAnchorTargetsRaf: (v: any) => { fixedAnchorTargetsRaf = v; },
+  });
 
   const clearFixedAnchorMutationObserver = () => {
     if (fixedAnchorMutationObserver) {
@@ -11492,17 +11321,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setViewportInputResizeObserver: (v: any) => { viewportInputResizeObserver = v; },
   });
 
-  const scheduleViewportInputTargetRefresh = () => {
-    if (viewportInputTargetsRaf !== null) return;
-
-    viewportInputTargetsRaf = requestAnimationFrame(() => {
-      viewportInputTargetsRaf = null;
-      const targetWindow = getTavernHostWindow();
-      const targetDocument = getTavernHostDocument();
-      refreshViewportInputTargetListeners(targetWindow, targetDocument);
-      scheduleViewportBoundsRefresh();
-    });
-  };
+  const scheduleViewportInputTargetRefresh = createScheduleViewportInputTargetRefresh({
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    refreshViewportInputTargetListeners: (...a: any[]) => refreshViewportInputTargetListeners(...a),
+    scheduleViewportBoundsRefresh: (...a: any[]) => scheduleViewportBoundsRefresh(...a),
+    getViewportInputTargetsRaf: () => viewportInputTargetsRaf,
+    setViewportInputTargetsRaf: (v: any) => { viewportInputTargetsRaf = v; },
+  });
 
   const clearViewportInputMutationObserver = () => {
     if (viewportInputMutationObserver) {
@@ -12469,17 +12295,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     if (!saved) throw new Error('自定义物品设置保存失败');
   };
 
-  const withGachaItemSettings = (
-    item: GachaItemDefinition,
-    settings: GachaItemSettingsRecord = getStoredGachaItemSettings(),
-  ): GachaItemDefinition => {
-    const stored = settings.items[item.id];
-    return {
-      ...item,
-      enabled: stored ? stored.enabled : normalizeGachaItemEnabled(item.enabled),
-      order: stored ? stored.order : normalizeGachaItemOrder(item.order),
-    };
-  };
+  const withGachaItemSettings = createWithGachaItemSettings({
+    getStoredGachaItemSettings: (...a: any[]) => getStoredGachaItemSettings(...a),
+    normalizeGachaItemEnabled: (...a: any[]) => normalizeGachaItemEnabled(...a),
+    normalizeGachaItemOrder: (...a: any[]) => normalizeGachaItemOrder(...a),
+  });
 
   const isGachaItemEnabled = (item: Pick<GachaItemDefinition, 'enabled'>): boolean =>
     normalizeGachaItemEnabled(item.enabled);
@@ -12839,17 +12659,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       .replace(/\s+/g, '_')
       .slice(0, 48) || '自定义物品';
 
-  const getGachaCatalogItemsForExport = (rawData, poolId?: GachaPoolTag): GachaItemDefinition[] => {
-    const normalizedPoolId = normalizeGachaPoolId(poolId);
-    const allItems = getAllGachaItemDefinitions(rawData);
-    if (!normalizedPoolId) {
-      const customIds = new Set(getCustomGachaItemDefinitions(rawData).map(item => item.id));
-      return allItems.filter(item => customIds.has(item.id));
-    }
-    const activeTags =
-      normalizedPoolId === GACHA_ALL_POOL_TAG ? getGachaAllExpandablePoolTags(rawData) : [normalizedPoolId];
-    return allItems.filter(item => item.poolTags.some(tag => activeTags.includes(tag)));
-  };
+  const getGachaCatalogItemsForExport = createGetGachaCatalogItemsForExport({
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getGachaAllExpandablePoolTags: (...a: any[]) => getGachaAllExpandablePoolTags(...a),
+  });
 
   const exportGachaCatalogJson = createExportGachaCatalogJson({
     buildGachaCatalogTemplateJsonc: (...a: any[]) => buildGachaCatalogTemplateJsonc(...a),
@@ -13039,17 +12853,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Boolean(parsed.tableKey && rawData?.[parsed.tableKey] && Array.isArray(rawData[parsed.tableKey]?.content));
   };
 
-  const hasGachaRewardTableForItem = (
-    rawData,
-    item: Pick<GachaItemDefinition, 'rewardTarget' | 'targetTable' | 'targetColumns'>,
-  ): boolean => {
-    try {
-      const parsed = getGachaRewardParseResultForItem(rawData, item);
-      return Boolean(parsed.tableKey && rawData?.[parsed.tableKey] && Array.isArray(rawData[parsed.tableKey]?.content));
-    } catch {
-      return false;
-    }
-  };
+  const hasGachaRewardTableForItem = createHasGachaRewardTableForItem({
+    getGachaRewardParseResultForItem: (...a: any[]) => getGachaRewardParseResultForItem(...a),
+  });
 
   const getAvailableGachaRewardTargets = (rawData): Set<GachaRewardTarget> =>
     new Set(GACHA_REWARD_TARGETS.filter(target => hasGachaRewardTable(rawData, target)));
@@ -13117,17 +12923,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return visibleIds.has(stored) ? stored : GACHA_ALL_POOL_TAG;
   };
 
-  const getGachaChatIdSeed = (): string => {
-    const st = (window.SillyTavern || window.parent?.SillyTavern) as
-      | { getCurrentChatId?: () => string; chatId?: string }
-      | undefined;
-    try {
-      const chatId = typeof st?.getCurrentChatId === 'function' ? st.getCurrentChatId() : st?.chatId;
-      return String(chatId || 'unknown_chat');
-    } catch {
-      return 'unknown_chat';
-    }
-  };
+  const getGachaChatIdSeed = createGetGachaChatIdSeed({
+
+  });
 
   const getGachaLocalDateKey = (): string => {
     const now = new Date();
@@ -13197,17 +12995,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const buildGachaInventoryMetaRecord = (
-    rawData,
-    item: Pick<InventoryParsedItem, 'tableKey' | 'tableName' | 'name'>,
-  ): InventoryMetadataRecord => {
-    const current = getInventoryMetadataForItem(rawData, item);
-    const defaults = current || getInventoryDefaultMetaRecord(rawData);
-    return {
-      acquiredAt: defaults.acquiredAt,
-      acquiredAtLocation: defaults.acquiredAtLocation,
-    };
-  };
+  const buildGachaInventoryMetaRecord = createBuildGachaInventoryMetaRecord({
+    getInventoryDefaultMetaRecord: (...a: any[]) => getInventoryDefaultMetaRecord(...a),
+    getInventoryMetadataForItem: (...a: any[]) => getInventoryMetadataForItem(...a),
+  });
 
   const setInventoryRowBasicFields = (row: unknown[], colMap, item: GachaItemDefinition, quantity: number) => {
     if (colMap.name >= 0) row[colMap.name] = item.name;
@@ -14464,17 +14255,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return count;
   };
 
-  const closeGachaVisualization = () => {
-    if (gachaShopRootElement?.isConnected) {
-      gachaShopRootElement.remove();
-    }
-    gachaShopRootElement = null;
-    $('.acu-gacha-overlay, .acu-gacha-shard-shop-overlay, .acu-gacha-pickup-detail-overlay').remove();
-    if (gachaShopUiRefreshTimer) {
-      clearInterval(gachaShopUiRefreshTimer);
-      gachaShopUiRefreshTimer = null;
-    }
-  };
+  const closeGachaVisualization = createCloseGachaVisualization({
+    getGachaShopRootElement: () => gachaShopRootElement,
+    setGachaShopRootElement: (v: any) => { gachaShopRootElement = v; },
+    getGachaShopUiRefreshTimer: () => gachaShopUiRefreshTimer,
+    setGachaShopUiRefreshTimer: (v: any) => { gachaShopUiRefreshTimer = v; },
+  });
 
   const refreshGachaVisualization = createRefreshGachaVisualization({
     ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
@@ -14827,17 +14613,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       .last() as JQuery<HTMLElement>;
   };
 
-  const getPanelHostMessage = ($root?: JQuery<HTMLElement>): JQuery<HTMLElement> => {
-    const { $ } = getCore();
-    const $currentRoot = $root && $root.length ? $root : $(DICE_ROOT_SELECTOR).last();
-    const $rootHost = $currentRoot.closest<HTMLElement>('.mes').first();
-    if ($rootHost.length) return $rootHost;
-
-    const $panelHost = getDataAreaForRoot($currentRoot).closest<HTMLElement>('.mes').first();
-    if ($panelHost.length) return $panelHost;
-
-    return getLatestAssistantMessageElement();
-  };
+  const getPanelHostMessage = createGetPanelHostMessage({
+    getCore: (...a: any[]) => getCore(...a),
+    getDataAreaForRoot: (...a: any[]) => getDataAreaForRoot(...a),
+    getLatestAssistantMessageElement: (...a: any[]) => getLatestAssistantMessageElement(...a),
+  });
 
   const syncHostRegenerateButtonVisibility = createSyncHostRegenerateButtonVisibility({
     getCore: (...a: any[]) => getCore(...a),
