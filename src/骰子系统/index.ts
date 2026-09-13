@@ -85,6 +85,46 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createAssertRuntimeCrudApi } from './features/table/assert-runtime-crud-api';
+import { createViewportBottomRefreshEvents } from './features/ui/viewport-bottom-refresh-events';
+import { createGachaTargetColumnLabels } from './features/gacha/gacha-target-column-labels';
+import { createGachaTargetColumnKeys } from './features/gacha/gacha-target-column-keys';
+import { createDiceConfigBackupActiveKeyToPresetKey } from './features/dice/dice-config-backup-active-key-to-preset-key';
+import { createWeightedRandomSelect } from './shared/weighted-random-select';
+import { createUpdateGachaPoolTag } from './features/gacha/update-gacha-pool-tag';
+import { createToDiceProfileSummary } from './features/dice/to-dice-profile-summary';
+import { createScheduleViewportBoundsRefresh } from './features/ui/schedule-viewport-bounds-refresh';
+import { createScheduleFixedWrapperBoundsRefresh } from './features/ui/schedule-fixed-wrapper-bounds-refresh';
+import { createSaveDiceConfig } from './features/dice/save-dice-config';
+import { createResolveCheckSuggestionDefaultValue } from './features/dice/resolve-check-suggestion-default-value';
+import { createRenderThemeIconContent } from './features/ui/render-theme-icon-content';
+import { createRefreshNameAliasesForCheckSuggestion } from './features/dice/refresh-name-aliases-for-check-suggestion';
+import { createReadStoredTextareaDiceText } from './features/dice/read-stored-textarea-dice-text';
+import { createReadStoredLatestDiceText } from './features/dice/read-stored-latest-dice-text';
+import { createParseRenderPresetAttributes } from './features/presets/parse-render-preset-attributes';
+import { createParseCheckSuggestionTieRule } from './features/dice/parse-check-suggestion-tie-rule';
+import { createNormalizeRenderPresetAliasMap } from './features/presets/normalize-render-preset-alias-map';
+import { createNormalizeDiceProfileModuleIds } from './features/dice/normalize-dice-profile-module-ids';
+import { createNormalizeDashboardKeywordArray } from './features/dashboard/normalize-dashboard-keyword-array';
+import { createIsUserCharacterName } from './features/characters/is-user-character-name';
+import { createIsPureIndexCell } from './features/table/is-pure-index-cell';
+import { createHasDiceConfigBackupRecoverableStorage } from './features/dice/has-dice-config-backup-recoverable-storage';
+import { createGetRuntimeErrorMessage } from './features/table/get-runtime-error-message';
+import { createGetRuntimeErrorLogPayload } from './features/table/get-runtime-error-log-payload';
+import { createGetRenderPresetBadgeStyle } from './features/presets/get-render-preset-badge-style';
+import { createGetMatchedGlobalInteractionRuleKeywords } from './features/table/get-matched-global-interaction-rule-keywords';
+import { createGetGachaNamedCustomField } from './features/gacha/get-gacha-named-custom-field';
+import { createGetDiceProfileRecords } from './features/dice/get-dice-profile-records';
+import { createGetDiceConfigBackupModuleCountText } from './features/dice/get-dice-config-backup-module-count-text';
+import { createGetDiceConfigBackupAvailableModuleIds } from './features/dice/get-dice-config-backup-available-module-ids';
+import { createGetAttributeEntryForCharacter } from './features/dice/get-attribute-entry-for-character';
+import { createGenerateUniqueName } from './shared/generate-unique-name';
+import { createFormatGachaRelativeTime } from './features/gacha/format-gacha-relative-time';
+import { createFindLatestDbMessageIndex } from './features/table/find-latest-db-message-index';
+import { createFindGachaTargetColumnIndex } from './features/gacha/find-gacha-target-column-index';
+import { createFindDashboardNpcNameColumnIndex } from './features/dashboard/find-dashboard-npc-name-column-index';
+import { createFindAttributeColumnIndices } from './features/dice/find-attribute-column-indices';
+import { createDeleteGachaItemSetting } from './features/gacha/delete-gacha-item-setting';
 import { createWithGachaItemSettings } from './features/gacha/with-gacha-item-settings';
 import { createWaitForDatabaseManualUpdateSurface } from './features/table/wait-for-database-manual-update-surface';
 import { createToggleTableReverse } from './features/table/toggle-table-reverse';
@@ -1077,16 +1117,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // [新增] 生成唯一名称（用于预设导入时处理重名）
-  const generateUniqueName = (baseName: string, existingNames: string[]): string => {
-    if (!existingNames.includes(baseName)) return baseName;
-    let counter = 2;
-    let newName = `${baseName} (${counter})`;
-    while (existingNames.includes(newName)) {
-      counter++;
-      newName = `${baseName} (${counter})`;
-    }
-    return newName;
-  };
+  const generateUniqueName = createGenerateUniqueName({
+
+  });
 
   // [新增] 通用预设导入冲突弹窗（复用头像导入弹窗样式）
   const showPresetConflictDialog = createShowPresetConflictDialog({
@@ -1131,27 +1164,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
       .map(match => match[0])
       .filter(Boolean);
 
-  const readStoredTextareaDiceText = (textarea: AcuDiceTextareaElement): string => {
-    if (typeof textarea._acuOriginalTextareaText === 'string') return textarea._acuOriginalTextareaText;
-    try {
-      const { $ } = getCore();
-      const storedText = $(textarea).data('acu-original-textarea-text');
-      return typeof storedText === 'string' ? storedText : '';
-    } catch (_error) {
-      return '';
-    }
-  };
+  const readStoredTextareaDiceText = createReadStoredTextareaDiceText({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
-  const readStoredLatestDiceText = (textarea: AcuDiceTextareaElement): string => {
-    if (typeof textarea._acuOriginalDiceText === 'string') return textarea._acuOriginalDiceText;
-    try {
-      const { $ } = getCore();
-      const storedText = $(textarea).data('acu-original-dice-text');
-      return typeof storedText === 'string' ? storedText : '';
-    } catch (_error) {
-      return '';
-    }
-  };
+  const readStoredLatestDiceText = createReadStoredLatestDiceText({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   const composeTextareaTextWithHiddenDice = createComposeTextareaTextWithHiddenDice({
     createDiceResultPlaceholderRegex: (...a: any[]) => createDiceResultPlaceholderRegex(...a),
@@ -1809,16 +1828,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const normalizeRenderPresetAliasMap = (value: unknown, fallback: Record<string, string>): Record<string, string> => {
-    const source = isRecordValue(value) ? value : fallback;
-    const aliases: Record<string, string> = {};
-    Object.entries(source).forEach(([rawKey, rawValue]) => {
-      const key = String(rawKey || '').trim();
-      const alias = typeof rawValue === 'string' || typeof rawValue === 'number' ? String(rawValue).trim() : '';
-      if (key && alias) aliases[key] = alias;
-    });
-    return aliases;
-  };
+  const normalizeRenderPresetAliasMap = createNormalizeRenderPresetAliasMap({
+    isRecordValue: (...a: any[]) => isRecordValue(...a),
+  });
 
   const cloneRenderPresetRules = createCloneRenderPresetRules({
 
@@ -2298,16 +2310,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return candidates;
   };
 
-  const isUserCharacterName = (name: unknown): boolean => {
-    const rawName = String(name ?? '').trim();
-    if (!rawName) return true;
-
-    const userKeys = new Set(getUserCharacterNameCandidates().map(normalizeCharacterNameForCompare).filter(Boolean));
-    return getCharacterNameCandidates(rawName).some(candidate => {
-      const key = normalizeCharacterNameForCompare(candidate);
-      return Boolean(key) && userKeys.has(key);
-    });
-  };
+  const isUserCharacterName = createIsUserCharacterName({
+    getCharacterNameCandidates: (...a: any[]) => getCharacterNameCandidates(...a),
+    getUserCharacterNameCandidates: (...a: any[]) => getUserCharacterNameCandidates(...a),
+    normalizeCharacterNameForCompare: (...a: any[]) => normalizeCharacterNameForCompare(...a),
+  });
 
   const resolveCanonicalCharacterName = (name: unknown): string => {
     const rawName = String(name ?? '').trim();
@@ -2422,16 +2429,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const findAttributeColumnIndices = (headers: unknown[], includeSkill = false): number[] => {
-    const cols: number[] = [];
-    headers.forEach((header, idx) => {
-      const text = String(header || '');
-      if (text.includes('属性') || (includeSkill && text.includes('技能'))) {
-        cols.push(idx);
-      }
-    });
-    return cols;
-  };
+  const findAttributeColumnIndices = createFindAttributeColumnIndices({
+
+  });
 
   const pickFallbackAttributeColumn = createPickFallbackAttributeColumn({
 
@@ -2527,16 +2527,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return null;
   };
 
-  const renderThemeIconContent = (icon: string | null | undefined): string => {
-    if (!icon) return '<i class="fa-solid fa-cube"></i>';
-    if (icon.startsWith('fa:')) {
-      return `<i class="fa-solid fa-${icon.slice(3)}"></i>`;
-    }
-    if (icon.startsWith('ti:')) {
-      return `<i class="ti ti-${icon.slice(3)}"></i>`;
-    }
-    return escapeHtml(icon);
-  };
+  const renderThemeIconContent = createRenderThemeIconContent({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
   const createCustomTableNameIconContext = createCreateCustomTableNameIconContext({
 
@@ -2621,16 +2614,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   // 默认骰子配置（COC规则）
 
   const getDiceConfig = () => Store.get(STORAGE_KEY_DICE_CONFIG, DEFAULT_DICE_CONFIG);
-  const saveDiceConfig = cfg => {
-    const oldCfg = getDiceConfig();
-    const newCfg = { ...oldCfg, ...cfg };
-    Store.set(STORAGE_KEY_DICE_CONFIG, newCfg);
-    // 记录配置变更
-    const changedKeys = Object.keys(cfg).filter(k => oldCfg[k] !== newCfg[k]);
-    if (changedKeys.length > 0) {
-      console.info(`[DICE]投骰配置已更新: ${changedKeys.join(', ')}`);
-    }
-  };
+  const saveDiceConfig = createSaveDiceConfig({
+    getDiceConfig: (...a: any[]) => getDiceConfig(...a),
+  });
 
   // [新增] 隐藏用户消息中的投骰结果（也处理输入栏）
   const hideDiceResultsInUserMessages = createHideDiceResultsInUserMessages({
@@ -4080,16 +4066,9 @@ ${attributeScaleStr}`,
   };
 
   // 根据权重随机选择
-  const weightedRandomSelect = items => {
-    if (!items || items.length === 0) return null;
-    const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
-    let random = Math.random() * totalWeight;
-    for (const item of items) {
-      random -= item.weight || 1;
-      if (random <= 0) return item;
-    }
-    return items[items.length - 1];
-  };
+  const weightedRandomSelect = createWeightedRandomSelect({
+
+  });
 
   // 选择参与者
   const selectCrazyParticipant = createSelectCrazyParticipant({
@@ -4321,16 +4300,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const isRecordValue = (value: unknown): value is Record<string, unknown> =>
     Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-  const normalizeDashboardKeywordArray = (value: unknown, label: string): string[] => {
-    if (!Array.isArray(value)) {
-      throw new Error(`${label} 必须是字符串数组`);
-    }
-    const keywords = value.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
-    if (keywords.length === 0) {
-      throw new Error(`${label} 至少需要一个关键词`);
-    }
-    return keywords;
-  };
+  const normalizeDashboardKeywordArray = createNormalizeDashboardKeywordArray({
+
+  });
 
   const normalizeDashboardOptionalStringArray = (value: unknown, label: string): string[] => {
     if (!Array.isArray(value)) {
@@ -4705,16 +4677,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return '';
   };
 
-  const isPureIndexCell = (headers: unknown[], columnIndex: number, value: unknown): boolean => {
-    const headerText = String(headers[columnIndex] ?? '')
-      .trim()
-      .toLowerCase();
-    const cellText = getStringLikeCellText(value);
-    return (
-      GLOBAL_INTERACTION_INDEX_HEADERS.some(keyword => headerText.includes(keyword.toLowerCase())) ||
-      /^\d+$/.test(cellText)
-    );
-  };
+  const isPureIndexCell = createIsPureIndexCell({
+    getStringLikeCellText: (...a: any[]) => getStringLikeCellText(...a),
+    getGLOBAL_INTERACTION_INDEX_HEADERS: () => GLOBAL_INTERACTION_INDEX_HEADERS,
+  });
 
   const normalizeGlobalInteractionHeader = (header: unknown): string =>
     String(header ?? '')
@@ -4774,16 +4740,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
       .filter(rule => rule.table_keywords.length > 0);
   };
 
-  const getMatchedGlobalInteractionRuleKeywords = (tableName: string): string[] => {
-    const normalizedTableName = normalizeGlobalInteractionCategoryText(tableName);
-    for (const rule of getGlobalInteractionActionRuleGroups()) {
-      const matched = rule.table_keywords.some(keyword =>
-        normalizedTableName.includes(normalizeGlobalInteractionCategoryText(keyword)),
-      );
-      if (matched) return rule.table_keywords;
-    }
-    return [];
-  };
+  const getMatchedGlobalInteractionRuleKeywords = createGetMatchedGlobalInteractionRuleKeywords({
+    getGlobalInteractionActionRuleGroups: (...a: any[]) => getGlobalInteractionActionRuleGroups(...a),
+    normalizeGlobalInteractionCategoryText: (...a: any[]) => normalizeGlobalInteractionCategoryText(...a),
+  });
 
   const resolveGlobalInteractionSectionMeta = createResolveGlobalInteractionSectionMeta({
     getMatchedGlobalInteractionRuleKeywords: (...a: any[]) => getMatchedGlobalInteractionRuleKeywords(...a),
@@ -6143,27 +6103,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     relation: string;
   };
 
-  const getRenderPresetBadgeStyle = (text: string, preset: RenderPreset): string => {
-    const rules = preset.rules.badges;
-    if (!rules.enabled) return '';
-    const str = String(text || '').trim();
-    if (!str) return '';
-    if (rules.numericPattern && (/^[0-9]+%?$/.test(str) || /^Lv\.\d+$/.test(str))) return 'acu-badge-green';
-    if (str.length <= rules.shortTextMaxLength && !str.includes('http')) return 'acu-badge-neutral';
-    if (rules.statusValues.includes(str)) return 'acu-badge-neutral';
-    return '';
-  };
+  const getRenderPresetBadgeStyle = createGetRenderPresetBadgeStyle({
 
-  const parseRenderPresetAttributes = (rawStr: string, preset: RenderPreset): CharacterAttributeEntry[] => {
-    const rules = preset.rules.attributes;
-    if (!rules.enabled) return [];
-    const trimmed = String(rawStr || '').trim();
-    if (!trimmed) return [];
-    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-      return rules.parseJsonObject ? parseAttributeString(trimmed) : [];
-    }
-    return rules.parseKeyValuePairs ? parseAttributeString(trimmed) : [];
-  };
+  });
+
+  const parseRenderPresetAttributes = createParseRenderPresetAttributes({
+    parseAttributeString: (...a: any[]) => parseAttributeString(...a),
+  });
 
   const renderInlineQuickCheckButton = createRenderInlineQuickCheckButton({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -6508,16 +6454,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Boolean(a) && Boolean(b) && a === b;
   };
 
-  const getAttributeEntryForCharacter = (
-    characterName: string,
-    attrName: string,
-    aliasCandidates: string[] = [],
-  ): CharacterAttributeEntry | null => {
-    if (!attrName) return null;
-    const resolved = resolveAttributeAliasName(characterName, attrName, aliasCandidates);
-    if (!resolved.name) return null;
-    return getFullAttributesForCharacter(characterName).find(attr => attr.name === resolved.name) || null;
-  };
+  const getAttributeEntryForCharacter = createGetAttributeEntryForCharacter({
+    getFullAttributesForCharacter: (...a: any[]) => getFullAttributesForCharacter(...a),
+    resolveAttributeAliasName: (...a: any[]) => resolveAttributeAliasName(...a),
+  });
 
   // [新增] 根据角色名和属性名获取属性值
   const getAttributeValue = (characterName, attrName, aliasCandidates: string[] = []) => {
@@ -7003,16 +6943,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     entries.push({ ...entry, name });
   };
 
-  const findDashboardNpcNameColumnIndex = (headers, source): number => {
-    if (source?.nameColumn) {
-      const configuredNameIdx = findRelationGraphColumnIndex(headers, source.nameColumn);
-      return configuredNameIdx >= 0 ? configuredNameIdx : findNameColumnIndex(headers, -1);
-    }
-
-    const npcConfig = getDashboardModuleConfig('npc') || DASHBOARD_TABLE_CONFIG.npc;
-    const configuredNameIdx = DashboardDataParser.findColumnIndex(headers, 'name', npcConfig);
-    return configuredNameIdx >= 0 ? configuredNameIdx : findNameColumnIndex(headers, -1);
-  };
+  const findDashboardNpcNameColumnIndex = createFindDashboardNpcNameColumnIndex({
+    findRelationGraphColumnIndex: (...a: any[]) => findRelationGraphColumnIndex(...a),
+    getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
+    getDashboardDataParser: () => DashboardDataParser,
+  });
 
   const collectDashboardNpcEntriesFromTableResult = createCollectDashboardNpcEntriesFromTableResult({
     findDashboardNpcNameColumnIndex: (...a: any[]) => findDashboardNpcNameColumnIndex(...a),
@@ -7383,17 +7318,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     importTemplateFromData?: (template: unknown, options?: { scope?: string }) => Promise<unknown> | unknown;
   }
 
-  const DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY: Record<string, string> = {
-    [STORAGE_KEY_LAST_PRESET]: STORAGE_KEY_ADVANCED_PRESETS,
-    [STORAGE_KEY_ACTIVE_ADVANCED_PRESET]: STORAGE_KEY_ADVANCED_PRESETS,
-    [STORAGE_KEY_ACTIVE_ATTR_PRESET]: STORAGE_KEY_ATTRIBUTE_PRESETS,
-    [STORAGE_KEY_ACTIVE_ACTION_PRESET]: STORAGE_KEY_ACTION_PRESETS,
-    [STORAGE_KEY_ACTIVE_DASHBOARD_PRESET]: STORAGE_KEY_DASHBOARD_PRESETS,
-    [STORAGE_KEY_ACTIVE_RENDER_PRESET]: STORAGE_KEY_RENDER_PRESETS,
-    [STORAGE_KEY_ACTIVE_TABLE_TEMPLATE_REQUIREMENT_PRESET]: STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS,
-    [STORAGE_KEY_ACTIVE_PRESET]: STORAGE_KEY_PRESETS,
-    [STORAGE_KEY_REGEX_ACTIVE_PRESET]: STORAGE_KEY_REGEX_PRESETS,
-  };
+  const DICE_CONFIG_BACKUP_ACTIVE_KEY_TO_PRESET_KEY = createDiceConfigBackupActiveKeyToPresetKey({
+
+  });
 
   const isDiceConfigBackupRecord = (value: unknown): value is Record<string, unknown> =>
     Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -7630,16 +7557,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const hasDiceConfigBackupTableTemplateResource = (payload?: DiceConfigBackupModulePayload): boolean =>
     isDiceConfigBackupRecord(payload?.resources?.[DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY]);
 
-  const hasDiceConfigBackupRecoverableStorage = (
-    payload: DiceConfigBackupModulePayload,
-    definition: DiceConfigBackupModuleDefinition,
-  ): boolean =>
-    Object.entries(payload.storage || {}).some(([key, value]) => {
-      if (!definition.storageKeys.includes(key) || value === undefined) return false;
-      if (Array.isArray(value)) return value.length > 0;
-      if (isDiceConfigBackupRecord(value)) return Object.keys(value).length > 0;
-      return value !== null && value !== '';
-    });
+  const hasDiceConfigBackupRecoverableStorage = createHasDiceConfigBackupRecoverableStorage({
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const getDiceConfigBackupModuleResourceShapeWarnings = createGetDiceConfigBackupModuleResourceShapeWarnings({
     getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
@@ -8044,31 +7964,19 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const getAllDiceConfigBackupModuleIds = (): DiceConfigBackupModuleId[] =>
     DICE_CONFIG_BACKUP_MODULES.map(module => module.id);
 
-  const normalizeDiceProfileModuleIds = (
-    moduleIds: readonly string[] | undefined,
-    backup?: DiceConfigBackupDocument,
-  ): DiceConfigBackupModuleId[] => {
-    const normalized = normalizeDiceConfigBackupSelectedModuleIds(moduleIds || []);
-    const available = backup ? getDiceConfigBackupAvailableModuleIds(backup) : getAllDiceConfigBackupModuleIds();
-    const availableSet = new Set(available);
-    const filtered = normalized.filter(moduleId => availableSet.has(moduleId));
-    return filtered.length > 0 ? filtered : available;
-  };
+  const normalizeDiceProfileModuleIds = createNormalizeDiceProfileModuleIds({
+    getAllDiceConfigBackupModuleIds: (...a: any[]) => getAllDiceConfigBackupModuleIds(...a),
+    getDiceConfigBackupAvailableModuleIds: (...a: any[]) => getDiceConfigBackupAvailableModuleIds(...a),
+    normalizeDiceConfigBackupSelectedModuleIds: (...a: any[]) => normalizeDiceConfigBackupSelectedModuleIds(...a),
+  });
 
   const getDiceProfileModuleNames = (moduleIds: readonly DiceConfigBackupModuleId[]): string =>
     moduleIds
       .map(moduleId => getDiceConfigBackupModuleDefinition(moduleId)?.name || moduleId)
       .join('、');
 
-  const toDiceProfileSummary = (record: DiceProfileRecord): DiceProfileSummary => ({
-    id: record.id,
-    name: record.name,
-    source: record.source,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
-    moduleIds: record.moduleIds,
-    fingerprint: record.fingerprint,
-    ...(record.lastAppliedAt ? { lastAppliedAt: record.lastAppliedAt } : {}),
+  const toDiceProfileSummary = createToDiceProfileSummary({
+
   });
 
   const createDiceProfileRuntimeId = (prefix = 'profile'): string =>
@@ -8094,16 +8002,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     toDiceProfileSummary: (...a: any[]) => toDiceProfileSummary(...a),
   });
 
-  const getDiceProfileRecords = async (): Promise<DiceProfileRecord[]> => {
-    try {
-      const records = await DiceProfileDB.getAll();
-      saveDiceProfileIndex(records.map(toDiceProfileSummary));
-      return records;
-    } catch (error) {
-      console.warn('[DICE][PROFILE]读取配置方案库失败:', error);
-      return [];
-    }
-  };
+  const getDiceProfileRecords = createGetDiceProfileRecords({
+    saveDiceProfileIndex: (...a: any[]) => saveDiceProfileIndex(...a),
+    toDiceProfileSummary: (...a: any[]) => toDiceProfileSummary(...a),
+  });
 
   const normalizeDiceProfileRecord = createNormalizeDiceProfileRecord({
     normalizeDiceProfileModuleIds: (...a: any[]) => normalizeDiceProfileModuleIds(...a),
@@ -8364,16 +8266,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }, delay);
   };
 
-  const getDiceConfigBackupAvailableModuleIds = (backup: DiceConfigBackupDocument): DiceConfigBackupModuleId[] =>
-    DICE_CONFIG_BACKUP_MODULES.filter(module => {
-      const payload = backup.modules[module.id];
-      if (!payload) return false;
-      if (module.id === 'tableTemplate') return hasDiceConfigBackupTableTemplateResource(payload);
-      return (
-        hasDiceConfigBackupRecoverableStorage(payload, module) ||
-        getDiceConfigBackupModuleResourceCount(payload, module.id) > 0
-      );
-    }).map(module => module.id);
+  const getDiceConfigBackupAvailableModuleIds = createGetDiceConfigBackupAvailableModuleIds({
+    getDiceConfigBackupModuleResourceCount: (...a: any[]) => getDiceConfigBackupModuleResourceCount(...a),
+    hasDiceConfigBackupRecoverableStorage: (...a: any[]) => hasDiceConfigBackupRecoverableStorage(...a),
+    hasDiceConfigBackupTableTemplateResource: (...a: any[]) => hasDiceConfigBackupTableTemplateResource(...a),
+  });
 
   const getDiceConfigBackupSelectedModuleIdsFromDialog = (dialog: JQuery): DiceConfigBackupModuleId[] =>
     normalizeDiceConfigBackupSelectedModuleIds(
@@ -8387,16 +8284,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
 
   });
 
-  const getDiceConfigBackupModuleCountText = (
-    moduleId: DiceConfigBackupModuleId,
-    storageCount: number,
-    resourceCount: number,
-    hasBackupPayload: boolean,
-  ): string => {
-    if (moduleId === 'tableTemplate' && !hasBackupPayload) return '模板';
-    if (storageCount > 0 && resourceCount > 0) return `${storageCount}+${resourceCount} 项`;
-    return `${storageCount + resourceCount} 项`;
-  };
+  const getDiceConfigBackupModuleCountText = createGetDiceConfigBackupModuleCountText({
+
+  });
 
   const renderDiceConfigBackupModuleRows = createRenderDiceConfigBackupModuleRows({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -8860,27 +8750,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     Object.assign(targetRecord, snapshotRecord);
   };
 
-  const getRuntimeErrorMessage = (error: unknown): string => {
-    if (error instanceof Error) return error.message;
-    if (typeof error === 'string') return error;
-    try {
-      const text = JSON.stringify(error);
-      return text && text !== '{}' ? text : String(error);
-    } catch {
-      return String(error);
-    }
-  };
+  const getRuntimeErrorMessage = createGetRuntimeErrorMessage({
 
-  const getRuntimeErrorLogPayload = (error: unknown) => {
-    if (error instanceof Error) {
-      return {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      };
-    }
-    return { message: getRuntimeErrorMessage(error) };
-  };
+  });
+
+  const getRuntimeErrorLogPayload = createGetRuntimeErrorLogPayload({
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+  });
 
   type RuntimeTableReadOptions = {
     silent?: boolean;
@@ -8968,16 +8844,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     });
   };
 
-  const findLatestDbMessageIndex = (includeUser = false): number => {
-    const chat = getDbChatMessages();
-    if (!chat) return -1;
-    for (let i = chat.length - 1; i >= 0; i--) {
-      const msg = chat[i];
-      if (!includeUser && msg?.is_user) continue;
-      if (hasDbPayload(msg)) return i;
-    }
-    return -1;
-  };
+  const findLatestDbMessageIndex = createFindLatestDbMessageIndex({
+    getDbChatMessages: (...a: any[]) => getDbChatMessages(...a),
+    hasDbPayload: (...a: any[]) => hasDbPayload(...a),
+  });
 
   const resolveIsolationKey = (msg: DbChatMessage, isolated: Record<string, unknown> | null): string | null => {
     if (typeof msg?.TavernDB_ACU_Identity === 'string') {
@@ -9049,17 +8919,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     _notifyTableUpdate?: () => void;
   };
 
-  const assertRuntimeCrudApi = (): RuntimeCrudWriteApi => {
-    const api = getCore().getDB() as RuntimeCrudWriteApi | null | undefined;
-    const apiRecord = api as Record<string, unknown> | null | undefined;
-    const requiredMethods = ['updateCell', 'insertRow', 'deleteRow'] as const;
-    const missing = requiredMethods.filter(method => typeof apiRecord?.[method] !== 'function');
-    if (!hasRuntimeTableReadApi(api)) missing.push('getCurrentData/exportTableAsJson');
-    if (missing.length > 0) {
-      throw new Error(`数据库本体版本过低，缺少新版表格 CRUD API：${missing.join(', ')}。请升级数据库本体后再保存。`);
-    }
-    return api;
-  };
+  const assertRuntimeCrudApi = createAssertRuntimeCrudApi({
+    getCore: (...a: any[]) => getCore(...a),
+    hasRuntimeTableReadApi: (...a: any[]) => hasRuntimeTableReadApi(...a),
+  });
 
   const getSheetRows = sheet => (Array.isArray(sheet?.content) ? sheet.content.slice(1) : []);
   const getSheetHeaders = sheet => (Array.isArray(sheet?.content?.[0]) ? sheet.content[0] : []);
@@ -10410,16 +10273,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const parseCheckSuggestionTieRule = (rawRule: string): CheckSuggestionTieRule => {
-    const rule = rawRule.trim().toLowerCase();
-    if (/(发起方|左方|initiator|left).*(成功|胜|赢|win)/.test(rule) || rule === '发起方成功') {
-      return 'initiator_win';
-    }
-    if (/^(平局|平手|tie|保留平局)$/.test(rule)) {
-      return 'tie';
-    }
-    return 'initiator_lose';
-  };
+  const parseCheckSuggestionTieRule = createParseCheckSuggestionTieRule({
+
+  });
 
   const extractCheckSuggestionTieRule = (
     text: string,
@@ -10484,16 +10340,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `${text}${/[。！？!?…]$/.test(text) ? '' : '。'}`;
   };
 
-  const refreshNameAliasesForCheckSuggestion = () => {
-    try {
-      const rawDataForAlias = cachedRawData || getTableData();
-      if (rawDataForAlias) {
-        NameAliasRegistry.rebuild(processJsonData(rawDataForAlias || {}));
-      }
-    } catch (error) {
-      console.warn('[DICE] 检定建议刷新角色别名失败', error);
-    }
-  };
+  const refreshNameAliasesForCheckSuggestion = createRefreshNameAliasesForCheckSuggestion({
+    getTableData: (...a: any[]) => getTableData(...a),
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    getCachedRawData: () => cachedRawData,
+    getNameAliasRegistry: () => NameAliasRegistry,
+  });
 
   const resolveCheckSuggestionCharacterName = (name: string): string => {
     const trimmed = String(name || '').trim();
@@ -10531,16 +10383,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Number.isFinite(formulaValue) ? formulaValue : 0;
   };
 
-  const resolveCheckSuggestionDefaultValue = (
-    defaultValue: number | string | boolean | undefined,
-    context: Record<string, number>,
-  ): number => {
-    if (defaultValue === undefined || defaultValue === '') return 0;
-    if (typeof defaultValue === 'number') return defaultValue;
-    if (typeof defaultValue === 'boolean') return defaultValue ? 1 : 0;
-    const result = evaluateFormula(String(defaultValue), context);
-    return Number.isFinite(result) ? result : 0;
-  };
+  const resolveCheckSuggestionDefaultValue = createResolveCheckSuggestionDefaultValue({
+    evaluateFormula: (...a: any[]) => evaluateFormula(...a),
+  });
 
   const resolveCheckSuggestionNumberParam = createResolveCheckSuggestionNumberParam({
     getAttributeValue: (...a: any[]) => getAttributeValue(...a),
@@ -11018,17 +10863,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     '#chat_input',
     '#send_but',
   ] as const;
-  const VIEWPORT_BOTTOM_REFRESH_EVENTS = [
-    'input',
-    'change',
-    'focus',
-    'blur',
-    'keyup',
-    'compositionend',
-    'click',
-    'pointerup',
-    'transitionend',
-  ] as const;
+  const VIEWPORT_BOTTOM_REFRESH_EVENTS = createViewportBottomRefreshEvents({
+
+  });
   const VIEWPORT_COMPOSER_ELEMENT_IDS = new Set(['send_form', 'form_sheld', 'send_textarea', 'chat_input']);
   // iPad 横屏可到 1366px；固定底部导航在这类视口下应跟随聊天容器，而不是输入框内部宽度。
   const TABLET_FIXED_NAV_FULL_WIDTH_MAX = 1366;
@@ -11174,16 +11011,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     TABLET_FIXED_NAV_FULL_WIDTH_MAX: TABLET_FIXED_NAV_FULL_WIDTH_MAX,
   });
 
-  const scheduleFixedWrapperBoundsRefresh = () => {
-    const config = getConfig();
-    if (config.positionMode !== 'fixed') return;
-    if (fixedWrapperBoundsRaf !== null) return;
-
-    fixedWrapperBoundsRaf = requestAnimationFrame(() => {
-      fixedWrapperBoundsRaf = null;
-      updateFixedWrapperBounds();
-    });
-  };
+  const scheduleFixedWrapperBoundsRefresh = createScheduleFixedWrapperBoundsRefresh({
+    getConfig: (...a: any[]) => getConfig(...a),
+    updateFixedWrapperBounds: (...a: any[]) => updateFixedWrapperBounds(...a),
+    getFixedWrapperBoundsRaf: () => fixedWrapperBoundsRaf,
+    setFixedWrapperBoundsRaf: (v: any) => { fixedWrapperBoundsRaf = v; },
+  });
 
   const clearFixedAnchorResizeObserver = () => {
     if (fixedAnchorResizeObserver) {
@@ -11290,16 +11123,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setFloatingCollapseBoundsRefreshHandler: (v: any) => { floatingCollapseBoundsRefreshHandler = v; },
   });
 
-  const scheduleViewportBoundsRefresh = () => {
-    const config = getConfig();
-    if (config.positionMode !== 'viewport') return;
-    if (viewportBoundsRaf !== null) return;
-
-    viewportBoundsRaf = requestAnimationFrame(() => {
-      viewportBoundsRaf = null;
-      updateViewportWrapperBounds();
-    });
-  };
+  const scheduleViewportBoundsRefresh = createScheduleViewportBoundsRefresh({
+    getConfig: (...a: any[]) => getConfig(...a),
+    updateViewportWrapperBounds: (...a: any[]) => updateViewportWrapperBounds(...a),
+    getViewportBoundsRaf: () => viewportBoundsRaf,
+    setViewportBoundsRaf: (v: any) => { viewportBoundsRaf = v; },
+  });
 
   const clearViewportInputTargetListeners = createClearViewportInputTargetListeners({
     VIEWPORT_BOTTOM_REFRESH_EVENTS: VIEWPORT_BOTTOM_REFRESH_EVENTS,
@@ -12149,28 +11978,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH = 500;
   const GACHA_TARGET_TABLE_MAX_LENGTH = 60;
   const GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH = 30;
-  const GACHA_TARGET_COLUMN_KEYS: readonly GachaRewardTargetColumnKey[] = [
-    'name',
-    'type',
-    'quantity',
-    'quality',
-    'tags',
-    'effect',
-    'description',
-    'part',
-    'status',
-  ];
-  const GACHA_TARGET_COLUMN_LABELS: Record<GachaRewardTargetColumnKey, string> = {
-    name: '名称列',
-    type: '类型列',
-    quantity: '数量列',
-    quality: '品质列',
-    tags: '标签列',
-    effect: '效果列',
-    description: '描述列',
-    part: '部位列',
-    status: '状态列',
-  };
+  const GACHA_TARGET_COLUMN_KEYS = createGachaTargetColumnKeys({
+
+  });
+  const GACHA_TARGET_COLUMN_LABELS = createGachaTargetColumnLabels({
+
+  });
   const GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS = new Set<GachaRewardTargetColumnKey>([
     'name',
     'type',
@@ -12226,16 +12039,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Boolean(normalized) && aliases.some(alias => normalizeGachaFieldAlias(alias) === normalized);
   };
 
-  const getGachaNamedCustomField = (
-    item: Pick<GachaItemDefinition, 'customFields'>,
-    fieldNames: readonly string[],
-  ): string => {
-    const wanted = new Set(fieldNames.map(normalizeGachaFieldAlias).filter(Boolean));
-    for (const [key, value] of getGachaCustomFieldEntries(item)) {
-      if (wanted.has(String(key).trim().toLowerCase())) return String(value || '').trim();
-    }
-    return '';
-  };
+  const getGachaNamedCustomField = createGetGachaNamedCustomField({
+    getGachaCustomFieldEntries: (...a: any[]) => getGachaCustomFieldEntries(...a),
+    normalizeGachaFieldAlias: (...a: any[]) => normalizeGachaFieldAlias(...a),
+  });
 
   const getGachaItemTagsText = (
     item: Pick<GachaItemDefinition, 'type' | 'quality' | 'tags' | 'customFields'>,
@@ -12322,16 +12129,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const setGachaItemOrder = (itemId: string, order: number): boolean =>
     updateGachaItemSetting(itemId, { order: normalizeGachaItemOrder(order) });
 
-  const deleteGachaItemSetting = (itemId: string): boolean => {
-    const id = String(itemId || '').trim();
-    if (!id) return false;
-    const record = getStoredGachaItemSettings();
-    if (!record.items[id]) return false;
-    const nextSettings = { ...record.items };
-    delete nextSettings[id];
-    saveGachaItemSettingsRecord(nextSettings);
-    return true;
-  };
+  const deleteGachaItemSetting = createDeleteGachaItemSetting({
+    getStoredGachaItemSettings: (...a: any[]) => getStoredGachaItemSettings(...a),
+    saveGachaItemSettingsRecord: (...a: any[]) => saveGachaItemSettingsRecord(...a),
+  });
 
   const gachaStateCore = new GachaStateCore({
     getConfiguredGachaPoolDefinitions,
@@ -13408,16 +13209,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  const formatGachaRelativeTime = (timestamp: number): string => {
-    if (!timestamp) return '暂无';
-    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-    if (elapsedSeconds < 60) return '刚刚';
-    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-    if (elapsedMinutes < 60) return `${elapsedMinutes}分钟前`;
-    const elapsedHours = Math.floor(elapsedMinutes / 60);
-    if (elapsedHours < 24) return `${elapsedHours}小时前`;
-    return `${Math.floor(elapsedHours / 24)}天前`;
-  };
+  const formatGachaRelativeTime = createFormatGachaRelativeTime({
+
+  });
 
   const getGachaFortuneProgressView = createGetGachaFortuneProgressView({
     formatGachaDuration: (...a: any[]) => formatGachaDuration(...a),
@@ -13538,16 +13332,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     renderGachaPickupHtml: (...a: any[]) => renderGachaPickupHtml(...a),
   });
 
-  const updateGachaPoolTag = (poolTag: GachaPoolTag) => {
-    const state = getGachaState(undefined, true);
-    const currentPoolTag = getGachaActivePoolTag(state);
-    if (currentPoolTag === poolTag) return;
-    saveStoredGachaActivePoolTag(poolTag);
-    if (state) state.activePoolTag = poolTag;
-    if (state && !saveStoredGachaStateSnapshot(state)) return;
-    refreshGachaPoolSelectionUi(poolTag);
-    refreshGachaShardShop();
-  };
+  const updateGachaPoolTag = createUpdateGachaPoolTag({
+    getGachaActivePoolTag: (...a: any[]) => getGachaActivePoolTag(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    refreshGachaPoolSelectionUi: (...a: any[]) => refreshGachaPoolSelectionUi(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    saveStoredGachaActivePoolTag: (...a: any[]) => saveStoredGachaActivePoolTag(...a),
+    saveStoredGachaStateSnapshot: (...a: any[]) => saveStoredGachaStateSnapshot(...a),
+  });
 
   const deleteGachaPoolConfig = createDeleteGachaPoolConfig({
     buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
@@ -14018,16 +13810,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     withTableTemplateCheckHint: (...a: any[]) => withTableTemplateCheckHint(...a),
   });
 
-  const findGachaTargetColumnIndex = (headers: unknown[], headerName: string, sheet?: unknown): number => {
-    const directIndex = headers.findIndex(header => isGachaTargetTableAliasMatch(header, headerName));
-    if (directIndex >= 0) return directIndex;
-
-    const columnAliasMap = buildCrudColumnAliasMap(sheet);
-    if (Object.keys(columnAliasMap).length === 0) return -1;
-    return headers.findIndex(header =>
-      isGachaTargetTableAliasMatch(getCrudColumnNameForHeader(columnAliasMap, header), headerName),
-    );
-  };
+  const findGachaTargetColumnIndex = createFindGachaTargetColumnIndex({
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    getCrudColumnNameForHeader: (...a: any[]) => getCrudColumnNameForHeader(...a),
+    isGachaTargetTableAliasMatch: (...a: any[]) => isGachaTargetTableAliasMatch(...a),
+  });
 
   const applyGachaTargetColumnOverrides = createApplyGachaTargetColumnOverrides({
     findGachaTargetColumnIndex: (...a: any[]) => findGachaTargetColumnIndex(...a),
