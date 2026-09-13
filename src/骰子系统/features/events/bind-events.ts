@@ -15,11 +15,22 @@ export function createBindEvents(deps: any) {
     const { $ } = deps.getCore();
     const $wrapper = $(DICE_ROOT_SELECTOR);
     if (!deps.getTutorialButtonEventsBound()) {
-      $('body').on('click.acu_panel_tutorial', '.acu-panel-tutorial-btn', function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        deps.startTutorialFromButton(this);
-      });
+      const bodyEl = $('body')[0] || document.body;
+      const rootEl = $wrapper && $wrapper[0];
+      const hostDoc = (bodyEl && bodyEl.ownerDocument) || (rootEl && rootEl.ownerDocument) || document;
+      console.info('[tut-debug] installing capture-phase tutorial delegate');
+      if (!(hostDoc as any).__acuTutCaptureInstalled) {
+        (hostDoc as any).__acuTutCaptureInstalled = true;
+        hostDoc.addEventListener('click', function (e) {
+          const target = e.target as Element | null;
+          const btn = target && (target as any).closest ? (target as any).closest('.acu-panel-tutorial-btn') : null;
+          if (!btn) return;
+          e.stopPropagation();
+          e.preventDefault();
+          console.info('[tut-debug] capture delegate hit, scope=', (btn as any).getAttribute && (btn as any).getAttribute('data-tutorial-scope'));
+          deps.startTutorialFromButton(btn);
+        }, true);
+      }
       deps.setTutorialButtonEventsBound(true);
     }
 
