@@ -85,6 +85,84 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createStripKnownSystemActionText } from './features/human-input/strip-known-system-action-text';
+import { createStripCrudSqlNonStructuralComments } from './features/table/strip-crud-sql-non-structural-comments';
+import { createShouldInferCrudRowIdFromVisibleIndex } from './features/table/should-infer-crud-row-id-from-visible-index';
+import { createSetDiffDataRow } from './features/table/set-diff-data-row';
+import { createScheduleCharacterDiceProfileDetection } from './features/dice/schedule-character-dice-profile-detection';
+import { createSaveStoredGachaSettingsPoolTag } from './features/gacha/save-stored-gacha-settings-pool-tag';
+import { createSaveInventoryMetadataRoot } from './features/gacha/save-inventory-metadata-root';
+import { createRestoreCrudRowIdPreparation } from './features/table/restore-crud-row-id-preparation';
+import { createResolveTextareaTextWithHiddenDice } from './features/textarea/resolve-textarea-text-with-hidden-dice';
+import { createResolveCanonicalCharacterName } from './features/dice/resolve-canonical-character-name';
+import { createResolveAttributeAliasName } from './features/dice/resolve-attribute-alias-name';
+import { createReplaceTag } from './features/table/replace-tag';
+import { createRemoveDiffDataRow } from './features/table/remove-diff-data-row';
+import { createRememberAutoRegexTransform } from './features/textarea/remember-auto-regex-transform';
+import { createReadTextareaVisibleValue } from './features/textarea/read-textarea-visible-value';
+import { createPushUniqueNameCandidate } from './shared/push-unique-name-candidate';
+import { createNotifyTextareaValueChanged } from './features/textarea/notify-textarea-value-changed';
+import { createNormalizePanelHeightValue } from './features/ui/normalize-panel-height-value';
+import { createNormalizeGlobalInteractionHeader } from './features/table/normalize-global-interaction-header';
+import { createNormalizeGlobalInteractionCategoryText } from './features/table/normalize-global-interaction-category-text';
+import { createNormalizeGachaTargetTable } from './features/gacha/normalize-gacha-target-table';
+import { createNormalizeCollapseStyle } from './features/table/normalize-collapse-style';
+import { createNormalizeCheckSuggestionActionText } from './features/dice/normalize-check-suggestion-action-text';
+import { createNormalizeAdvancedPresetNotes } from './features/presets/normalize-advanced-preset-notes';
+import { createIsSameSheetData } from './features/table/is-same-sheet-data';
+import { createIsSameAttributeAlias } from './features/dice/is-same-attribute-alias';
+import { createIsAdvancedPresetNumericLike } from './features/presets/is-advanced-preset-numeric-like';
+import { createGetTotalGachaShards } from './features/gacha/get-total-gacha-shards';
+import { createGetStoredPanelHeight } from './features/ui/get-stored-panel-height';
+import { createGetStoredGachaSettingsPoolTag } from './features/gacha/get-stored-gacha-settings-pool-tag';
+import { createGetStoredGachaCatalog } from './features/gacha/get-stored-gacha-catalog';
+import { createGetRuleTagSnippet } from './features/presets/get-rule-tag-snippet';
+import { createGetNormalQuickSelectInputSelector } from './features/dice/get-normal-quick-select-input-selector';
+import { createGetJsonLikeErrorMessage } from './shared/get-json-like-error-message';
+import { createGetInventoryActionLabel } from './features/gacha/get-inventory-action-label';
+import { createGetGachaRewardParseResultForItem } from './features/gacha/get-gacha-reward-parse-result-for-item';
+import { createGetGachaRewardParseResult } from './features/gacha/get-gacha-reward-parse-result';
+import { createGetGachaMinimumRarity } from './features/gacha/get-gacha-minimum-rarity';
+import { createGetGachaItemCreatedAtMs } from './features/gacha/get-gacha-item-created-at-ms';
+import { createGetGachaCatalogRecordMergeTimestamp } from './features/gacha/get-gacha-catalog-record-merge-timestamp';
+import { createGetGachaAllExpandablePoolTags } from './features/gacha/get-gacha-all-expandable-pool-tags';
+import { createGetGachaActivePoolTag } from './features/gacha/get-gacha-active-pool-tag';
+import { createGetDiceConfigBackupSafeCurrentPresets } from './features/dice/get-dice-config-backup-safe-current-presets';
+import { createGetDbChatMessages } from './features/table/get-db-chat-messages';
+import { createGetDatabaseManualUpdateErrorMessage } from './features/table/get-database-manual-update-error-message';
+import { createGetCustomTableNameIconManagerSourceLabel } from './features/table/get-custom-table-name-icon-manager-source-label';
+import { createGetCrudSheetDdl } from './features/table/get-crud-sheet-ddl';
+import { createGetCrazyModeConfig } from './features/dice/get-crazy-mode-config';
+import { createGetComposerTextarea } from './features/textarea/get-composer-textarea';
+import { createGachaStoreInstance } from './features/gacha/gacha-store-instance';
+import { createGachaStateCoreInstance } from './features/gacha/gacha-state-core-instance';
+import { createFormatGachaItemCreatedAt } from './features/gacha/format-gacha-item-created-at';
+import { createFormatGachaCatalogImportErrors } from './features/gacha/format-gacha-catalog-import-errors';
+import { createFormatDiceConfigBackupSelectedModuleRiskLines } from './features/dice/format-dice-config-backup-selected-module-risk-lines';
+import { createFindRuntimeSheetEntryForCrud } from './features/table/find-runtime-sheet-entry-for-crud';
+import { createFindInventoryItemByRow } from './features/gacha/find-inventory-item-by-row';
+import { createFindDiffSnapshotEntry } from './features/table/find-diff-snapshot-entry';
+import { createExportDiceProfile } from './features/dice/export-dice-profile';
+import { createEscapeCssString } from './shared/escape-css-string';
+import { createDownloadDiceProfileJson } from './features/dice/download-dice-profile-json';
+import { createDeleteDiceProfileRecord } from './features/dice/delete-dice-profile-record';
+import { createDebugGlobalInteraction } from './features/table/debug-global-interaction';
+import { createCreateEmptyGachaCatalog } from './features/gacha/create-empty-gacha-catalog';
+import { createCreateElementFromHtml } from './features/ui/create-element-from-html';
+import { createCreateDiceProfileTavernRegexReplaceString } from './features/dice/create-dice-profile-tavern-regex-replace-string';
+import { createCreateAutoRegexTransformKey } from './features/textarea/create-auto-regex-transform-key';
+import { createCollectGachaLocalStorageSnapshot } from './features/gacha/collect-gacha-local-storage-snapshot';
+import { createCollectDashboardNpcEntriesFromTableResults } from './features/dashboard/collect-dashboard-npc-entries-from-table-results';
+import { createClearPanelRequestedHeight } from './features/ui/clear-panel-requested-height';
+import { createClampAvatarNumber } from './features/avatars/clamp-avatar-number';
+import { createBuildCheckSuggestionInvalidCommandMessage } from './features/dice/build-check-suggestion-invalid-command-message';
+import { createApplyGachaPityAfterDraw } from './features/gacha/apply-gacha-pity-after-draw';
+import { createApplyAttributeQuickSelectDefaults } from './features/dice/apply-attribute-quick-select-defaults';
+import { createAcuDicePresetsInstance } from './features/api/acu-dice-presets-instance';
+import { createHumanInputTagBlockPatterns } from './features/human-input/human-input-tag-block-patterns';
+import { createGachaSettingsStatusFilterOptions } from './features/gacha/gacha-settings-status-filter-options';
+import { createGachaSettingsSourceFilterOptions } from './features/gacha/gacha-settings-source-filter-options';
+import { createDiceStatsScopeLabels } from './features/dice/dice-stats-scope-labels';
 import { createUpdateGachaShopProgressUi } from './features/gacha/update-gacha-shop-progress-ui';
 import { createSortGachaPoolDefinitions } from './features/gacha/sort-gacha-pool-definitions';
 import { createShouldSkipAutoRegexTransform } from './features/textarea/should-skip-auto-regex-transform';
@@ -1064,11 +1142,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const escapeCssString = (value: string): string =>
-    normalizeImageUrlInput(value)
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/[\n\r\f]/g, '');
+  const escapeCssString = createEscapeCssString({
+    normalizeImageUrlInput: (...a: any[]) => normalizeImageUrlInput(...a),
+  });
 
   const formatCssImageUrl = createFormatCssImageUrl({
     escapeCssString: (...a: any[]) => escapeCssString(...a),
@@ -1145,22 +1221,18 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const createMetaCheckResultRegex = () => /<meta:检定结果>[\s\S]*?<\/meta:检定结果>/g;
   const createDiceResultPlaceholderRegex = () => /\[投骰结果已隐藏\]/g;
 
-  const notifyTextareaValueChanged = (textarea: HTMLTextAreaElement) => {
-    const EventCtor = textarea.ownerDocument.defaultView?.Event || Event;
-    textarea.dispatchEvent(new EventCtor('input', { bubbles: true }));
-    textarea.dispatchEvent(new EventCtor('change', { bubbles: true }));
-  };
+  const notifyTextareaValueChanged = createNotifyTextareaValueChanged({
+
+  });
 
   const setTextareaValueAndNotify = (textarea: HTMLTextAreaElement, value: string) => {
     textarea.value = value;
     notifyTextareaValueChanged(textarea);
   };
 
-  const readTextareaVisibleValue = (textarea: HTMLTextAreaElement): string => {
-    const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
-    if (originalDescriptor?.get) return String(originalDescriptor.get.call(textarea) ?? '');
-    return String((textarea as AcuDiceTextareaElement & { _value?: string })._value ?? '');
-  };
+  const readTextareaVisibleValue = createReadTextareaVisibleValue({
+
+  });
 
   const extractMetaCheckResultBlocks = (text: unknown): string[] =>
     Array.from(String(text ?? '').matchAll(createMetaCheckResultRegex()))
@@ -1181,12 +1253,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     DICE_RESULT_PLACEHOLDER: DICE_RESULT_PLACEHOLDER,
   });
 
-  const resolveTextareaTextWithHiddenDice = (
-    textarea: AcuDiceTextareaElement,
-    visibleText = readTextareaVisibleValue(textarea),
-  ): string =>
-    composeTextareaTextWithHiddenDice(visibleText, readStoredTextareaDiceText(textarea), readStoredLatestDiceText(textarea));
-
+  const resolveTextareaTextWithHiddenDice = createResolveTextareaTextWithHiddenDice({
+    composeTextareaTextWithHiddenDice: (...a: any[]) => composeTextareaTextWithHiddenDice(...a),
+    readStoredLatestDiceText: (...a: any[]) => readStoredLatestDiceText(...a),
+    readStoredTextareaDiceText: (...a: any[]) => readStoredTextareaDiceText(...a),
+    readTextareaVisibleValue: (...a: any[]) => readTextareaVisibleValue(...a),
+  });
   const clearTextareaDiceCache = (textarea: AcuDiceTextareaElement) => {
     try {
       const { $ } = getCore();
@@ -1215,11 +1287,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     DICE_RESULT_PLACEHOLDER: DICE_RESULT_PLACEHOLDER,
   });
 
-  const HUMAN_INPUT_TAG_BLOCK_PATTERNS = [
-    /<meta:检定结果>[\s\S]*?<\/meta:检定结果>/gi,
-    /<recall>[\s\S]*?<\/recall>/gi,
-    /<supplement>[\s\S]*?<\/supplement>/gi,
-  ];
+  const HUMAN_INPUT_TAG_BLOCK_PATTERNS = createHumanInputTagBlockPatterns({
+
+  });
   const HUMAN_INPUT_ACTION_PATTERN = /<user>(?:(?!<user>).)*?[。！？]/g;
   const humanInputSendQueue: string[] = [];
   let lastHumanInputSnapshot = '';
@@ -1244,11 +1314,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const stripKnownSystemActionText = (text: string, actionText?: unknown): string => {
-    const normalizedAction = normalizeTrackedText(actionText);
-    if (!normalizedAction) return text;
-    return normalizeTrackedText(text.replace(new RegExp(escapeRegExpLiteral(normalizedAction), 'g'), ' '));
-  };
+  const stripKnownSystemActionText = createStripKnownSystemActionText({
+    normalizeTrackedText: (...a: any[]) => normalizeTrackedText(...a),
+  });
 
   const extractExplicitHumanInputText = createExtractExplicitHumanInputText({
     normalizeTrackedText: (...a: any[]) => normalizeTrackedText(...a),
@@ -1359,11 +1427,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return false;
   };
 
-  const getComposerTextarea = (): AcuDiceTextareaElement | null => {
-    const { $ } = getCore();
-    const $ta = $('#send_textarea');
-    return $ta.length ? ($ta[0] as AcuDiceTextareaElement) : null;
-  };
+  const getComposerTextarea = createGetComposerTextarea({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   const getResolvedComposerText = createGetResolvedComposerText({
     getComposerTextarea: (...a: any[]) => getComposerTextarea(...a),
@@ -2072,11 +2138,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const DICE_STATS_SCOPE_LABELS: Record<DiceStatsScope, string> = {
-    chat: '本聊天',
-    character: '本角色卡',
-    global: '全局',
-  };
+  const DICE_STATS_SCOPE_LABELS = createDiceStatsScopeLabels({
+
+  });
 
   const isDiceStatsScopeUnavailable = (scope: DiceStatsScope, context: DiceStatsContext): boolean =>
     (scope === 'chat' && context.chatId === 'unknown_chat') ||
@@ -2106,11 +2170,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return null;
   };
 
-  const clampAvatarNumber = (value: unknown, min: number, max: number, fallback: number): number => {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return fallback;
-    return Math.max(min, Math.min(max, num));
-  };
+  const clampAvatarNumber = createClampAvatarNumber({
+
+  });
 
   const rgbToAvatarHex = createRgbToAvatarHex({
 
@@ -2243,11 +2305,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const pushUniqueNameCandidate = (candidates: string[], value: unknown): void => {
-    const name = String(value ?? '').trim();
-    if (!name) return;
-    if (!candidates.includes(name)) candidates.push(name);
-  };
+  const pushUniqueNameCandidate = createPushUniqueNameCandidate({
+
+  });
 
   const getAvatarManualAliases = createGetAvatarManualAliases({
     getAvatarManager: () => AvatarManager,
@@ -2280,11 +2340,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeCharacterNameForCompare: (...a: any[]) => normalizeCharacterNameForCompare(...a),
   });
 
-  const resolveCanonicalCharacterName = (name: unknown): string => {
-    const rawName = String(name ?? '').trim();
-    if (!rawName || isUserCharacterName(rawName)) return '<user>';
-    return NameAliasRegistry.resolve(rawName);
-  };
+  const resolveCanonicalCharacterName = createResolveCanonicalCharacterName({
+    isUserCharacterName: (...a: any[]) => isUserCharacterName(...a),
+    getNameAliasRegistry: () => NameAliasRegistry,
+  });
 
   const characterNamesMatch = (storedName: unknown, lookupName: unknown): boolean => {
     const lookupRaw = String(lookupName ?? '').trim();
@@ -3288,11 +3347,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isAttributeQuickSelectTarget: (...a: any[]) => isAttributeQuickSelectTarget(...a),
   });
 
-  const applyAttributeQuickSelectDefaults = (preset: AttributePresetConfig): boolean => {
-    const before = JSON.stringify(preset.quickSelect ?? null);
-    preset.quickSelect = normalizeAttributeQuickSelectConfig(preset.quickSelect);
-    return before !== JSON.stringify(preset.quickSelect);
-  };
+  const applyAttributeQuickSelectDefaults = createApplyAttributeQuickSelectDefaults({
+    normalizeAttributeQuickSelectConfig: (...a: any[]) => normalizeAttributeQuickSelectConfig(...a),
+  });
 
   // 内置属性规则预设
 
@@ -3362,11 +3419,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     parseAdvancedPresetJsonCandidate: (...a: any[]) => parseAdvancedPresetJsonCandidate(...a),
   });
 
-  const normalizeAdvancedPresetNotes = (rawNotes: unknown): string[] => {
-    if (typeof rawNotes === 'string' && rawNotes.trim()) return [rawNotes.trim()];
-    if (!Array.isArray(rawNotes)) return [];
-    return rawNotes.map(item => (typeof item === 'string' ? item.trim() : '')).filter(Boolean);
-  };
+  const normalizeAdvancedPresetNotes = createNormalizeAdvancedPresetNotes({
+
+  });
 
   const normalizeAdvancedPresetAgentTests = createNormalizeAdvancedPresetAgentTests({
     isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
@@ -3560,11 +3615,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
   });
 
-  const isAdvancedPresetNumericLike = (value: unknown): boolean => {
-    if (typeof value === 'number') return Number.isFinite(value);
-    if (typeof value === 'string' && value.trim()) return Number.isFinite(Number(value));
-    return false;
-  };
+  const isAdvancedPresetNumericLike = createIsAdvancedPresetNumericLike({
+
+  });
 
   const validateAdvancedPresetOutcomePolicy = createValidateAdvancedPresetOutcomePolicy({
     isAdvancedPresetNumericLike: (...a: any[]) => isAdvancedPresetNumericLike(...a),
@@ -3700,11 +3753,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
    * @param tag 标签名（中文标签如 "属性规则"）
    * @param content 新内容
    */
-  const replaceTag = (text: string, tag: string, content: string): string => {
-    // 使用 [\s\S]* 匹配任意字符（包括换行）
-    const regex = new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, 'g');
-    return text.replace(regex, `<${tag}>\n${content}\n</${tag}>`);
-  };
+  const replaceTag = createReplaceTag({
+
+  });
 
   const getCheckSuggestionPresetById = createGetCheckSuggestionPresetById({
     getAdvancedDicePresetManager: () => AdvancedDicePresetManager,
@@ -3773,11 +3824,9 @@ ${examples}`;
 
   });
 
-  const getRuleTagSnippet = (note: string, tag: string): string => {
-    const safeTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const matched = note.match(new RegExp(`<${safeTag}>[\\s\\S]*?</${safeTag}>`));
-    return (matched?.[0] || '').slice(0, 500);
-  };
+  const getRuleTagSnippet = createGetRuleTagSnippet({
+
+  });
 
   const replaceRuleTagInTemplate = createReplaceRuleTagInTemplate({
     getRuleTagSnippet: (...a: any[]) => getRuleTagSnippet(...a),
@@ -3869,11 +3918,9 @@ ${examples}`;
   // ========================================
 
   // 获取疯狂模式配置
-  const getCrazyModeConfig = () => {
-    const stored = Store.get(STORAGE_KEY_CRAZY_MODE, null);
-    if (!stored) return { ...DEFAULT_CRAZY_MODE_CONFIG };
-    return { ...DEFAULT_CRAZY_MODE_CONFIG, ...stored };
-  };
+  const getCrazyModeConfig = createGetCrazyModeConfig({
+
+  });
 
   // 保存疯狂模式配置
   const saveCrazyModeConfig = config => {
@@ -4163,11 +4210,9 @@ $outcomeText
     validate: (value: unknown) => T;
   }
 
-  const getJsonLikeErrorMessage = (error: unknown): string => {
-    if (error instanceof Error) return error.message;
-    if (typeof error === 'string') return error;
-    return String(error || '未知错误');
-  };
+  const getJsonLikeErrorMessage = createGetJsonLikeErrorMessage({
+
+  });
 
   const stripJsoncSyntax = createStripJsoncSyntax({
     stripJsonComments: (...a: any[]) => stripJsonComments(...a),
@@ -4437,11 +4482,9 @@ $outcomeText
   });
 
 
-  const debugGlobalInteraction = (event: string, details: Record<string, unknown> = {}): void => {
-    const debugWindow = window as Window & { ACU_GLOBAL_INTERACTION_DEBUG?: boolean };
-    if (!debugWindow.ACU_GLOBAL_INTERACTION_DEBUG) return;
-    console.log(GLOBAL_INTERACTION_DEBUG_PREFIX, event, details);
-  };
+  const debugGlobalInteraction = createDebugGlobalInteraction({
+    getGLOBAL_INTERACTION_DEBUG_PREFIX: () => GLOBAL_INTERACTION_DEBUG_PREFIX,
+  });
 
   const isRecord = (value: unknown): value is Record<string, unknown> =>
     Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -4474,11 +4517,9 @@ $outcomeText
     getGLOBAL_INTERACTION_INDEX_HEADERS: () => GLOBAL_INTERACTION_INDEX_HEADERS,
   });
 
-  const normalizeGlobalInteractionHeader = (header: unknown): string =>
-    String(header ?? '')
-      .trim()
-      .replace(/\s+/g, '')
-      .toLowerCase();
+  const normalizeGlobalInteractionHeader = createNormalizeGlobalInteractionHeader({
+
+  });
 
   const isLikelyGlobalInteractionNameHeader = createIsLikelyGlobalInteractionNameHeader({
     normalizeGlobalInteractionHeader: (...a: any[]) => normalizeGlobalInteractionHeader(...a),
@@ -4499,12 +4540,9 @@ $outcomeText
 
   });
 
-  const normalizeGlobalInteractionCategoryText = (value: unknown): string =>
-    String(value ?? '')
-      .trim()
-      .replace(/\s+/g, '')
-      .toLowerCase();
+  const normalizeGlobalInteractionCategoryText = createNormalizeGlobalInteractionCategoryText({
 
+  });
   const getGlobalInteractionRuleKeywords = (rule: unknown): string[] => {
     if (!isRecord(rule) || !Array.isArray(rule.table_keywords)) return [];
     return rule.table_keywords.map(keyword => getStringLikeCellText(keyword)).filter(Boolean);
@@ -4703,11 +4741,9 @@ $outcomeText
     return JSON.stringify(sheetEntries);
   };
 
-  const isSameSheetData = (leftData: unknown, rightData: unknown): boolean => {
-    const leftFingerprint = createSheetDataFingerprint(leftData);
-    const rightFingerprint = createSheetDataFingerprint(rightData);
-    return Boolean(leftFingerprint && rightFingerprint && leftFingerprint === rightFingerprint);
-  };
+  const isSameSheetData = createIsSameSheetData({
+    createSheetDataFingerprint: (...a: any[]) => createSheetDataFingerprint(...a),
+  });
 
   const AUTO_REGEX_TRANSFORM_COOLDOWN_MS = 5000;
   let lastAutoRegexTransformKey = '';
@@ -4726,22 +4762,22 @@ $outcomeText
         enabled: rule.enabled,
       })),
     );
-  const createAutoRegexTransformKey = (rawData: unknown, rules: readonly RegexTransformationRule[]): string => {
-    const dataFingerprint = createSheetDataFingerprint(rawData);
-    if (!dataFingerprint) return '';
-    return `${dataFingerprint}\n${createRegexRuleSignature(rules)}`;
-  };
+  const createAutoRegexTransformKey = createCreateAutoRegexTransformKey({
+    createRegexRuleSignature: (...a: any[]) => createRegexRuleSignature(...a),
+    createSheetDataFingerprint: (...a: any[]) => createSheetDataFingerprint(...a),
+  });
   const shouldSkipAutoRegexTransform = createShouldSkipAutoRegexTransform({
     getLastAutoRegexTransformAt: () => lastAutoRegexTransformAt,
     getLastAutoRegexTransformKey: () => lastAutoRegexTransformKey,
     getAUTO_REGEX_TRANSFORM_COOLDOWN_MS: () => AUTO_REGEX_TRANSFORM_COOLDOWN_MS,
   });
 
-  const rememberAutoRegexTransform = (key: string): void => {
-    if (!key) return;
-    lastAutoRegexTransformKey = key;
-    lastAutoRegexTransformAt = Date.now();
-  };
+  const rememberAutoRegexTransform = createRememberAutoRegexTransform({
+    getLastAutoRegexTransformKey: () => lastAutoRegexTransformKey,
+    setLastAutoRegexTransformKey: (v: any) => { lastAutoRegexTransformKey = v; },
+    getLastAutoRegexTransformAt: () => lastAutoRegexTransformAt,
+    setLastAutoRegexTransformAt: (v: any) => { lastAutoRegexTransformAt = v; },
+  });
 
   let isAutoTransforming = false; // 防止自动转换循环触发
   let tablePageStates = {};
@@ -4794,11 +4830,9 @@ $outcomeText
   const COLLAPSE_STYLES = ['bar', 'pill', 'floating'] as const;
   type CollapseStyle = (typeof COLLAPSE_STYLES)[number];
 
-  const normalizeCollapseStyle = (value: unknown): CollapseStyle => {
-    const style = String(value || '').trim();
-    if (style === 'mini') return 'floating';
-    return COLLAPSE_STYLES.includes(style as CollapseStyle) ? (style as CollapseStyle) : 'bar';
-  };
+  const normalizeCollapseStyle = createNormalizeCollapseStyle({
+    getCOLLAPSE_STYLES: () => COLLAPSE_STYLES,
+  });
 
   const getNavigationFontMetrics = createGetNavigationFontMetrics({
 
@@ -4840,11 +4874,9 @@ $outcomeText
 
   const getTavernHostDocument = (): Document => getAccessibleDocument(getTavernHostWindow()) || document;
 
-  const createElementFromHtml = (targetDocument: Document, html: string): HTMLElement | null => {
-    const template = targetDocument.createElement('template');
-    template.innerHTML = html.trim();
-    return template.content.firstElementChild as HTMLElement | null;
-  };
+  const createElementFromHtml = createCreateElementFromHtml({
+
+  });
 
   const collectHostAndLocalNodes = createCollectHostAndLocalNodes({
     getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
@@ -5143,11 +5175,9 @@ $outcomeText
     runDatabaseManualUpdateViaNewUiButton: (...a: any[]) => runDatabaseManualUpdateViaNewUiButton(...a),
   });
 
-  const getDatabaseManualUpdateErrorMessage = (error: unknown, fallback: string): string => {
-    if (error instanceof Error && error.message) return error.message;
-    if (typeof error === 'string' && error.trim()) return error;
-    return fallback;
-  };
+  const getDatabaseManualUpdateErrorMessage = createGetDatabaseManualUpdateErrorMessage({
+
+  });
 
   const showDatabaseManualUpdateFailure = createShowDatabaseManualUpdateFailure({
     showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
@@ -5543,11 +5573,9 @@ $outcomeText
   const getCustomTableNameIconManagerSectionLabel = (section: CustomTableNameIconSection): string =>
     CUSTOM_TABLE_NAME_ICON_MANAGER_SECTION_LABELS[section] || section;
 
-  const getCustomTableNameIconManagerSourceLabel = (source: CustomTableNameIconManagerCandidateSource): string => {
-    if (source === 'direct') return '表格条目';
-    if (source === 'interaction') return '交互条目';
-    return '已保存映射';
-  };
+  const getCustomTableNameIconManagerSourceLabel = createGetCustomTableNameIconManagerSourceLabel({
+
+  });
 
   const getCustomTableNameIconManagerContextLabel = createGetCustomTableNameIconManagerContextLabel({
     getCustomTableNameIconManagerModuleLabel: (...a: any[]) => getCustomTableNameIconManagerModuleLabel(...a),
@@ -5864,11 +5892,10 @@ $outcomeText
   // --- [新增] 移植的辅助函数 ---
   const getTableHeights = () => Store.get(STORAGE_KEY_TABLE_HEIGHTS, {});
   const saveTableHeights = v => Store.set(STORAGE_KEY_TABLE_HEIGHTS, v);
-  const normalizePanelHeightValue = (value: unknown): number | null => {
-    const height = Number.parseInt(String(value ?? ''), 10);
-    if (!Number.isFinite(height) || height <= 0) return null;
-    return Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, height));
-  };
+  const normalizePanelHeightValue = createNormalizePanelHeightValue({
+    getMAX_PANEL_HEIGHT: () => MAX_PANEL_HEIGHT,
+    getMIN_PANEL_HEIGHT: () => MIN_PANEL_HEIGHT,
+  });
 
   const getPanelDisplayMaxHeight = ($panel?: JQuery<HTMLElement>): number => {
     const panelEl = $panel?.[0];
@@ -5907,17 +5934,14 @@ $outcomeText
     return Math.max(MIN_PANEL_HEIGHT, Math.min(effectiveMaxHeight, normalizedHeight));
   };
 
-  const getStoredPanelHeight = (panelKey: unknown): number | null => {
-    const key = String(panelKey ?? '').trim();
-    if (!key) return null;
-    return normalizePanelHeightValue(getTableHeights()[key]);
-  };
+  const getStoredPanelHeight = createGetStoredPanelHeight({
+    getTableHeights: (...a: any[]) => getTableHeights(...a),
+    normalizePanelHeightValue: (...a: any[]) => normalizePanelHeightValue(...a),
+  });
 
-  const clearPanelRequestedHeight = ($panel: JQuery<HTMLElement>): void => {
-    if (!$panel?.length) return;
-    applyPanelDisplayMaxHeight($panel);
-    $panel.css('height', '').removeClass('acu-manual-mode').removeAttr('data-acu-requested-height');
-  };
+  const clearPanelRequestedHeight = createClearPanelRequestedHeight({
+    applyPanelDisplayMaxHeight: (...a: any[]) => applyPanelDisplayMaxHeight(...a),
+  });
 
   const setPanelRequestedHeight = ($panel: JQuery<HTMLElement>, height: unknown): number | null => {
     if (!$panel?.length) return null;
@@ -6010,79 +6034,15 @@ $outcomeText
 
   });
 
-  const resolveAttributeAliasName = (
-    characterName: string,
-    targetName: string,
-    aliasCandidates: string[] = [],
-  ): { name: string | null; reason?: string } => {
-    const allAttrs = getFullAttributesForCharacter(characterName)
-      .map(attr => attr.name)
-      .filter(Boolean);
-    if (allAttrs.length === 0) {
-      return { name: targetName || null };
-    }
+  const resolveAttributeAliasName = createResolveAttributeAliasName({
 
-    const orderedCandidates = [targetName, ...aliasCandidates]
-      .map(n => String(n || '').trim())
-      .filter(Boolean)
-      .filter((n, idx, arr) => arr.indexOf(n) === idx);
-    if (orderedCandidates.length === 0) {
-      return { name: null, reason: '目标属性名为空' };
-    }
+    getFullAttributesForCharacter: (...a: any[]) => getFullAttributesForCharacter(...a),
+    normalizeAttributeName: (...a: any[]) => normalizeAttributeName(...a),
+  });
 
-    for (const candidate of orderedCandidates) {
-      if (allAttrs.includes(candidate)) {
-        return { name: candidate };
-      }
-    }
-
-    const lowerMap = new Map<string, string>();
-    allAttrs.forEach(name => {
-      const lower = name.toLowerCase();
-      if (!lowerMap.has(lower)) lowerMap.set(lower, name);
-    });
-    for (const candidate of orderedCandidates) {
-      const matched = lowerMap.get(candidate.toLowerCase());
-      if (matched) {
-        return { name: matched };
-      }
-    }
-
-    const normalizedGroups = new Map<string, string[]>();
-    allAttrs.forEach(name => {
-      const key = normalizeAttributeName(name);
-      if (!key) return;
-      const list = normalizedGroups.get(key) || [];
-      list.push(name);
-      normalizedGroups.set(key, list);
-    });
-
-    for (const candidate of orderedCandidates) {
-      const normalized = normalizeAttributeName(candidate);
-      if (!normalized) continue;
-      const matched = normalizedGroups.get(normalized) || [];
-      if (matched.length === 1) {
-        return { name: matched[0] };
-      }
-      if (matched.length > 1) {
-        return {
-          name: null,
-          reason: `属性别名冲突: ${candidate} 可匹配 ${matched.join(', ')}`,
-        };
-      }
-    }
-
-    return {
-      name: null,
-      reason: `找不到属性: ${targetName}`,
-    };
-  };
-
-  const isSameAttributeAlias = (left: string, right: string): boolean => {
-    const a = normalizeAttributeName(left);
-    const b = normalizeAttributeName(right);
-    return Boolean(a) && Boolean(b) && a === b;
-  };
+  const isSameAttributeAlias = createIsSameAttributeAlias({
+    normalizeAttributeName: (...a: any[]) => normalizeAttributeName(...a),
+  });
 
   const getAttributeEntryForCharacter = createGetAttributeEntryForCharacter({
     getFullAttributesForCharacter: (...a: any[]) => getFullAttributesForCharacter(...a),
@@ -6169,11 +6129,9 @@ $outcomeText
     resolveQuickSelectTarget: (...a: any[]) => resolveQuickSelectTarget(...a),
   });
 
-  const getNormalQuickSelectInputSelector = (target: AttributeQuickSelectTarget): string => {
-    if (target === 'skillMod') return '#dice-skill-mod';
-    if (target === 'mod') return '#dice-modifier';
-    return '#dice-attr-value';
-  };
+  const getNormalQuickSelectInputSelector = createGetNormalQuickSelectInputSelector({
+
+  });
   // [新增] 标准6维属性名
   const STANDARD_ATTRS = ['力量', '敏捷', '体质', '智力', '感知', '魅力'];
 
@@ -6567,11 +6525,9 @@ $outcomeText
     DashboardDataParser: DashboardDataParser,
   });
 
-  const collectDashboardNpcEntriesFromTableResults = tableResults => {
-    const entries = [];
-    tableResults.forEach(tableResult => collectDashboardNpcEntriesFromTableResult(entries, tableResult));
-    return entries;
-  };
+  const collectDashboardNpcEntriesFromTableResults = createCollectDashboardNpcEntriesFromTableResults({
+    collectDashboardNpcEntriesFromTableResult: (...a: any[]) => collectDashboardNpcEntriesFromTableResult(...a),
+  });
 
   const collectDashboardNpcEntriesFromRelationshipSources = createCollectDashboardNpcEntriesFromRelationshipSources({
     collectDashboardNpcEntriesFromTableResult: (...a: any[]) => collectDashboardNpcEntriesFromTableResult(...a),
@@ -6941,11 +6897,10 @@ $outcomeText
   const getDiceConfigBackupWarningCount = (backup: DiceConfigBackupDocument): number =>
     Object.values(backup.modules).reduce((count, payload) => count + (payload?.warnings?.length || 0), 0);
 
-  const formatDiceConfigBackupSelectedModuleRiskLines = (moduleIds: readonly DiceConfigBackupModuleId[]): string[] =>
-    moduleIds.map(moduleId => {
-      const definition = getDiceConfigBackupModuleDefinition(moduleId);
-      return `${definition?.name || moduleId}: ${DICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT[moduleId]}`;
-    });
+  const formatDiceConfigBackupSelectedModuleRiskLines = createFormatDiceConfigBackupSelectedModuleRiskLines({
+    getDiceConfigBackupModuleDefinition: (...a: any[]) => getDiceConfigBackupModuleDefinition(...a),
+    getDICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT: () => DICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT,
+  });
 
   const formatDiceConfigBackupPrivacyDetail = createFormatDiceConfigBackupPrivacyDetail({
     formatDiceConfigBackupSelectedModuleRiskLines: (...a: any[]) => formatDiceConfigBackupSelectedModuleRiskLines(...a),
@@ -7302,11 +7257,11 @@ $outcomeText
     ];
   };
 
-  const getDiceConfigBackupSafeCurrentPresets = (key: string, current: unknown): unknown[] => {
-    if (key === STORAGE_KEY_PRESETS) return cloneDiceConfigBackupValue(PresetManager.getAllPresets() || []);
-    if (key === STORAGE_KEY_REGEX_PRESETS) return cloneDiceConfigBackupValue(RegexPresetManager.getAllPresets() || []);
-    return Array.isArray(current) ? cloneDiceConfigBackupValue(current) : [];
-  };
+  const getDiceConfigBackupSafeCurrentPresets = createGetDiceConfigBackupSafeCurrentPresets({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getPresetManager: () => PresetManager,
+    getRegexPresetManager: () => RegexPresetManager,
+  });
 
   const mergeDiceConfigBackupPresetArraySafely = createMergeDiceConfigBackupPresetArraySafely({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -7593,11 +7548,9 @@ $outcomeText
     saveDiceProfileRecord: (...a: any[]) => saveDiceProfileRecord(...a),
   });
 
-  const deleteDiceProfileRecord = async (profileId: string): Promise<boolean> => {
-    const deleted = await DiceProfileDB.delete(profileId);
-    await refreshDiceProfileIndex();
-    return deleted;
-  };
+  const deleteDiceProfileRecord = createDeleteDiceProfileRecord({
+    refreshDiceProfileIndex: (...a: any[]) => refreshDiceProfileIndex(...a),
+  });
 
   const importDiceProfile = createImportDiceProfile({
     applyDiceProfile: (...a: any[]) => applyDiceProfile(...a),
@@ -7651,27 +7604,21 @@ $outcomeText
     DICE_PROFILE_LAST_APPLIED_STORAGE_KEY: DICE_PROFILE_LAST_APPLIED_STORAGE_KEY,
   });
 
-  const exportDiceProfile = async (profileId: string): Promise<DiceProfileRecord> => {
-    const profile = await DiceProfileDB.get(profileId);
-    if (!profile) throw new Error('未找到配置方案');
-    return profile;
-  };
+  const exportDiceProfile = createExportDiceProfile({
 
-  const downloadDiceProfileJson = (profile: DiceProfileRecord): void => {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const safeName = String(profile.name || 'acu_dice_profile').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
-    downloadJsonFile(JSON.stringify(profile, null, 2), `${safeName}_${timestamp}.json`);
-  };
+  });
+
+  const downloadDiceProfileJson = createDownloadDiceProfileJson({
+    downloadJsonFile: (...a: any[]) => downloadJsonFile(...a),
+  });
 
   const createDiceProfileRegexId = createCreateDiceProfileRegexId({
     createDiceProfileRuntimeId: (...a: any[]) => createDiceProfileRuntimeId(...a),
   });
 
-  const createDiceProfileTavernRegexReplaceString = (profile: DiceProfileRecord): string =>
-    [
-      `<!-- 骰子系统配置注入：此角色卡正则只用于携带「${profile.name || '配置方案'}」，请勿删除下一行 ACUDICE_PROFILE_V1 标记。 -->`,
-      createAcuDiceProfileMarker(profile),
-    ].join('\n');
+  const createDiceProfileTavernRegexReplaceString = createCreateDiceProfileTavernRegexReplaceString({
+
+  });
 
   const createDiceProfileTavernRegex = (profile: DiceProfileRecord): Record<string, unknown> => ({
     id: createDiceProfileRegexId(),
@@ -7779,11 +7726,9 @@ $outcomeText
     showDiceCharacterProfilePrompt: (...a: any[]) => showDiceCharacterProfilePrompt(...a),
   });
 
-  const scheduleCharacterDiceProfileDetection = (delay = 800): void => {
-    window.setTimeout(() => {
-      void maybePromptCharacterDiceProfile();
-    }, delay);
-  };
+  const scheduleCharacterDiceProfileDetection = createScheduleCharacterDiceProfileDetection({
+    maybePromptCharacterDiceProfile: (...a: any[]) => maybePromptCharacterDiceProfile(...a),
+  });
 
   const getDiceConfigBackupAvailableModuleIds = createGetDiceConfigBackupAvailableModuleIds({
     getDiceConfigBackupModuleResourceCount: (...a: any[]) => getDiceConfigBackupModuleResourceCount(...a),
@@ -8049,34 +7994,12 @@ $outcomeText
     };
   };
 
-  const findDiffSnapshotEntry = (
-    snapshot: unknown,
-    sheetId: string,
-    currentSheet: unknown,
-  ): { key: string; sheet: DiffSheet } | null => {
-    const snapshotRecord = asDiffRecord(snapshot);
-    if (!snapshotRecord) return null;
+  const findDiffSnapshotEntry = createFindDiffSnapshotEntry({
 
-    const directSheet = snapshotRecord[sheetId];
-    if (isDiffSheet(directSheet)) return { key: sheetId, sheet: directSheet };
-
-    const currentIdentity = getDiffSheetIdentity(currentSheet);
-    const sheetKeys = Object.keys(snapshotRecord).filter(key => key.startsWith('sheet_'));
-
-    if (currentIdentity.uid) {
-      const matchedKey = sheetKeys.find(key => getDiffSheetIdentity(snapshotRecord[key]).uid === currentIdentity.uid);
-      const matchedSheet = matchedKey ? snapshotRecord[matchedKey] : null;
-      if (matchedKey && isDiffSheet(matchedSheet)) return { key: matchedKey, sheet: matchedSheet };
-    }
-
-    if (currentIdentity.name) {
-      const matchedKey = sheetKeys.find(key => getDiffSheetIdentity(snapshotRecord[key]).name === currentIdentity.name);
-      const matchedSheet = matchedKey ? snapshotRecord[matchedKey] : null;
-      if (matchedKey && isDiffSheet(matchedSheet)) return { key: matchedKey, sheet: matchedSheet };
-    }
-
-    return null;
-  };
+    asDiffRecord: (...a: any[]) => asDiffRecord(...a),
+    isDiffSheet: (...a: any[]) => isDiffSheet(...a),
+    getDiffSheetIdentity: (...a: any[]) => getDiffSheetIdentity(...a),
+  });
 
   const normalizeDiffRow = (row: unknown): DiffRow => (Array.isArray(row) ? row : []);
 
@@ -8090,21 +8013,17 @@ $outcomeText
     return Array.isArray(row) ? row : null;
   };
 
-  const setDiffDataRow = (sheet: DiffSheet | null | undefined, rowIndex: number, row: DiffRow): boolean => {
-    if (!Array.isArray(sheet?.content)) return false;
-    sheet.content[rowIndex + 1] = [...row];
-    return true;
-  };
+  const setDiffDataRow = createSetDiffDataRow({
+
+  });
 
   const setDiffDataCell = createSetDiffDataCell({
     getDiffDataRow: (...a: any[]) => getDiffDataRow(...a),
   });
 
-  const removeDiffDataRow = (sheet: DiffSheet | null | undefined, rowIndex: number): boolean => {
-    if (!Array.isArray(sheet?.content) || !sheet.content[rowIndex + 1]) return false;
-    sheet.content.splice(rowIndex + 1, 1);
-    return true;
-  };
+  const removeDiffDataRow = createRemoveDiffDataRow({
+
+  });
 
   const getDiffSheetContent = (sheet: unknown): DiffRow[] => {
     if (!isDiffSheet(sheet)) return [];
@@ -8274,11 +8193,9 @@ $outcomeText
     TavernDB_ACU_SummaryData?: unknown;
   };
 
-  const getDbChatMessages = (): DbChatMessage[] | null => {
-    const st = window.SillyTavern || window.parent?.SillyTavern;
-    const rawChat = st?.chat;
-    return Array.isArray(rawChat) ? (rawChat as DbChatMessage[]) : null;
-  };
+  const getDbChatMessages = createGetDbChatMessages({
+
+  });
 
   const parseIsolatedData = (value: unknown): Record<string, unknown> | null => {
     if (!value) return null;
@@ -8402,11 +8319,9 @@ $outcomeText
 
   });
 
-  const getCrudSheetDdl = (sheet: unknown): string => {
-    const sheetRecord = asDiffRecord(sheet);
-    const sourceRecord = asDiffRecord(sheetRecord?.sourceData);
-    return String(sourceRecord?.ddl || '');
-  };
+  const getCrudSheetDdl = createGetCrudSheetDdl({
+    asDiffRecord: (...a: any[]) => asDiffRecord(...a),
+  });
 
   const stripCrudSqlComments = createStripCrudSqlComments({
 
@@ -8416,11 +8331,9 @@ $outcomeText
 
   });
 
-  const stripCrudSqlNonStructuralComments = (ddl: unknown): string =>
-    stripCrudSqlBlockComments(ddl)
-      .split(/\r?\n/)
-      .filter(line => !/^\s*--/.test(line))
-      .join('\n');
+  const stripCrudSqlNonStructuralComments = createStripCrudSqlNonStructuralComments({
+    stripCrudSqlBlockComments: (...a: any[]) => stripCrudSqlBlockComments(...a),
+  });
 
   const CRUD_SQL_IDENTIFIER_PATTERN = '(?:"((?:[^"]|"")*)"|`((?:[^`]|``)*)`|\\[([^\\]]+)\\]|([A-Za-z_][A-Za-z0-9_]*))';
 
@@ -8609,11 +8522,10 @@ $outcomeText
   const isCrudRowIdMissing = (value: unknown): boolean =>
     value === null || value === undefined || String(value).trim() === '';
 
-  const shouldInferCrudRowIdFromVisibleIndex = (input: CrudExistingRowPatchInput): boolean => {
-    const firstHeader = normalizeDiffHeader(input.headers[0]);
-    if (firstHeader === 'row_id' || firstHeader === '行号') return true;
-    return /\brow_id\s+INTEGER\s+PRIMARY\s+KEY\b/i.test(getCrudSheetDdl(input.sheet));
-  };
+  const shouldInferCrudRowIdFromVisibleIndex = createShouldInferCrudRowIdFromVisibleIndex({
+    getCrudSheetDdl: (...a: any[]) => getCrudSheetDdl(...a),
+    normalizeDiffHeader: (...a: any[]) => normalizeDiffHeader(...a),
+  });
 
   const inferCrudRowIdForUpdateCell = (input: CrudExistingRowPatchInput): { rowId: unknown; source: string } | null => {
     const candidates: Array<{ rowId: unknown; source: string }> = [
@@ -8734,11 +8646,9 @@ $outcomeText
     readRuntimeTableDataReference: (...a: any[]) => readRuntimeTableDataReference(...a),
   });
 
-  const restoreCrudRowIdPreparation = (preparation: CrudRowIdPreparation): void => {
-    preparation?.patchedRows.forEach(patch => {
-      patch.row[0] = patch.originalValue;
-    });
-  };
+  const restoreCrudRowIdPreparation = createRestoreCrudRowIdPreparation({
+
+  });
 
   const assertCrudInsertRequiredCells = (tableName: string, headers, row, sheet, rowIndex: number): void => {
     try {
@@ -8801,11 +8711,10 @@ $outcomeText
     getStableRowKeyForCrud: (...a: any[]) => getStableRowKeyForCrud(...a),
   });
 
-  const findRuntimeSheetEntryForCrud = (
-    latestData: unknown,
-    sheetKey: string,
-    desiredSheet: unknown,
-  ): { key: string; sheet: DiffSheet } | null => findDiffSnapshotEntry(latestData, sheetKey, desiredSheet);
+  const findRuntimeSheetEntryForCrud = createFindRuntimeSheetEntryForCrud({
+
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+  });
 
   const applySheetDataViaCrud = createApplySheetDataViaCrud({
     applyExistingRowCellPatchesViaCrud: (...a: any[]) => applyExistingRowCellPatchesViaCrud(...a),
@@ -9446,10 +9355,8 @@ $outcomeText
 
   const rootWindow = resolveRootWindow();
   const acuDiceReady = new AcuDiceReadyState();
-  const acuDicePresets = new AcuDicePresets({
-    getAllPresets: () => ActionPresetManager.getAllPresets(),
-    getActivePresetId: () => ActionPresetManager.getActivePresetId(),
-    getPresetById: (id: string) => ActionPresetManager.getPresetById(id),
+  const acuDicePresets = createAcuDicePresetsInstance({
+    getActionPresetManager: () => ActionPresetManager,
   });
   const acuDiceCharacters = createAcuDiceCharactersInstance({
     getTableData: (...a: any[]) => getTableData(...a),
@@ -9702,11 +9609,9 @@ $outcomeText
     normalizeLeadingCheckSuggestionSideShorthand: (...a: any[]) => normalizeLeadingCheckSuggestionSideShorthand(...a),
   });
 
-  const buildCheckSuggestionInvalidCommandMessage = (reason: string): string => {
-    const normalizedReason = String(reason || '骰子命令解析失败').trim();
-    const separator = /[。！？!?]$/.test(normalizedReason) ? '' : '。';
-    return `${normalizedReason}${separator}解决方法：请重新填写“检定建议表”，或检查表格模板中的提示词；骰子命令应写成“检定 角色 属性”或“对抗 角色 属性 vs 角色 属性”。`;
-  };
+  const buildCheckSuggestionInvalidCommandMessage = createBuildCheckSuggestionInvalidCommandMessage({
+
+  });
 
   const parseCheckSuggestionCommand = createParseCheckSuggestionCommand({
     extractCheckSuggestionDiceFormula: (...a: any[]) => extractCheckSuggestionDiceFormula(...a),
@@ -9717,11 +9622,9 @@ $outcomeText
     parseCheckSuggestionSide: (...a: any[]) => parseCheckSuggestionSide(...a),
   });
 
-  const normalizeCheckSuggestionActionText = (displayText: string): string => {
-    const text = String(displayText || '').trim();
-    if (!text) return '';
-    return `${text}${/[。！？!?…]$/.test(text) ? '' : '。'}`;
-  };
+  const normalizeCheckSuggestionActionText = createNormalizeCheckSuggestionActionText({
+
+  });
 
   const refreshNameAliasesForCheckSuggestion = createRefreshNameAliasesForCheckSuggestion({
     getTableData: (...a: any[]) => getTableData(...a),
@@ -11039,16 +10942,12 @@ $outcomeText
   const DEFAULT_GACHA_SETTINGS_ITEM_FILTERS = createDefaultGachaSettingsItemFilters({
 
   });
-  const GACHA_SETTINGS_SOURCE_FILTER_OPTIONS: readonly GachaSettingsFilterOption<GachaSettingsItemSourceFilter>[] = [
-    { value: 'all', label: '全部来源', iconClass: 'fa-layer-group' },
-    { value: 'custom', label: '自定义', iconClass: 'fa-pen-nib' },
-    { value: 'builtin', label: '内置', iconClass: 'fa-box-archive' },
-  ];
-  const GACHA_SETTINGS_STATUS_FILTER_OPTIONS: readonly GachaSettingsFilterOption<GachaSettingsItemStatusFilter>[] = [
-    { value: 'all', label: '全部状态', iconClass: 'fa-toggle-on' },
-    { value: 'enabled', label: '启用', iconClass: 'fa-circle-check' },
-    { value: 'disabled', label: '禁用', iconClass: 'fa-circle-pause' },
-  ];
+  const GACHA_SETTINGS_SOURCE_FILTER_OPTIONS = createGachaSettingsSourceFilterOptions({
+
+  });
+  const GACHA_SETTINGS_STATUS_FILTER_OPTIONS = createGachaSettingsStatusFilterOptions({
+
+  });
   const GACHA_SETTINGS_SORT_OPTIONS = createGachaSettingsSortOptions({
 
   });
@@ -11185,11 +11084,11 @@ $outcomeText
   const getVisibleGachaPoolConfigDefinitions = (rawData = getRuntimeGachaRawData()): GachaPoolDefinition[] =>
     getAllGachaPoolConfigDefinitions(rawData).filter(isGachaPoolEnabled);
 
-  const getGachaAllExpandablePoolTags = (rawData = getRuntimeGachaRawData()): GachaPoolTag[] => {
-    return getAllGachaPoolConfigDefinitions(rawData)
-      .filter(pool => pool.id !== GACHA_ALL_POOL_TAG && isGachaPoolEnabled(pool))
-      .map(pool => pool.id);
-  };
+  const getGachaAllExpandablePoolTags = createGetGachaAllExpandablePoolTags({
+    getAllGachaPoolConfigDefinitions: (...a: any[]) => getAllGachaPoolConfigDefinitions(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    isGachaPoolEnabled: (...a: any[]) => isGachaPoolEnabled(...a),
+  });
 
   const getGachaPoolDisplayName = (poolTag: GachaPoolTag, rawData = getRuntimeGachaRawData()): string =>
     getAllGachaPoolConfigDefinitions(rawData).find(pool => pool.id === poolTag)?.name || poolTag;
@@ -11223,11 +11122,10 @@ $outcomeText
       .slice(0, maxLength)
       .join('');
 
-  const normalizeGachaTargetTable = (raw: unknown): string | undefined => {
-    if (typeof raw !== 'string') return undefined;
-    const value = truncateGachaText(raw.trim(), GACHA_TARGET_TABLE_MAX_LENGTH);
-    return value || undefined;
-  };
+  const normalizeGachaTargetTable = createNormalizeGachaTargetTable({
+    truncateGachaText: (...a: any[]) => truncateGachaText(...a),
+    getGACHA_TARGET_TABLE_MAX_LENGTH: () => GACHA_TARGET_TABLE_MAX_LENGTH,
+  });
 
   const normalizeGachaTargetColumns = (raw: unknown): GachaRewardTargetColumns | undefined => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
@@ -11397,19 +11295,16 @@ $outcomeText
     saveGachaItemSettingsRecord: (...a: any[]) => saveGachaItemSettingsRecord(...a),
   });
 
-  const gachaStateCore = new GachaStateCore({
-    getConfiguredGachaPoolDefinitions,
-    testDefaultFortune: GACHA_TEST_DEFAULT_FORTUNE,
-    recentRewardLimit: GACHA_RECENT_REWARD_LIMIT,
+  const gachaStateCore = createGachaStateCoreInstance({
+    getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
+    getGACHA_TEST_DEFAULT_FORTUNE: () => GACHA_TEST_DEFAULT_FORTUNE,
   });
   const createDefaultGachaState = (): GachaState => gachaStateCore.createDefault();
   const normalizeShardWallet = (rawValue: unknown): GachaShardWallet => gachaStateCore.normalizeShardWallet(rawValue);
   const normalizeRecentGachaRewards = (rawValue: unknown): GachaRecentRewardRecord[] => gachaStateCore.normalizeRecentRewards(rawValue);
 
-  const gachaStore = new GachaStore({
-    store: Store,
-    getCurrentContextFingerprint,
-    storageKeyBase: STORAGE_KEY_GACHA_STATE,
+  const gachaStore = createGachaStoreInstance({
+    getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
   });
   const getGachaStateStorageKey = (): string => gachaStore.getStorageKey();
   const getGachaStateMigrationKey = (): string => gachaStore.getMigrationKey();
@@ -11429,10 +11324,8 @@ $outcomeText
 
   const getGachaCatalogScopeKey = (): string => GACHA_CATALOG_GLOBAL_SCOPE_KEY;
 
-  const createEmptyGachaCatalog = (): GachaCatalog => ({
-    version: GACHA_CATALOG_VERSION,
-    items: [],
-    updatedAt: 0,
+  const createEmptyGachaCatalog = createCreateEmptyGachaCatalog({
+
   });
 
 
@@ -11465,11 +11358,9 @@ $outcomeText
   const getGachaCatalogItemMergeTimestamp = (item: GachaItemDefinition, fallback = 0): number =>
     Math.max(0, Number(item.updatedAt) || 0, Number(item.createdAt) || 0, Number(fallback) || 0);
 
-  const getGachaCatalogRecordMergeTimestamp = (record: GachaCatalogRecord): number =>
-    Math.max(
-      Number(record.updatedAt) || 0,
-      ...record.items.map(item => getGachaCatalogItemMergeTimestamp(item)),
-    );
+  const getGachaCatalogRecordMergeTimestamp = createGetGachaCatalogRecordMergeTimestamp({
+    getGachaCatalogItemMergeTimestamp: (...a: any[]) => getGachaCatalogItemMergeTimestamp(...a),
+  });
 
   const mergeGachaCatalogRecordsToGlobalScope = createMergeGachaCatalogRecordsToGlobalScope({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -11491,11 +11382,11 @@ $outcomeText
 
   });
 
-  const getStoredGachaCatalog = (_rawData, createIfMissing = false): GachaCatalog | null => {
-    const scopeKey = getGachaCatalogScopeKey();
-    if (gachaCatalogCache?.scopeKey === scopeKey) return gachaCatalogCache.catalog;
-    return createIfMissing ? createEmptyGachaCatalog() : null;
-  };
+  const getStoredGachaCatalog = createGetStoredGachaCatalog({
+    createEmptyGachaCatalog: (...a: any[]) => createEmptyGachaCatalog(...a),
+    getGachaCatalogScopeKey: (...a: any[]) => getGachaCatalogScopeKey(...a),
+    getGachaCatalogCache: () => gachaCatalogCache,
+  });
 
   const saveStoredGachaCatalog = createSaveStoredGachaCatalog({
     cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
@@ -11593,11 +11484,9 @@ $outcomeText
     parseJsoncValue: (...a: any[]) => parseJsoncValue(...a),
   });
 
-  const formatGachaCatalogImportErrors = (errors: readonly string[], limit = 6): string => {
-    if (!errors.length) return '';
-    const visibleErrors = errors.slice(0, limit).join('；');
-    return errors.length > limit ? `${visibleErrors}；还有 ${errors.length - limit} 项错误未显示` : visibleErrors;
-  };
+  const formatGachaCatalogImportErrors = createFormatGachaCatalogImportErrors({
+
+  });
 
   const getGachaCatalogImportFailureMessage = createGetGachaCatalogImportFailureMessage({
     formatGachaCatalogImportErrors: (...a: any[]) => formatGachaCatalogImportErrors(...a),
@@ -11622,11 +11511,9 @@ $outcomeText
     saveGachaPoolSettings: (...a: any[]) => saveGachaPoolSettings(...a),
   });
 
-  const collectGachaLocalStorageSnapshot = (keys: readonly string[]): Map<string, string | null> => {
-    const snapshot = new Map<string, string | null>();
-    keys.forEach(key => snapshot.set(key, localStorage.getItem(key)));
-    return snapshot;
-  };
+  const collectGachaLocalStorageSnapshot = createCollectGachaLocalStorageSnapshot({
+
+  });
 
   const restoreGachaLocalStorageSnapshot = createRestoreGachaLocalStorageSnapshot({
 
@@ -11857,17 +11744,15 @@ $outcomeText
     normalizeGachaTargetTable: (...a: any[]) => normalizeGachaTargetTable(...a),
   });
 
-  const getGachaRewardParseResult = (
-    rawData,
-    target: GachaRewardTarget,
-    options: GachaRewardParseOptions = {},
-  ): GachaRewardParseResult => (target === 'equipment' ? parseEquipmentItems(rawData, options) : parseInventoryItems(rawData, options));
+  const getGachaRewardParseResult = createGetGachaRewardParseResult({
+    parseEquipmentItems: (...a: any[]) => parseEquipmentItems(...a),
+    parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
+  });
 
-  const getGachaRewardParseResultForItem = (
-    rawData,
-    item: Pick<GachaItemDefinition, 'rewardTarget' | 'targetTable' | 'targetColumns'>,
-  ): GachaRewardParseResult =>
-    getGachaRewardParseResult(rawData, item.rewardTarget, { ...getGachaRewardTargetOptions(item), requireNameColumn: true });
+  const getGachaRewardParseResultForItem = createGetGachaRewardParseResultForItem({
+    getGachaRewardParseResult: (...a: any[]) => getGachaRewardParseResult(...a),
+    getGachaRewardTargetOptions: (...a: any[]) => getGachaRewardTargetOptions(...a),
+  });
 
   const hasGachaRewardTable = (rawData, target: GachaRewardTarget): boolean => {
     const parsed = getGachaRewardParseResult(rawData, target);
@@ -11881,11 +11766,9 @@ $outcomeText
   const getAvailableGachaRewardTargets = (rawData): Set<GachaRewardTarget> =>
     new Set(GACHA_REWARD_TARGETS.filter(target => hasGachaRewardTable(rawData, target)));
 
-  const getGachaMinimumRarity = (state: GachaState): GachaRarity | null => {
-    if (state.pity.legend >= GACHA_LEGEND_PITY_THRESHOLD) return '传说';
-    if (state.pity.rare >= GACHA_RARE_PITY_THRESHOLD) return '稀有';
-    return null;
-  };
+  const getGachaMinimumRarity = createGetGachaMinimumRarity({
+
+  });
 
   const pickWeightedValue = <T>(entries: Array<{ value: T; weight: number }>): T | null => {
     const safeEntries = entries.filter(entry => Number(entry.weight) > 0);
@@ -11938,11 +11821,10 @@ $outcomeText
     if (!Store.set(STORAGE_KEY_GACHA_ACTIVE_POOL_TAG, poolTag)) throw new Error('当前卡池保存失败');
   };
 
-  const getGachaActivePoolTag = (state?: Pick<GachaState, 'activePoolTag'> | null): GachaPoolTag => {
-    const stored = getStoredGachaActivePoolTag(state?.activePoolTag || GACHA_ALL_POOL_TAG);
-    const visibleIds = new Set(getVisibleGachaPoolConfigDefinitions().map(pool => pool.id));
-    return visibleIds.has(stored) ? stored : GACHA_ALL_POOL_TAG;
-  };
+  const getGachaActivePoolTag = createGetGachaActivePoolTag({
+    getStoredGachaActivePoolTag: (...a: any[]) => getStoredGachaActivePoolTag(...a),
+    getVisibleGachaPoolConfigDefinitions: (...a: any[]) => getVisibleGachaPoolConfigDefinitions(...a),
+  });
 
   const getGachaChatIdSeed = createGetGachaChatIdSeed({
 
@@ -12168,11 +12050,9 @@ $outcomeText
     grantInventoryGachaReward: (...a: any[]) => grantInventoryGachaReward(...a),
   });
 
-  const applyGachaPityAfterDraw = (state: GachaState, rarity: GachaRarity) => {
-    state.totalDraws += 1;
-    state.pity.rare = getGachaRarityRank(rarity) >= getGachaRarityRank('稀有') ? 0 : state.pity.rare + 1;
-    state.pity.legend = getGachaRarityRank(rarity) >= getGachaRarityRank('传说') ? 0 : state.pity.legend + 1;
-  };
+  const applyGachaPityAfterDraw = createApplyGachaPityAfterDraw({
+    getGachaRarityRank: (...a: any[]) => getGachaRarityRank(...a),
+  });
 
   const pushRecentGachaReward = (state: GachaState, outcome: GachaDrawOutcome, poolTag: GachaPoolTag) => {
     const record: GachaRecentRewardRecord = {
@@ -12258,11 +12138,9 @@ $outcomeText
     showGachaPickupItemDetail: showGachaPickupItemDetail,
   });
 
-  const getTotalGachaShards = (state: GachaState): number =>
-    GACHA_RARITY_ORDER.reduce(
-      (sum, rarity) => sum + Math.max(0, Math.floor(Number(state.wallet.shards[rarity] || 0))),
-      0,
-    );
+  const getTotalGachaShards = createGetTotalGachaShards({
+
+  });
 
   const renderGachaPanelHtml = createRenderGachaPanelHtml({
     createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
@@ -12373,17 +12251,13 @@ $outcomeText
     STORAGE_KEY_GACHA_SETTINGS_POOL_TAG: STORAGE_KEY_GACHA_SETTINGS_POOL_TAG,
   });
 
-  const getStoredGachaSettingsPoolTag = (rawData): GachaPoolTag => {
-    const stored = normalizeGachaPoolId(Store.get(STORAGE_KEY_GACHA_SETTINGS_POOL_TAG, GACHA_ALL_POOL_TAG));
-    const pools = getVisibleGachaPoolConfigDefinitions(rawData);
-    return pools.some(pool => pool.id === stored) ? stored : GACHA_ALL_POOL_TAG;
-  };
+  const getStoredGachaSettingsPoolTag = createGetStoredGachaSettingsPoolTag({
+    getVisibleGachaPoolConfigDefinitions: (...a: any[]) => getVisibleGachaPoolConfigDefinitions(...a),
+  });
 
-  const saveStoredGachaSettingsPoolTag = (poolTag: GachaPoolTag) => {
-    const normalizedPoolId = normalizeGachaPoolId(poolTag);
-    if (!normalizedPoolId) return;
-    if (!Store.set(STORAGE_KEY_GACHA_SETTINGS_POOL_TAG, normalizedPoolId)) throw new Error('商城设置页卡池保存失败');
-  };
+  const saveStoredGachaSettingsPoolTag = createSaveStoredGachaSettingsPoolTag({
+
+  });
 
   const showGachaPoolNameDialog = createShowGachaPoolNameDialog({
     getConfig: (...a: any[]) => getConfig(...a),
@@ -12402,17 +12276,13 @@ $outcomeText
   const getGachaSettingsPoolItems = (rawData, poolId: GachaPoolTag): GachaItemDefinition[] =>
     getGachaCatalogItemsForExport(rawData, poolId);
 
-  const getGachaItemCreatedAtMs = (item: Pick<GachaItemDefinition, 'createdAt' | 'updatedAt'>): number => {
-    const createdAt = normalizeGachaTimestamp(item.createdAt);
-    if (createdAt) return createdAt;
-    return normalizeGachaTimestamp(item.updatedAt) || 0;
-  };
+  const getGachaItemCreatedAtMs = createGetGachaItemCreatedAtMs({
+    normalizeGachaTimestamp: (...a: any[]) => normalizeGachaTimestamp(...a),
+  });
 
-  const formatGachaItemCreatedAt = (item: Pick<GachaItemDefinition, 'createdAt' | 'updatedAt'>): string => {
-    const createdAt = getGachaItemCreatedAtMs(item);
-    if (!createdAt) return '创建时间未知';
-    return new Date(createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  };
+  const formatGachaItemCreatedAt = createFormatGachaItemCreatedAt({
+    getGachaItemCreatedAtMs: (...a: any[]) => getGachaItemCreatedAtMs(...a),
+  });
 
   const renderGachaSettingsPoolTabsHtml = createRenderGachaSettingsPoolTabsHtml({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -12703,11 +12573,11 @@ $outcomeText
     cloneRuntimeDataValue: (...a: any[]) => cloneRuntimeDataValue(...a),
   });
 
-  const saveInventoryMetadataRoot = (root: InventoryMetadataRoot) => {
-    const store = getInventoryMetadataStore();
-    store[getInventoryMetadataContextKey()] = root;
-    saveInventoryMetadataStore(store);
-  };
+  const saveInventoryMetadataRoot = createSaveInventoryMetadataRoot({
+    getInventoryMetadataContextKey: (...a: any[]) => getInventoryMetadataContextKey(...a),
+    getInventoryMetadataStore: (...a: any[]) => getInventoryMetadataStore(...a),
+    saveInventoryMetadataStore: (...a: any[]) => saveInventoryMetadataStore(...a),
+  });
 
   const getInventoryMetadataRoot = createGetInventoryMetadataRoot({
     getInventoryMetadataContextKey: (...a: any[]) => getInventoryMetadataContextKey(...a),
@@ -12994,11 +12864,9 @@ $outcomeText
     getCachedRawData: () => cachedRawData,
   });
 
-  const getInventoryActionLabel = itemType => {
-    if (itemType === '任务物品') return '检查';
-    if (itemType === '材料') return '查看';
-    return '使用';
-  };
+  const getInventoryActionLabel = createGetInventoryActionLabel({
+
+  });
 
   const getInventoryActionPrompt = createGetInventoryActionPrompt({
     getInventoryActionLabel: (...a: any[]) => getInventoryActionLabel(...a),
@@ -13093,11 +12961,11 @@ $outcomeText
     getCachedRawData: () => cachedRawData,
   });
 
-  const findInventoryItemByRow = rowIndex => {
-    const rawData = cachedRawData || getTableData();
-    const parsed = parseInventoryItems(rawData);
-    return parsed.items.find(item => item.rowIndex === rowIndex) || null;
-  };
+  const findInventoryItemByRow = createFindInventoryItemByRow({
+    getTableData: (...a: any[]) => getTableData(...a),
+    parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   const getInventoryDetailContext = createGetInventoryDetailContext({
     cloneRuntimeDataValue: (...a: any[]) => cloneRuntimeDataValue(...a),
