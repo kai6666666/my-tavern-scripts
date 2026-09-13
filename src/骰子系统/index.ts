@@ -85,6 +85,16 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createInferAvatarImageColor } from './features/avatar/infer-avatar-image-color';
+import { createShowPresetConflictDialog } from './features/presets/show-preset-conflict-dialog';
+import { createBuildNewAttributePresetJsoncTemplate } from './features/presets/build-new-attribute-preset-jsonc-template';
+import { createRenderDiceProfileApplyConfirmDetailHtml } from './features/dice/render-dice-profile-apply-confirm-detail-html';
+import { createRenderGlobalInteractionsPanel } from './features/interactions/render-global-interactions-panel';
+import { createApplyAsyncImageUrlToElement } from './features/avatar/apply-async-image-url-to-element';
+import { createFindRowIndexByPrimaryKey } from './features/table/find-row-index-by-primary-key';
+import { createNormalizeImportedGachaPools } from './features/gacha/normalize-imported-gacha-pools';
+import { createNormalizeDiceConfigBackupGachaCatalogItems } from './features/dice/normalize-dice-config-backup-gacha-catalog-items';
+import { createRenderGachaPoolSettingsListHtml } from './features/gacha/render-gacha-pool-settings-list-html';
 import { createBuildRelationshipGraphTableFromPreset } from './features/table/build-relationship-graph-table-from-preset';
 import { createResolveCustomTableNameIcon } from './features/table/resolve-custom-table-name-icon';
 import { createCollectAccessibleRuntimeWindows } from './features/ui/collect-accessible-runtime-windows';
@@ -400,54 +410,9 @@ import { GachaStateCore } from './features/gacha/gacha-state';
    * @param primaryKeyValue - 主键值（格式可能是 "字段名=值" 或纯值）
    * @returns 行索引（从0开始），找不到返回null
    */
-  function findRowIndexByPrimaryKey(sheetKey: string, tableName: string, primaryKeyValue: string): number | null {
-    try {
-      const data = getTableData({ silent: true }) as Record<
-        string,
-        { name: string; content: (string | number | null)[][] }
-      > | null;
-      const sheet = data?.[sheetKey];
-      if (!sheet || !sheet.content || !Array.isArray(sheet.content) || sheet.content.length < 2) {
-        return null;
-      }
-
-      const headers = sheet.content[0] as string[];
-      const pkField = PRIMARY_KEYS[tableName as keyof typeof PRIMARY_KEYS];
-
-      // 处理特殊情况：全局数据表等没有主键的情况
-      if (pkField === null) {
-        return primaryKeyValue === '_row_0' ? 0 : null;
-      }
-
-      if (!pkField) return null;
-
-      const pkIndex = headers.indexOf(pkField);
-      if (pkIndex === -1) {
-        console.warn(`[DICE]findRowIndexByPrimaryKey: 在表 ${tableName} 中找不到主键字段 ${pkField}`);
-        return null;
-      }
-
-      // 【修复】解析 primaryKeyValue，提取实际值
-      // getRowKey() 返回格式: "姓名=张三" -> 需要提取 "张三"
-      let actualValue = primaryKeyValue;
-      const eqIdx = primaryKeyValue.indexOf('=');
-      if (eqIdx !== -1) {
-        actualValue = primaryKeyValue.substring(eqIdx + 1);
-      }
-
-      // 遍历数据行（从索引1开始）
-      for (let i = 1; i < sheet.content.length; i++) {
-        const row = sheet.content[i];
-        if (row && String(row[pkIndex]) === String(actualValue)) {
-          // 数据库的 rowIndex 是从 0 开始的数据行索引（对应 content[1]）
-          return i - 1;
-        }
-      }
-    } catch (e) {
-      console.warn('[DICE]findRowIndexByPrimaryKey 失败:', e);
-    }
-    return null;
-  }
+  const findRowIndexByPrimaryKey = createFindRowIndexByPrimaryKey({
+    getTableData: (...a: any[]) => getTableData(...a),
+  });
 
   /**
    * 安全地修改角色卡属性值
@@ -867,95 +832,13 @@ import { GachaStateCore } from './features/gacha/gacha-state';
   };
 
   // [新增] 通用预设导入冲突弹窗（复用头像导入弹窗样式）
-  const showPresetConflictDialog = (options: {
-    presetName: string;
-    presetType: string;
-    onOverwrite: () => void;
-    onRename: (newName: string) => void;
-    onCancel: () => void;
-    existingNames: string[];
-  }) => {
-    const { $ } = getCore();
-    $('.acu-import-confirm-overlay').remove();
-
-    const config = getConfig();
-    const suggestedName = generateUniqueName(options.presetName, options.existingNames);
-
-    const dialogHtml = `
-      <div class="acu-import-confirm-overlay acu-theme-${config.theme}">
-        <div class="acu-import-confirm-dialog">
-          <div class="acu-import-confirm-header">
-            <i class="fa-solid fa-file-import"></i> 导入${options.presetType}预设
-          </div>
-          <div class="acu-import-confirm-body">
-            <div class="acu-import-warning-container">
-              <i class="fa-solid fa-exclamation-triangle acu-import-warning-icon"></i>
-              <div class="acu-import-warning-title">发现同名预设</div>
-              <div class="acu-import-warning-message">预设「${escapeHtml(options.presetName)}」已存在，请选择处理方式：</div>
-            </div>
-            <div class="acu-import-conflict-options">
-              <label class="acu-import-radio">
-                <input type="radio" name="preset-conflict-mode" value="overwrite" checked />
-                <span>覆盖现有预设</span>
-              </label>
-              <label class="acu-import-radio">
-                <input type="radio" name="preset-conflict-mode" value="rename" />
-                <span>新建副本（命名为「${escapeHtml(suggestedName)}」）</span>
-              </label>
-            </div>
-          </div>
-          <div class="acu-import-confirm-footer">
-            <button class="acu-import-cancel-btn">取消</button>
-            <button class="acu-import-confirm-btn">确认导入</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const $dialog = $(dialogHtml);
-    $('body').append($dialog);
-
-    // 强制样式（与头像导入弹窗一致）
-    const overlayEl = $dialog[0];
-    overlayEl.style.cssText = `
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      background: rgba(0,0,0,0.6) !important;
-      z-index: 31300 !important;
-      display: flex;
-      justify-content: center !important;
-      align-items: center !important;
-      padding: 16px;
-      box-sizing: border-box !important;
-    `;
-
-    const closeDialog = () => $dialog.remove();
-
-    $dialog.find('.acu-import-cancel-btn').click(() => {
-      closeDialog();
-      options.onCancel();
-    });
-
-    setupOverlayClose($dialog, 'acu-import-confirm-overlay', () => {
-      closeDialog();
-      options.onCancel();
-    });
-
-    $dialog.find('.acu-import-confirm-btn').click(function () {
-      const mode = $dialog.find('input[name="preset-conflict-mode"]:checked').val();
-      closeDialog();
-      if (mode === 'overwrite') {
-        options.onOverwrite();
-      } else {
-        options.onRename(suggestedName);
-      }
-    });
-  };
+  const showPresetConflictDialog = createShowPresetConflictDialog({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    generateUniqueName: (...a: any[]) => generateUniqueName(...a),
+    getConfig: (...a: any[]) => getConfig(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
+  });
   type AcuDiceTextareaElement = HTMLTextAreaElement & {
     _acuOriginalDiceText?: string | null;
     _acuOriginalTextareaText?: string | null;
@@ -2916,98 +2799,13 @@ import { GachaStateCore } from './features/gacha/gacha-state';
       image.src = source;
     });
 
-  const inferAvatarImageColor = async (
-    imageSource: string,
-    options: { offsetX?: unknown; offsetY?: unknown; scale?: unknown } = {},
-  ): Promise<string | null> => {
-    const source = String(imageSource || '').trim();
-    if (!source) return null;
-
-    try {
-      const image = await loadAvatarImageForColor(source);
-      const sampleSize = 96;
-      const canvas = document.createElement('canvas');
-      canvas.width = sampleSize;
-      canvas.height = sampleSize;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return null;
-
-      ctx.clearRect(0, 0, sampleSize, sampleSize);
-      const scale = clampAvatarNumber(options.scale, 80, 320, 150);
-      const offsetX = clampAvatarNumber(options.offsetX, 0, 100, 50);
-      const offsetY = clampAvatarNumber(options.offsetY, 0, 100, 50);
-      const naturalWidth = image.naturalWidth || image.width;
-      const naturalHeight = image.naturalHeight || image.height;
-      if (!naturalWidth || !naturalHeight) return null;
-
-      const drawWidth = sampleSize * (scale / 100);
-      const drawHeight = drawWidth * (naturalHeight / naturalWidth);
-      const left = (sampleSize - drawWidth) * (offsetX / 100);
-      const top = (sampleSize - drawHeight) * (offsetY / 100);
-      ctx.drawImage(image, left, top, drawWidth, drawHeight);
-
-      const pixels = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
-      const clusters = new Map<
-        string,
-        { r: number; g: number; b: number; weight: number; score: number; count: number }
-      >();
-
-      for (let y = 0; y < sampleSize; y += 2) {
-        for (let x = 0; x < sampleSize; x += 2) {
-          const idx = (y * sampleSize + x) * 4;
-          const alpha = pixels[idx + 3];
-          if (alpha < 180) continue;
-
-          const r = pixels[idx];
-          const g = pixels[idx + 1];
-          const b = pixels[idx + 2];
-          const hsl = rgbToAvatarHsl(r, g, b);
-          let weight = 1;
-          const nx = x / (sampleSize - 1);
-          const ny = y / (sampleSize - 1);
-
-          if (ny < 0.48) weight *= 1.45;
-          if (nx < 0.28 || nx > 0.72) weight *= 1.25;
-          if (nx > 0.34 && nx < 0.66 && ny > 0.3 && ny < 0.78) weight *= 0.56;
-          if (hsl.s < 0.16) weight *= 0.28;
-          if (hsl.l < 0.12 || hsl.l > 0.92) weight *= 0.18;
-          if (isLikelyAvatarSkinTone(hsl.h, hsl.s, hsl.l)) weight *= 0.34;
-
-          const hueBin = Math.floor(hsl.h / 18);
-          const saturationBin = Math.floor(hsl.s * 4);
-          const lightnessBin = Math.floor(hsl.l * 4);
-          const key = `${hueBin}:${saturationBin}:${lightnessBin}`;
-          const existing = clusters.get(key) || { r: 0, g: 0, b: 0, weight: 0, score: 0, count: 0 };
-          const score = weight * (0.32 + hsl.s * 1.78) * (1 - Math.min(0.55, Math.abs(hsl.l - 0.52)));
-          existing.r += r * weight;
-          existing.g += g * weight;
-          existing.b += b * weight;
-          existing.weight += weight;
-          existing.score += score;
-          existing.count++;
-          clusters.set(key, existing);
-        }
-      }
-
-      let best: { r: number; g: number; b: number; weight: number; score: number; count: number } | null = null;
-      for (const cluster of clusters.values()) {
-        if (cluster.count < 4 || cluster.weight <= 0) continue;
-        if (!best || cluster.score > best.score) {
-          best = cluster;
-        }
-      }
-
-      if (!best || best.score < 4) return null;
-      const bestR = best.r / best.weight;
-      const bestG = best.g / best.weight;
-      const bestB = best.b / best.weight;
-      if (rgbToAvatarHsl(bestR, bestG, bestB).s < 0.18) return null;
-      return normalizeInferredAvatarColor(bestR, bestG, bestB);
-    } catch (error) {
-      console.warn('[DICE]头像颜色推断失败，改用角色名 fallback:', error);
-      return null;
-    }
-  };
+  const inferAvatarImageColor = createInferAvatarImageColor({
+    clampAvatarNumber: (...a: any[]) => clampAvatarNumber(...a),
+    isLikelyAvatarSkinTone: (...a: any[]) => isLikelyAvatarSkinTone(...a),
+    loadAvatarImageForColor: (...a: any[]) => loadAvatarImageForColor(...a),
+    normalizeInferredAvatarColor: (...a: any[]) => normalizeInferredAvatarColor(...a),
+    rgbToAvatarHsl: (...a: any[]) => rgbToAvatarHsl(...a),
+  });
 
   // 头像管理工具（支持裁剪偏移）
   const AvatarManager = createAvatarManager({
@@ -3562,54 +3360,9 @@ import { GachaStateCore } from './features/gacha/gacha-state';
     return renderCustomTableNameIconContent(fallback, customContext);
   };
 
-  const applyAsyncImageUrlToElement = (
-    element: HTMLElement,
-    url: string,
-    stateKey: string,
-    options?: { onError?: () => void },
-  ) => {
-    const normalizedUrl = String(url || '').trim();
-    if (!normalizedUrl || !isRenderableImageUrlValid(normalizedUrl)) return;
-    if (!element.dataset.customIconFallbackHtml) {
-      element.dataset.customIconFallbackHtml = element.innerHTML;
-    }
-    element.dataset[stateKey] = normalizedUrl;
-    element.style.backgroundImage = '';
-    element.classList.remove('has-image');
-    const image = new Image();
-    image.alt = '';
-    image.decoding = 'async';
-    image.draggable = false;
-    image.className = 'acu-custom-async-image';
-    image.style.display = 'block';
-    image.style.width = '100%';
-    image.style.height = '100%';
-    image.style.maxWidth = '100%';
-    image.style.maxHeight = '100%';
-    image.style.objectFit = 'cover';
-    image.style.objectPosition = 'center';
-    image.style.borderRadius = 'inherit';
-    image.style.background = 'transparent';
-    image.style.pointerEvents = 'none';
-    image.onload = () => {
-      if (!element.isConnected || element.dataset[stateKey] !== normalizedUrl) return;
-      element.style.backgroundImage = '';
-      element.classList.add('has-image');
-      element.innerHTML = '';
-      element.appendChild(image);
-    };
-    image.onerror = () => {
-      if (!element.isConnected || element.dataset[stateKey] !== normalizedUrl) return;
-      element.style.backgroundImage = '';
-      element.classList.remove('has-image');
-      const fallbackHtml = element.dataset.customIconFallbackHtml;
-      if (typeof fallbackHtml === 'string') {
-        element.innerHTML = fallbackHtml;
-      }
-      options?.onError?.();
-    };
-    image.src = normalizedUrl;
-  };
+  const applyAsyncImageUrlToElement = createApplyAsyncImageUrlToElement({
+    isRenderableImageUrlValid: (...a: any[]) => isRenderableImageUrlValid(...a),
+  });
 
   const hydrateCustomTableNameIconsIn = (root: HTMLElement | JQuery<HTMLElement> | Document = document) => {
     const rootEl = root instanceof HTMLElement || root instanceof Document ? root : root[0];
@@ -12687,52 +12440,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     applyDiceConfigBackupValue(write.key, mappedId, write.moduleName, stats, idMappings);
   };
 
-  const normalizeDiceConfigBackupGachaCatalogItems = (
-    rawItems: unknown,
-    warnings: string[],
-    scopeKey: string,
-    rawData?: unknown,
-  ): GachaItemDefinition[] => {
-    if (!Array.isArray(rawItems)) {
-      warnings.push(`骰子商城配置与自定义物品: ${scopeKey} 的自定义物品不是数组，已跳过。`);
-      return [];
-    }
-    const errors: string[] = [];
-    const items = rawItems
-      .map((item, index) => normalizeImportedGachaItem(item, index, errors, {}))
-      .filter((item): item is NormalizedGachaCatalogItem => Boolean(item))
-      .map(item => {
-        const normalized: GachaItemDefinition = {
-          id: item.id,
-          name: item.name,
-          type: item.type,
-          quality: item.quality,
-          ...(item.tags ? { tags: item.tags } : {}),
-          ...(item.effect ? { effect: item.effect } : {}),
-          description: item.description,
-          poolTags: [...item.poolTags],
-          icon: item.icon,
-          enabled: isGachaItemEnabled(item),
-          order: item.order,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-          weight: item.weight,
-          stackable: item.stackable,
-          unique: item.unique,
-          grantQuantity: item.grantQuantity,
-          rewardTarget: item.rewardTarget,
-        };
-        if (item.targetTable) normalized.targetTable = item.targetTable;
-        if (item.targetColumns) normalized.targetColumns = item.targetColumns;
-        if (item.customFields) normalized.customFields = item.customFields;
-        return normalized;
-      })
-      .filter(item => (rawData === undefined ? true : validateGachaCatalogImportItemTarget(rawData, item, warnings)));
-    if (errors.length > 0) {
-      warnings.push(`骰子商城配置与自定义物品: ${scopeKey} 有 ${errors.length} 条自定义物品无效，已跳过。`);
-    }
-    return items;
-  };
+  const normalizeDiceConfigBackupGachaCatalogItems = createNormalizeDiceConfigBackupGachaCatalogItems({
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    normalizeImportedGachaItem: (...a: any[]) => normalizeImportedGachaItem(...a),
+    validateGachaCatalogImportItemTarget: (...a: any[]) => validateGachaCatalogImportItemTarget(...a),
+  });
 
   const normalizeDiceConfigBackupGachaCatalogResourceRecord = (
     rawRecord: unknown,
@@ -13180,59 +12892,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return snapshot;
   };
 
-  const renderDiceProfileApplyConfirmDetailHtml = (
-    moduleIds: readonly DiceConfigBackupModuleId[],
-    warnings: readonly string[],
-  ): string => {
-    const moduleChipsHtml =
-      moduleIds.length > 0
-        ? moduleIds
-            .map(moduleId => {
-              const name = getDiceConfigBackupModuleDefinition(moduleId)?.name || moduleId;
-              return `<span class="acu-profile-apply-module-chip">${escapeHtml(name)}</span>`;
-            })
-            .join('')
-        : '<span class="acu-profile-apply-empty">没有可应用的模块</span>';
-    const warningsHtml =
-      warnings.length > 0
-        ? `<div class="acu-profile-apply-row acu-profile-apply-warnings">
-            <div class="acu-profile-apply-label">
-              <i class="fa-solid fa-triangle-exclamation"></i>
-              注意
-            </div>
-            <div class="acu-profile-apply-warning-list">
-              ${warnings.map(warning => `<div class="acu-profile-apply-warning">${escapeHtml(warning)}</div>`).join('')}
-            </div>
-          </div>`
-        : '';
-
-    return `
-      <div class="acu-profile-apply-confirm">
-        <div class="acu-profile-apply-impact-list">
-          <div class="acu-profile-apply-impact">
-            <i class="fa-solid fa-rotate-left"></i>
-            <span><strong>写入前会保存快照</strong>，方便回退。</span>
-          </div>
-          <div class="acu-profile-apply-impact">
-            <i class="fa-solid fa-sliders"></i>
-            <span><strong>只改选中模块</strong>，未包含模块保持不变。</span>
-          </div>
-          <div class="acu-profile-apply-impact">
-            <i class="fa-solid fa-code-merge"></i>
-            <span><strong>同名项会更新</strong>，同名或同 ID 自定义项按恢复规则合并。</span>
-          </div>
-        </div>
-        <div class="acu-profile-apply-row">
-          <div class="acu-profile-apply-label">
-            <i class="fa-solid fa-list-check"></i>
-            ${moduleIds.length} 个模块
-          </div>
-          <div class="acu-profile-apply-module-chips">${moduleChipsHtml}</div>
-        </div>
-        ${warningsHtml}
-      </div>
-    `;
-  };
+  const renderDiceProfileApplyConfirmDetailHtml = createRenderDiceProfileApplyConfirmDetailHtml({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getDiceConfigBackupModuleDefinition: (...a: any[]) => getDiceConfigBackupModuleDefinition(...a),
+  });
 
   const showDiceProfileApplyConfirm = async (
     profile: DiceProfileRecord,
@@ -15748,59 +15411,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   });
 
   // 规则预设编辑器
-  const buildNewAttributePresetJsoncTemplate = (): string => `{
-  // 这里只填写属性配置本体；预设名称和描述在上方输入框填写。
-  // baseAttributes：基础属性，会作为表格生成和属性快捷选择的主要属性池。
-  "baseAttributes": [
-    {
-      // name：属性显示名，也会作为快捷检定按钮和提示词里的属性名。
-      "name": "力量",
+  const buildNewAttributePresetJsoncTemplate = createBuildNewAttributePresetJsoncTemplate({
 
-      // formula：生成属性值时使用的骰子表达式，支持 3d6、3d6*5、4d6kh3、1d10-5 等。
-      "formula": "3d6",
-
-      // range：属性合理范围，用于提示词约束和结果检查。
-      "range": [3, 18],
-
-      // modifier：可选，属性微调用的随机修正表达式；不需要时可以删除。
-      "modifier": "1d4-2"
-    },
-    {
-      "name": "敏捷",
-      "formula": "3d6",
-      "range": [3, 18],
-      "modifier": "1d4-2"
-    },
-    {
-      "name": "体质",
-      "formula": "3d6",
-      "range": [3, 18],
-      "modifier": "1d4-2"
-    }
-  ],
-
-  // specialAttributes：技能、派生属性或世界观专属属性；没有时保留空数组。
-  "specialAttributes": [
-    {
-      "name": "幸运",
-      "formula": "3d6",
-      "range": [3, 18]
-    }
-  ],
-
-  // quickSelect：点击属性快捷检定时，属性值默认填入哪个检定字段。
-  // 可选目标：attribute（主属性/技能值）、skillMod（技能加值）、mod（临时修正）。
-  "quickSelect": {
-    "baseTarget": "attribute",
-    "specialTarget": "attribute",
-    "fallbackTarget": "attribute",
-
-    // nameTargetMapping：少数属性名需要填入不同字段时在这里覆盖。
-    "nameTargetMapping": {
-      "skillMod": ["幸运"]
-    }
-  }
-}`;
+  });
 
   const showAttributePresetEditor = createShowAttributePresetEditor({
     bindTutorialButtonsIn: (...a: any[]) => bindTutorialButtonsIn(...a),
@@ -18264,56 +17877,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
                 </div>`;
   };
 
-  const renderGlobalInteractionsPanel = (rawData: unknown): string => {
-    const groups = buildGlobalInteractionGroups(rawData);
-    const sections = createGlobalInteractionSections(groups);
-    const rowCount = groups.reduce((count, group) => count + group.rows.length, 0);
-    const actionCount = groups.reduce(
-      (count, group) => count + group.rows.reduce((groupCount, row) => groupCount + row.actions.length, 0),
-      0,
-    );
-    debugGlobalInteraction('renderPanel', {
-      groupCount: groups.length,
-      sectionCount: sections.length,
-      rowCount,
-      actionCount,
-      sections: sections.map(section => ({ kind: section.kind, groupCount: section.groups.length })),
-    });
-    const contentHtml =
-      groups.length > 0
-        ? sections.map(section => renderGlobalInteractionsSection(section)).join('')
-        : `
-                    <div class="acu-empty-hint acu-global-interaction-empty">
-                        <i class="fa-solid fa-hand-pointer"></i>
-                        <div>暂无可用交互选项</div>
-                        <div>请在表格中填写“交互选项”列，或在设置里的“交互规则预设”中为表格配置默认交互。</div>
-                    </div>`;
-
-    return `
-                <div class="acu-panel-header">
-                    <div class="acu-panel-title">
-                        <div class="acu-title-main"><i class="fa-solid fa-hand-pointer"></i> <span class="acu-title-text">交互总览</span></div>
-                        <div class="acu-title-sub">${escapeHtml(String(groups.length))} 个表 / ${escapeHtml(String(rowCount))} 个对象 / ${escapeHtml(String(actionCount))} 个交互</div>
-                    </div>
-                    <div class="acu-header-actions">
-                        ${getTutorialButtonHtml('globalInteractions', '查看交互总览教程')}
-                        <button class="acu-view-btn acu-global-interaction-rules-btn" title="管理交互规则预设" aria-label="管理交互规则预设"><i class="fa-solid fa-gear"></i></button>
-                        <div class="acu-height-control" data-table="交互总览">
-                            <i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="交互总览" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i>
-                        </div>
-                        <button class="acu-close-btn" title="关闭" aria-label="关闭交互总览"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                </div>
-                <div class="acu-panel-content acu-global-interaction-panel">
-                    <div class="acu-global-interaction-toolbar">
-                        <div class="acu-search-wrapper acu-global-interaction-search-wrapper"><i class="fa-solid fa-search acu-search-icon"></i><input type="search" class="acu-global-interaction-search" placeholder="搜索表名、对象或交互..." aria-label="搜索表名、对象或交互" /></div>
-                    </div>
-                    <div class="acu-global-interaction-content">
-                        ${contentHtml}
-                        <div class="acu-empty-hint acu-global-interaction-no-results" hidden>没有匹配的交互</div>
-                    </div>
-                </div>`;
-  };
+  const renderGlobalInteractionsPanel = createRenderGlobalInteractionsPanel({
+    buildGlobalInteractionGroups: (...a: any[]) => buildGlobalInteractionGroups(...a),
+    createGlobalInteractionSections: (...a: any[]) => createGlobalInteractionSections(...a),
+    debugGlobalInteraction: (...a: any[]) => debugGlobalInteraction(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getTutorialButtonHtml: (...a: any[]) => getTutorialButtonHtml(...a),
+    renderGlobalInteractionsSection: (...a: any[]) => renderGlobalInteractionsSection(...a),
+  });
 
   const hydrateGlobalInteractionAvatars = ($panel: JQuery): void => {
     const { $ } = getCore();
@@ -19498,52 +19069,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     GACHA_TAG_FIELD_ALIASES: GACHA_TAG_FIELD_ALIASES,
   });
 
-  const normalizeImportedGachaPools = (rawPools: unknown): NormalizedImportedGachaPools => {
-    const result: NormalizedImportedGachaPools = { pools: [], tagAliases: {} };
-    if (!Array.isArray(rawPools)) return result;
-    result.pools = rawPools
-      .map((rawPool, index) => {
-        if (typeof rawPool === 'string') {
-          const id = normalizeGachaPoolId(rawPool);
-          if (!id || id === GACHA_ALL_POOL_TAG) return null;
-          return buildDefaultGachaPoolDefinition(id, {
-            name: id,
-            builtin: isBuiltinGachaPoolId(id),
-            visibleInTabs: true,
-            includeInAll: true,
-            order: 100 + index * 10,
-          });
-        }
-        if (!rawPool || typeof rawPool !== 'object') return null;
-        const record = rawPool as Record<string, unknown>;
-        const rawId = normalizeGachaPoolId(record.id || record.tag || record.name);
-        const rawName = normalizeGachaPoolName(
-          record.name || record.label || rawId,
-          rawId || GACHA_CUSTOM_ONLY_POOL_TAG,
-        );
-        const shouldUseNameAsCustomId =
-          rawId &&
-          rawId !== GACHA_ALL_POOL_TAG &&
-          rawName !== rawId &&
-          (rawId === GACHA_CUSTOM_ONLY_POOL_TAG || (isBuiltinGachaPoolId(rawId) && record.builtin !== true));
-        const normalized = normalizeGachaPoolDefinition({
-          ...record,
-          id: shouldUseNameAsCustomId ? rawName : rawId,
-          name: rawName,
-        });
-        if (!normalized || normalized.id === GACHA_ALL_POOL_TAG) return null;
-        if (shouldUseNameAsCustomId) {
-          result.tagAliases[rawId] = normalized.id;
-        }
-        return {
-          ...normalized,
-          builtin: isBuiltinGachaPoolId(normalized.id),
-          order: Number.isFinite(Number(normalized.order)) ? Number(normalized.order) : 100 + index * 10,
-        };
-      })
-      .filter((pool): pool is GachaPoolDefinition => Boolean(pool));
-    return result;
-  };
+  const normalizeImportedGachaPools = createNormalizeImportedGachaPools({
+    buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
+    isBuiltinGachaPoolId: (...a: any[]) => isBuiltinGachaPoolId(...a),
+    normalizeGachaPoolDefinition: (...a: any[]) => normalizeGachaPoolDefinition(...a),
+  });
 
   const analyzeGachaCatalogImport = (jsonString: string, rawData): GachaCatalogImportAnalysis | null => {
     let data: unknown;
@@ -21227,51 +20757,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     `;
   };
 
-  const renderGachaPoolSettingsListHtml = (rawData): string => {
-    const itemDefinitions = getAllGachaItemDefinitions(rawData);
-    const counts = new Map<GachaPoolTag, number>();
-    itemDefinitions.forEach(item => {
-      item.poolTags.forEach(tag => {
-        counts.set(tag, (counts.get(tag) || 0) + 1);
-      });
-    });
-    const allPoolItems = getGachaCatalogItemsForExport(rawData, GACHA_ALL_POOL_TAG);
-    return getAllGachaPoolConfigDefinitions(rawData)
-      .map(pool => {
-        const isAllPool = pool.id === GACHA_ALL_POOL_TAG;
-        const poolItems = isAllPool ? allPoolItems : itemDefinitions.filter(item => item.poolTags.includes(pool.id));
-        const countText = isAllPool ? `${poolItems.length} 个候选` : `${counts.get(pool.id) || 0} 个物品`;
-        const enabled = isAllPool || pool.includeInAll === true;
-        const canDeletePool = canDeleteGachaPoolDefinition(pool);
-        const statusText = isAllPool ? '固定显示' : enabled ? '已启用' : '已停用';
-        return `
-          <article class="acu-preset-item acu-gacha-settings-pool-item ${enabled ? '' : 'is-disabled'}" data-pool-id="${escapeHtml(pool.id)}">
-            ${!isAllPool ? `<div class="acu-preset-handle acu-gacha-pool-handle" title="拖拽排序"><i class="fa-solid fa-grip-vertical"></i></div>` : '<div class="acu-gacha-pool-handle-placeholder"></div>'}
-            <div class="acu-gacha-settings-pool-main">
-              <div class="acu-gacha-settings-pool-name">
-                ${escapeHtml(pool.name)}
-                ${pool.builtin && !canDeletePool ? '<span>内置</span>' : '<span>自定义</span>'}
-              </div>
-              <div class="acu-gacha-settings-pool-meta">${escapeHtml(pool.id)} · ${escapeHtml(countText)} · ${escapeHtml(statusText)}</div>
-            </div>
-            <div class="acu-gacha-settings-actions">
-              ${
-                isAllPool
-                  ? `<span class="acu-gacha-pool-all-fixed" title="全部是聚合卡池，不加入自身"><i class="fa-solid fa-layer-group"></i></span>`
-                  : `<label class="acu-toggle acu-gacha-pool-all-toggle" title="${enabled ? '已启用：显示标签并进入全部抽取范围' : '已停用：隐藏标签并移出全部抽取范围'}">
-                      <input class="acu-gacha-pool-all-check" type="checkbox" ${enabled ? 'checked' : ''} />
-                      <span class="acu-toggle-slider"></span>
-                    </label>`
-              }
-              <button class="acu-preset-btn acu-gacha-pool-export" type="button" title="导出此卡池"><i class="fa-solid fa-download"></i></button>
-              ${!isAllPool ? `<button class="acu-preset-btn acu-gacha-pool-rename" type="button" title="重命名"><i class="fa-solid fa-pen"></i></button>` : ''}
-              ${canDeletePool ? `<button class="acu-preset-btn acu-gacha-pool-delete acu-preset-delete" type="button" title="删除"><i class="fa-solid fa-trash"></i></button>` : ''}
-            </div>
-          </article>
-        `;
-      })
-      .join('');
-  };
+  const renderGachaPoolSettingsListHtml = createRenderGachaPoolSettingsListHtml({
+    canDeleteGachaPoolDefinition: (...a: any[]) => canDeleteGachaPoolDefinition(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getAllGachaPoolConfigDefinitions: (...a: any[]) => getAllGachaPoolConfigDefinitions(...a),
+    getGachaCatalogItemsForExport: (...a: any[]) => getGachaCatalogItemsForExport(...a),
+  });
 
   const renderGachaSettingsPoolViewerHtml = (rawData, selectedPoolId: GachaPoolTag): string => {
     const pool = getVisibleGachaPoolConfigDefinitions(rawData).find(candidate => candidate.id === selectedPoolId);
