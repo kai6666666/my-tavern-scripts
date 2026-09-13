@@ -85,6 +85,34 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createNormalizeCheckSuggestionCommandInput } from './features/checks/normalize-check-suggestion-command-input';
+import { createGetViewportBottomOffset } from './features/ui/get-viewport-bottom-offset';
+import { createFormatOutputTemplate } from './features/dice/format-output-template';
+import { createSaveSheetsViaJsonFloorWithoutTracking } from './features/table/save-sheets-via-json-floor-without-tracking';
+import { createRenderGlobalInteractionRowCard } from './features/interactions/render-global-interaction-row-card';
+import { createParseAttributeString } from './features/dice/parse-attribute-string';
+import { createMergeDiceConfigBackupGachaPoolSettings } from './features/dice/merge-dice-config-backup-gacha-pool-settings';
+import { createAssertCrudLengthConstraints } from './features/table/assert-crud-length-constraints';
+import { createAssertCrudEnumConstraints } from './features/table/assert-crud-enum-constraints';
+import { createSaveCurrentTabState } from './features/ui/save-current-tab-state';
+import { createRemoveAcuDiceGachaCustomItem } from './features/gacha/remove-acu-dice-gacha-custom-item';
+import { createFlushGachaHeartbeatProgress } from './features/gacha/flush-gacha-heartbeat-progress';
+import { createEvaluateOutcomes } from './features/presets/evaluate-outcomes';
+import { createCloneDashboardPresetModules } from './features/dashboard/clone-dashboard-preset-modules';
+import { createBuildCheckValueText } from './features/checks/build-check-value-text';
+import { createApplyAdvancedPresetOutcomePolicy } from './features/presets/apply-advanced-preset-outcome-policy';
+import { createValidateAdvancedPresetTemplates } from './features/presets/validate-advanced-preset-templates';
+import { createSelectCrazyAttribute } from './features/presets/select-crazy-attribute';
+import { createRestoreDiceConfigBackupTableTemplate } from './features/dice/restore-dice-config-backup-table-template';
+import { createResolveBatchLocationEmojis } from './features/table/resolve-batch-location-emojis';
+import { createRenderGachaCustomFieldsDetailsHtml } from './features/gacha/render-gacha-custom-fields-details-html';
+import { createNormalizeCheckSuggestionParams } from './features/checks/normalize-check-suggestion-params';
+import { createGetDiceConfigBackupModuleWarnings } from './features/dice/get-dice-config-backup-module-warnings';
+import { createCreateDashboardPresetModulesFromConfig } from './features/dashboard/create-dashboard-preset-modules-from-config';
+import { createConvertTavernRegexToRule } from './shared/convert-tavern-regex-to-rule';
+import { createUpsertAcuDiceGachaPool } from './features/gacha/upsert-acu-dice-gacha-pool';
+import { createRunDatabaseManualUpdateViaApi } from './features/table/run-database-manual-update-via-api';
+import { createRenderGachaCustomFieldsPreviewHtml } from './features/gacha/render-gacha-custom-fields-preview-html';
 import { createDefaultRenderPresetRules } from './features/presets/default-render-preset-rules';
 import { createValidateAdvancedPresetFieldConfig } from './features/presets/validate-advanced-preset-field-config';
 import { createRenderGachaFortuneProgressHtml } from './features/gacha/render-gacha-fortune-progress-html';
@@ -1629,36 +1657,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   /**
    * 将酒馆正则格式转换为本系统的 RegexTransformationRule
    */
-  function convertTavernRegexToRule(tavernRegex: TavernRegex): RegexTransformationRule {
-    const { pattern, flags } = parseTavernFindRegex(tavernRegex.findRegex);
+  const convertTavernRegexToRule = createConvertTavernRegexToRule({
 
-    // 构建额外信息描述，保留酒馆正则的原始配置供参考
-    const extraInfo: string[] = [];
-    if (tavernRegex.placement?.length) extraInfo.push(`placement: [${tavernRegex.placement.join(',')}]`);
-    if (tavernRegex.markdownOnly) extraInfo.push('markdownOnly');
-    if (tavernRegex.promptOnly) extraInfo.push('promptOnly');
-    if (tavernRegex.minDepth != null) extraInfo.push(`minDepth: ${tavernRegex.minDepth}`);
-    if (tavernRegex.maxDepth != null) extraInfo.push(`maxDepth: ${tavernRegex.maxDepth}`);
-
-    const description = extraInfo.length > 0 ? `[从酒馆正则导入] ${extraInfo.join(', ')}` : '[从酒馆正则导入]';
-
-    return {
-      id: `tavern_import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: tavernRegex.scriptName,
-      description,
-      operation: 'replace',
-      pattern,
-      flags,
-      replacement: tavernRegex.replaceString || '',
-      scope: { type: 'global' },
-      enabled: !tavernRegex.disabled,
-      priority: 50,
-      executeMode: tavernRegex.runOnEdit ? 'auto' : 'manual',
-      security: { maxMatchTime: 100, maxMatches: 1000, maxInputLength: 10000 },
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-  }
+  });
 
   // ========================================
   // 内置表格正则规则 (Phase 2.2)
@@ -2668,37 +2669,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   };
 
   // 批量分配emoji，实现去重（最短名称优先）
-  const resolveBatchLocationEmojis = (names: string[]): Map<string, string | null> => {
-    // 1. 计算每个地点的候选列表
-    const candidatesMap = new Map<string, string[]>();
-    for (const name of names) {
-      candidatesMap.set(name, getEmojiCandidates(name));
-    }
-
-    // 2. 按长度排序（最短优先），同长度按字母序
-    const sortedNames = [...names].sort((a, b) => {
-      if (a.length !== b.length) return a.length - b.length;
-      return a.localeCompare(b);
-    });
-
-    // 3. 贪心分配
-    const usedEmojis = new Set<string>();
-    const result = new Map<string, string | null>();
-
-    for (const name of sortedNames) {
-      const candidates = candidatesMap.get(name) || [];
-      const available = candidates.find(e => !usedEmojis.has(e));
-      if (available) {
-        result.set(name, available);
-        usedEmojis.add(available);
-      } else {
-        // 所有候选都被占用，回退到第一个候选（允许重复显示）
-        result.set(name, candidates.length > 0 ? candidates[0] : null);
-      }
-    }
-
-    return result;
-  };
+  const resolveBatchLocationEmojis = createResolveBatchLocationEmojis({
+    getEmojiCandidates: (...a: any[]) => getEmojiCandidates(...a),
+  });
 
   const getElementEmoji = (name, type) => {
     if (!name && !type) return null;
@@ -3930,38 +3903,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return fallback;
   };
 
-  const applyAdvancedPresetOutcomePolicy = (
-    preset: AdvancedDicePreset,
-    matchedOutcome: OutcomeLevel,
-    context: Record<string, string | number | boolean | RollResult>,
-  ): AdvancedPresetOutcomePolicyResult => {
-    let outcome = matchedOutcome;
-    let requiredOutcome: OutcomeLevel | undefined;
-
-    if (preset.outcomePolicy?.kind === 'minRank') {
-      const requiredRankVarId = preset.outcomePolicy.requiredRankVarId;
-      const varKey = requiredRankVarId.startsWith('$') ? requiredRankVarId : `$${requiredRankVarId}`;
-      const requiredRank = readAdvancedPresetPolicyNumber(context, varKey, 0);
-      const actualRank = matchedOutcome.rank ?? 0;
-
-      if (requiredRank > 0) {
-        requiredOutcome = preset.outcomes.find(candidate => candidate.rank === requiredRank);
-      }
-
-      if (Number.isFinite(requiredRank) && actualRank >= 1 && actualRank < requiredRank) {
-        const fallbackOutcome = preset.outcomes.find(
-          candidate => candidate.id === preset.outcomePolicy?.unmetOutcomeId,
-        );
-        if (fallbackOutcome) outcome = fallbackOutcome;
-      }
-    }
-
-    return {
-      outcome,
-      requiredOutcome,
-      isUnmet: outcome !== matchedOutcome,
-    };
-  };
+  const applyAdvancedPresetOutcomePolicy = createApplyAdvancedPresetOutcomePolicy({
+    readAdvancedPresetPolicyNumber: (...a: any[]) => readAdvancedPresetPolicyNumber(...a),
+  });
 
   const getAdvancedPresetDisplayOutcome = (policyResult: AdvancedPresetOutcomePolicyResult): OutcomeLevel =>
     policyResult.isUnmet && policyResult.requiredOutcome ? policyResult.requiredOutcome : policyResult.outcome;
@@ -3985,37 +3929,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
   });
 
-  const validateAdvancedPresetTemplates = (
-    preset: AdvancedDicePreset,
-    issues: AdvancedPresetValidationIssue[],
-    options: { requireMetaWrapper: boolean },
-  ): void => {
-    const validateTemplate = (value: unknown, path: string): void => {
-      if (value === undefined) return;
-      if (typeof value !== 'string') {
-        pushAdvancedPresetIssue(issues, path, '必须是字符串');
-        return;
-      }
-      if (!options.requireMetaWrapper) return;
-      if (!value.includes('<meta:检定结果>')) {
-        pushAdvancedPresetIssue(
-          issues,
-          path,
-          'AI 预设自定义输出模板必须包含 <meta:检定结果> 包裹；不需要自定义时请省略该字段',
-        );
-      }
-      if (!value.includes('</meta:检定结果>')) {
-        pushAdvancedPresetIssue(
-          issues,
-          path,
-          'AI 预设自定义输出模板必须包含 </meta:检定结果> 结束标签；不需要自定义时请省略该字段',
-        );
-      }
-    };
-
-    validateTemplate(preset.outputTemplate, 'outputTemplate');
-    validateTemplate(preset.contestOutputTemplate, 'contestOutputTemplate');
-  };
+  const validateAdvancedPresetTemplates = createValidateAdvancedPresetTemplates({
+    pushAdvancedPresetIssue: (...a: any[]) => pushAdvancedPresetIssue(...a),
+  });
 
   const validateAdvancedPresetAgentTests = (
     preset: AdvancedDicePreset,
@@ -4476,37 +4392,10 @@ ${attributeScaleStr}`,
   });
 
   // 选择检定属性
-  const selectCrazyAttribute = participant => {
-    if (!participant) return { name: '幸运', value: 50 };
-
-    // 1. 优先使用角色已有属性
-    if (participant.attrs && participant.attrs.length > 0) {
-      const randomAttr = participant.attrs[Math.floor(Math.random() * participant.attrs.length)];
-      return { name: randomAttr.name, value: randomAttr.value };
-    }
-
-    // 2. 使用当前属性规则定义的属性
-    const activePreset = AttributePresetManager.getActivePreset();
-    if (activePreset) {
-      const allPresetAttrs = [...(activePreset.baseAttributes || []), ...(activePreset.specialAttributes || [])];
-      if (allPresetAttrs.length > 0) {
-        const randomPresetAttr = allPresetAttrs[Math.floor(Math.random() * allPresetAttrs.length)];
-        // 使用 range 的 50% 作为默认值
-        const range = randomPresetAttr.range || [0, 100];
-        const defaultValue = Math.floor((range[0] + range[1]) / 2);
-        return { name: randomPresetAttr.name, value: defaultValue };
-      }
-    }
-
-    // 3. 使用随机技能池
-    const skillPool = getRandomSkillPool();
-    if (skillPool && skillPool.length > 0) {
-      const randomSkill = skillPool[Math.floor(Math.random() * skillPool.length)];
-      return { name: randomSkill, value: 50 };
-    }
-
-    return { name: '幸运', value: 50 };
-  };
+  const selectCrazyAttribute = createSelectCrazyAttribute({
+    getRandomSkillPool: (...a: any[]) => getRandomSkillPool(...a),
+    AttributePresetManager: AttributePresetManager,
+  });
 
   // 根据预设执行疯狂模式投骰
   const crazyRollWithPreset = createCrazyRollWithPreset({
@@ -4574,38 +4463,9 @@ ${attributeScaleStr}`,
    * @param context - 上下文对象 {$roll, $attr, $dc, $mod, ...}
    * @returns 匹配的 outcome (如果所有条件都不满足,返回最低优先级的兜底 outcome)
    */
-  const evaluateOutcomes = (outcomes: OutcomeLevel[], context: Record<string, number>) => {
-    if (!outcomes || outcomes.length === 0) {
-      console.warn('[DICE] outcomes 数组为空,使用默认判定');
-      return { id: 'default', name: '判定结果', condition: 'true', priority: 99 };
-    }
-    const sorted = [...outcomes].sort((a, b) => a.priority - b.priority);
-
-    for (const outcome of sorted) {
-      try {
-        const conditionResult: { success: boolean; value?: number | boolean; error?: string } = evaluateCondition(
-          outcome.condition,
-          context,
-        );
-        if (!conditionResult.success) {
-          if (conditionResult.error) {
-            console.warn(`[DICE] outcome "${outcome.name}" 条件评估失败:`, conditionResult.error);
-          }
-          continue;
-        }
-        const isMatch =
-          typeof conditionResult.value === 'number' ? conditionResult.value !== 0 : Boolean(conditionResult.value);
-        if (isMatch) {
-          return outcome;
-        }
-      } catch (error) {
-        console.warn(`[DICE] outcome "${outcome.name}" 条件评估失败:`, error);
-        continue;
-      }
-    }
-
-    return sorted[sorted.length - 1];
-  };
+  const evaluateOutcomes = createEvaluateOutcomes({
+    evaluateCondition: (...a: any[]) => evaluateCondition(...a),
+  });
 
   // 默认输出模板
   const DEFAULT_OUTPUT_TEMPLATE = `<meta:检定结果>
@@ -4627,40 +4487,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
    * @param context - 变量上下文
    * @returns 格式化后的文本
    */
-  const formatOutputTemplate = (template: string, context: Record<string, string | number | undefined>): string => {
-    const missingKeys = new Set<string>();
+  const formatOutputTemplate = createFormatOutputTemplate({
 
-    // [修复] 先替换带点的变量（如 $roll.total），再替换普通变量（如 $roll）
-    // 这样可以避免 $roll.total 被错误地替换为 "3.total"
-    let result = template.replace(/\$([a-zA-Z_]\w*\.[a-zA-Z_]\w*)/g, match => {
-      const key = match.slice(1); // 去掉 $ 前缀，得到 "roll.total"
-      const value = context[key];
-      if (value === undefined || value === null) {
-        if (!missingKeys.has(key)) {
-          missingKeys.add(key);
-          console.warn(`[DICE] formatOutputTemplate: 未定义变量 $${key}`);
-        }
-        return '';
-      }
-      return String(value);
-    });
-
-    // 再替换普通变量
-    result = result.replace(/\$([a-zA-Z_]\w*)(?=\W|$)/g, match => {
-      const key = match.slice(1);
-      const value = context[key];
-      if (value === undefined || value === null) {
-        if (!missingKeys.has(key)) {
-          missingKeys.add(key);
-          console.warn(`[DICE] formatOutputTemplate: 未定义变量 $${key}`);
-        }
-        return '';
-      }
-      return String(value);
-    });
-    // 清理空行：将连续多个换行符替换为单个换行符
-    return result.replace(/\n\s*\n/g, '\n');
-  };
+  });
 
   /**
    * 生成单个属性值，应用范围限制
@@ -4775,70 +4604,14 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return cloned;
   };
 
-  const createDashboardPresetModulesFromConfig = (config: DashboardConfigMap): DashboardPresetModules => {
-    const modules: DashboardPresetModules = {};
-    DASHBOARD_PRESET_MODULE_KEYS.forEach(moduleKey => {
-      const moduleConfig = config[moduleKey];
-      if (!moduleConfig) return;
-      const columns: Record<string, DashboardPresetColumnConfig> = {};
-      Object.entries(moduleConfig.columns).forEach(([columnKey, columnConfig]) => {
-        columns[columnKey] = { keywords: [...columnConfig.keywords] };
-      });
-      modules[moduleKey] = {
-        tableKeywords: [...moduleConfig.tableKeywords],
-        columns,
-      };
-      const allowedFilters = DASHBOARD_PRESET_FILTER_KEYS[moduleKey] || [];
-      const filters: Record<string, DashboardPresetFilterConfig> = {};
-      allowedFilters.forEach(filterKey => {
-        const filterConfig = moduleConfig.filters?.[filterKey];
-        if (!filterConfig) return;
-        filters[filterKey] = {
-          column: filterConfig.column,
-          includes: [...filterConfig.includes],
-          ...(filterConfig.excludeColumn ? { excludeColumn: filterConfig.excludeColumn } : {}),
-          ...(filterConfig.excludes ? { excludes: [...filterConfig.excludes] } : {}),
-        };
-      });
-      if (Object.keys(filters).length > 0) {
-        modules[moduleKey].filters = filters;
-      }
-    });
-    return modules;
-  };
+  const createDashboardPresetModulesFromConfig = createCreateDashboardPresetModulesFromConfig({
+    DASHBOARD_PRESET_FILTER_KEYS: DASHBOARD_PRESET_FILTER_KEYS,
+    DASHBOARD_PRESET_MODULE_KEYS: DASHBOARD_PRESET_MODULE_KEYS,
+  });
 
-  const cloneDashboardPresetModules = (modules: DashboardPresetModules): DashboardPresetModules => {
-    const cloned: DashboardPresetModules = {};
-    Object.entries(modules).forEach(([moduleKey, moduleConfig]) => {
-      const columns: Record<string, DashboardPresetColumnConfig> = {};
-      Object.entries(moduleConfig.columns || {}).forEach(([columnKey, columnConfig]) => {
-        columns[columnKey] = { keywords: [...columnConfig.keywords] };
-      });
-      const filters: Record<string, DashboardPresetFilterConfig> = {};
-      Object.entries(moduleConfig.filters || {}).forEach(([filterKey, filterConfig]) => {
-        filters[filterKey] = {
-          ...(filterConfig.column ? { column: filterConfig.column } : {}),
-          ...(filterConfig.includes ? { includes: [...filterConfig.includes] } : {}),
-          ...(filterConfig.excludeColumn ? { excludeColumn: filterConfig.excludeColumn } : {}),
-          ...(filterConfig.excludes ? { excludes: [...filterConfig.excludes] } : {}),
-        };
-      });
-      const sources = (moduleConfig.sources || []).map(source => ({
-        mode: source.mode,
-        tableKeywords: [...source.tableKeywords],
-        nameColumn: [...source.nameColumn],
-        relationColumn: [...source.relationColumn],
-        ...(source.target ? { target: source.target } : {}),
-      }));
-      cloned[moduleKey] = {
-        ...(moduleConfig.tableKeywords ? { tableKeywords: [...moduleConfig.tableKeywords] } : {}),
-        ...(Object.keys(columns).length > 0 ? { columns } : {}),
-        ...(Object.keys(filters).length > 0 ? { filters } : {}),
-        ...(sources.length > 0 ? { sources } : {}),
-      };
-    });
-    return cloned;
-  };
+  const cloneDashboardPresetModules = createCloneDashboardPresetModules({
+
+  });
 
   const createBuiltinDashboardPreset = (): DashboardPreset => ({
     format: DASHBOARD_PRESET_FORMAT,
@@ -5495,39 +5268,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return 0;
   };
 
-  const parseAttributeString = str => {
-    if (!str) return [];
-    const results: CharacterAttributeEntry[] = [];
-    const rawStr = String(str).trim();
+  const parseAttributeString = createParseAttributeString({
 
-    // 尝试解析 JSON 格式 {"属性名":数值, ...}
-    if (rawStr.startsWith('{') && rawStr.endsWith('}')) {
-      try {
-        const jsonObj = JSON.parse(rawStr);
-        for (const key in jsonObj) {
-          const val = jsonObj[key];
-          if (typeof val === 'number') {
-            results.push({ name: key, value: val });
-          } else if (typeof val === 'string' && /^\d+$/.test(val)) {
-            results.push({ name: key, value: parseInt(val, 10) });
-          }
-        }
-        if (results.length > 0) return results;
-      } catch (e) {
-        // JSON 解析失败，继续用原有逻辑
-      }
-    }
-
-    // 原有逻辑：解析 "属性名:数值; 属性名:数值" 格式
-    const parts = rawStr.split(/[,;，；\s]+/);
-    for (const part of parts) {
-      const match = part.match(/^"?([\u4e00-\u9fa5a-zA-Z_]+)"?[:\s：]\s*"?(-?\d+)"?/);
-      if (match) {
-        results.push({ name: match[1], value: parseInt(match[2], 10) });
-      }
-    }
-    return results;
-  };
+  });
   // 解析人际关系字符串，推荐使用冒号格式，同时兼容旧式括号格式:
   // 推荐格式: "人名:关系描述;人名:关系描述" 或 "与人名:关系描述;与人名:关系描述"
   // 兼容格式: "人名(关系标签);人名(关系)"
@@ -6262,36 +6005,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     }
   };
 
-  const runDatabaseManualUpdateViaApi = async (options?: {
-    includeLegacyApi?: boolean;
-  }): Promise<DatabaseManualUpdateResult> => {
-    let failedResult: DatabaseManualUpdateResult | null = null;
-    const includeLegacyApi = options?.includeLegacyApi !== false;
-
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const apiEntries = [
-        { source: '新版数据库 manualUpdate API', api: (targetWindow as any).AutoCardUpdaterV2API },
-        ...(includeLegacyApi
-          ? [{ source: '旧版数据库 manualUpdate API', api: (targetWindow as any).AutoCardUpdaterAPI }]
-          : []),
-      ];
-
-      for (const { source, api } of apiEntries) {
-        if (!api || typeof api !== 'object') continue;
-
-        for (const methodName of ACU_DATABASE_MANUAL_UPDATE_API_METHODS) {
-          const method = api[methodName];
-          if (typeof method !== 'function') continue;
-
-          const result = await runMaybeAsyncDatabaseManualUpdate(() => method.call(api), `${source}.${methodName}`);
-          if (result.status === 'updated') return result;
-          failedResult = result;
-        }
-      }
-    }
-
-    return failedResult || { status: 'unavailable' };
-  };
+  const runDatabaseManualUpdateViaApi = createRunDatabaseManualUpdateViaApi({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    runMaybeAsyncDatabaseManualUpdate: (...a: any[]) => runMaybeAsyncDatabaseManualUpdate(...a),
+    ACU_DATABASE_MANUAL_UPDATE_API_METHODS: ACU_DATABASE_MANUAL_UPDATE_API_METHODS,
+  });
 
   const runDatabaseManualUpdateViaLegacyButton = (): DatabaseManualUpdateResult => {
     for (const targetWindow of collectAccessibleRuntimeWindows()) {
@@ -7748,38 +7466,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return trimmed;
   };
 
-  const buildCheckValueText = (options: {
-    preset: AdvancedDicePreset;
-    characterName: string;
-    actionName: string;
-    attrValue: number;
-    attrMod: number;
-    skillMod: number;
-    mode: 'normal' | 'contest';
-    attrNameOverride?: string | null;
-    skillNameOverride?: string | null;
-  }): string => {
-    const entry = getAttributeEntryForCharacter(options.characterName, options.actionName);
-    const resolvedActionName = entry?.name || options.actionName;
-    const mappedTarget = resolveQuickSelectTarget(resolvedActionName, entry?.source, options.preset, options.mode);
-    const attrModText = options.attrMod !== 0 ? `（调整值${formatSignedModifier(options.attrMod)}）` : '';
-    const attributeName =
-      options.attrNameOverride ||
-      (mappedTarget === 'skillMod'
-        ? options.attrMod !== 0
-          ? options.preset.attribute?.label || '属性值'
-          : null
-        : resolvedActionName);
-    const skillName = options.skillNameOverride || (mappedTarget === 'skillMod' ? resolvedActionName : null);
-
-    const parts: string[] = [];
-    if (attributeName) parts.push(`${attributeName}${options.attrValue}${attrModText}`);
-    if (skillName) parts.push(`${skillName}（技能加值${formatSignedModifier(options.skillMod)}）`);
-    else if (options.skillMod !== 0) parts.push(`技能加值${formatSignedModifier(options.skillMod)}`);
-
-    if (parts.length > 0) return parts.join('+');
-    return `${options.preset.attribute?.label || '属性值'}${options.attrValue}${attrModText}`;
-  };
+  const buildCheckValueText = createBuildCheckValueText({
+    formatSignedModifier: (...a: any[]) => formatSignedModifier(...a),
+    getAttributeEntryForCharacter: (...a: any[]) => getAttributeEntryForCharacter(...a),
+    resolveQuickSelectTarget: (...a: any[]) => resolveQuickSelectTarget(...a),
+  });
 
   const getNormalQuickSelectInputSelector = (target: AttributeQuickSelectTarget): string => {
     if (target === 'skillMod') return '#dice-skill-mod';
@@ -9210,37 +8901,10 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return Object.values(value).some(item => hasDiceConfigBackupLocalImageReference(item, depth + 1));
   };
 
-  const getDiceConfigBackupModuleWarnings = (
-    moduleId: DiceConfigBackupModuleId,
-    storage: Record<string, unknown>,
-    resources: Record<string, unknown> = {},
-  ): string[] => {
-    const warnings: string[] = [];
-    if (moduleId === 'avatarMap') {
-      warnings.push('本地上传头像图片存放在 IndexedDB 中，不会进入该备份包；仅备份 URL、偏移、缩放与别名配置。');
-    }
-    if (moduleId === 'customIcons' && hasDiceConfigBackupLocalImageReference(storage)) {
-      warnings.push('检测到本地图标引用；备份包只包含图标配置元数据，不包含 IndexedDB 中的图片二进制。');
-    }
-    if (
-      moduleId === 'gachaSettings' &&
-      (hasDiceConfigBackupLocalImageReference(storage) || hasDiceConfigBackupLocalImageReference(resources))
-    ) {
-      warnings.push('检测到商城本地图标引用；备份包不包含 IndexedDB 中的图片二进制，也不包含当前聊天抽取状态。');
-    }
-    if (moduleId === 'validation' || moduleId === 'regex') {
-      warnings.push('内置预设规则会以当前脚本版本为准；备份包只保存自定义规则和内置规则的启用/拦截等偏好。');
-    }
-    if (moduleId === 'tableTemplate') {
-      const hasTemplate = resources[DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY] !== undefined;
-      warnings.push(
-        hasTemplate
-          ? '备份包含当前聊天生效的数据库表格模板；恢复时会导入到数据库模板列表，如果已有同名模板会覆盖同名模板。'
-          : '未读取到可备份的数据库表格模板，备份文件中不会包含可恢复的模板内容。',
-      );
-    }
-    return warnings;
-  };
+  const getDiceConfigBackupModuleWarnings = createGetDiceConfigBackupModuleWarnings({
+    hasDiceConfigBackupLocalImageReference: (...a: any[]) => hasDiceConfigBackupLocalImageReference(...a),
+    DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY: DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY,
+  });
 
   const buildDiceConfigBackup = createBuildDiceConfigBackup({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -9467,39 +9131,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     };
   };
 
-  const mergeDiceConfigBackupGachaPoolSettings = (
-    current: unknown,
-    incoming: unknown,
-  ): GachaPoolSettingsRecord | null => {
-    const incomingRecord = normalizeDiceConfigBackupGachaPoolSettings(incoming);
-    if (!incomingRecord) return null;
-    const currentRecord = normalizeDiceConfigBackupGachaPoolSettings(current) || {
-      version: 1,
-      pools: [],
-      updatedAt: 0,
-    };
-    const currentById = new Map(currentRecord.pools.map(pool => [pool.id, pool]));
-    const incomingIds = new Set(incomingRecord.pools.map(pool => pool.id));
-    const mergedPools = incomingRecord.pools.map(pool => {
-      const existing = currentById.get(pool.id);
-      const enabled = pool.id !== GACHA_ALL_POOL_TAG && pool.includeInAll === true;
-      return {
-        ...(existing || buildDefaultGachaPoolDefinition(pool.id, pool)),
-        ...pool,
-        builtin: existing?.builtin === true || isBuiltinGachaPoolId(pool.id),
-        visibleInTabs: pool.id === GACHA_ALL_POOL_TAG ? true : enabled,
-        includeInAll: enabled,
-      };
-    });
-    currentRecord.pools.forEach(pool => {
-      if (!incomingIds.has(pool.id)) mergedPools.push(pool);
-    });
-    return {
-      version: Math.max(1, incomingRecord.version, currentRecord.version),
-      pools: mergedPools,
-      updatedAt: Date.now(),
-    };
-  };
+  const mergeDiceConfigBackupGachaPoolSettings = createMergeDiceConfigBackupGachaPoolSettings({
+    buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
+    isBuiltinGachaPoolId: (...a: any[]) => isBuiltinGachaPoolId(...a),
+    normalizeDiceConfigBackupGachaPoolSettings: (...a: any[]) => normalizeDiceConfigBackupGachaPoolSettings(...a),
+  });
 
   const normalizeDiceConfigBackupGachaItemSettings = (value: unknown): GachaItemSettingsRecord | null => {
     if (!isDiceConfigBackupRecord(value)) return null;
@@ -9752,37 +9388,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     setGachaCatalogCache: (v: any) => { gachaCatalogCache = v; },
   });
 
-  const restoreDiceConfigBackupTableTemplate = async (
-    templateValue: unknown,
-    stats: DiceConfigBackupApplyStats,
-    onImportAttempt?: () => void,
-  ): Promise<void> => {
-    if (templateValue === undefined) {
-      stats.skipped += 1;
-      stats.warnings.push('当前数据库表格模板: 备份文件中没有模板内容，已跳过。');
-      return;
-    }
-    if (!isDiceConfigBackupRecord(templateValue)) {
-      stats.skipped += 1;
-      stats.warnings.push('当前数据库表格模板: 模板资源结构无效，已跳过。');
-      return;
-    }
-
-    const api = getDiceConfigBackupTableTemplateApi();
-    if (!api || typeof api.importTemplateFromData !== 'function') {
-      throw new Error('数据库模板导入 API 不可用，无法恢复表格模板。');
-    }
-
-    const template = cloneDiceConfigBackupValue(templateValue);
-    onImportAttempt?.();
-    const result = await Promise.resolve(api.importTemplateFromData(template, { scope: 'chat' }));
-    if (isDiceConfigBackupRecord(result) && result.success === false) {
-      const message = typeof result.message === 'string' ? result.message : '数据库模板导入失败';
-      throw new Error(message);
-    }
-    console.info('[DICE]配置备份已调用数据库本体 API 导入表格模板:', result);
-    stats.added += 1;
-  };
+  const restoreDiceConfigBackupTableTemplate = createRestoreDiceConfigBackupTableTemplate({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupTableTemplateApi: (...a: any[]) => getDiceConfigBackupTableTemplateApi(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+  });
 
   const restoreDiceConfigBackupModuleResources = async (
     moduleId: DiceConfigBackupModuleId,
@@ -11414,39 +11024,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   const isCrudNullableEnumEmptyValue = (value: unknown): boolean =>
     value === null || value === undefined || String(value).trim() === '';
 
-  const assertCrudEnumConstraints = (
-    tableName: string,
-    headers,
-    row,
-    sheet,
-    rowIndex: number,
-    changedColumns?: Set<number>,
-    columnAliasMap = buildCrudColumnAliasMap(sheet),
-  ): void => {
-    if (!Array.isArray(row)) return;
-    if (!Array.isArray(headers)) return;
-    const constraints = buildCrudEnumConstraintMap(sheet);
-    if (Object.keys(constraints).length === 0) return;
-
-    headers.forEach((header, index) => {
-      if (index === 0) return;
-      if (changedColumns && !changedColumns.has(index)) return;
-      const headerName = String(header || '').trim();
-      if (!headerName) return;
-
-      const columnName = getCrudColumnNameForHeader(columnAliasMap, headerName);
-      const constraint = constraints[columnName];
-      if (!constraint || constraint.values.length === 0) return;
-      if (constraint.nullable && isCrudNullableEnumEmptyValue(row[index])) return;
-
-      const value = String(row[index] ?? '').trim();
-      if (constraint.values.includes(value)) return;
-
-      throw new Error(
-        `表 "${tableName}" 第 ${rowIndex + 1} 行的「${headerName}」不能写入「${value || '空值'}」：数据库结构只允许 ${constraint.values.join('、')}。请调整表格结构/枚举，或把要写入的内容改为允许值。`,
-      );
-    });
-  };
+  const assertCrudEnumConstraints = createAssertCrudEnumConstraints({
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    buildCrudEnumConstraintMap: (...a: any[]) => buildCrudEnumConstraintMap(...a),
+    getCrudColumnNameForHeader: (...a: any[]) => getCrudColumnNameForHeader(...a),
+    isCrudNullableEnumEmptyValue: (...a: any[]) => isCrudNullableEnumEmptyValue(...a),
+  });
 
   const buildCrudLengthConstraintMap = (sheet: unknown): Record<string, number> => {
     const ddl = stripCrudSqlComments(getCrudSheetDdl(sheet));
@@ -11503,39 +11086,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     );
   };
 
-  const assertCrudLengthConstraints = (
-    tableName: string,
-    headers,
-    row,
-    sheet,
-    rowIndex: number,
-    changedColumns?: Set<number>,
-    columnAliasMap = buildCrudColumnAliasMap(sheet),
-  ): void => {
-    if (!Array.isArray(row)) return;
-    if (!Array.isArray(headers)) return;
-    const constraints = buildCrudLengthConstraintMap(sheet);
-    if (Object.keys(constraints).length === 0) return;
-
-    headers.forEach((header, index) => {
-      if (index === 0) return;
-      if (changedColumns && !changedColumns.has(index)) return;
-      const headerName = String(header || '').trim();
-      if (!headerName) return;
-
-      const columnName = getCrudColumnNameForHeader(columnAliasMap, headerName);
-      const maxLength = constraints[columnName];
-      if (maxLength === undefined) return;
-
-      const value = String(row[index] ?? '');
-      const length = countUnicodeCharacters(value);
-      if (length <= maxLength) return;
-
-      throw new Error(
-        `表 "${tableName}" 第 ${rowIndex + 1} 行的「${headerName}」长度为 ${length}，超过数据库结构允许的 ${maxLength} 字。请缩短内容，或调整表格结构的长度约束。`,
-      );
-    });
-  };
+  const assertCrudLengthConstraints = createAssertCrudLengthConstraints({
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    buildCrudLengthConstraintMap: (...a: any[]) => buildCrudLengthConstraintMap(...a),
+    countUnicodeCharacters: (...a: any[]) => countUnicodeCharacters(...a),
+    getCrudColumnNameForHeader: (...a: any[]) => getCrudColumnNameForHeader(...a),
+  });
 
   const buildCrudRequiredHeaderSet = (sheet: unknown): Set<string> => {
     const ddl = stripCrudSqlNonStructuralComments(getCrudSheetDdl(sheet));
@@ -11799,39 +11355,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return null;
   };
 
-  const saveSheetsViaJsonFloorWithoutTracking = async (tableData, modifiedSheetKeys?: string[]) => {
-    const api = assertRuntimeCrudApi();
-    const { dataToSave, sheetKeysToSave } = sanitizeRuntimeTableData(tableData, modifiedSheetKeys, false);
-    if (sheetKeysToSave.length === 0) {
-      console.info('[DICE]ACU JSON 楼层保存跳过：没有有效修改表');
-      return dataToSave;
-    }
-
-    const liveData = readRuntimeTableDataReference(api);
-    for (const sheetKey of sheetKeysToSave) {
-      const desiredSheet = dataToSave[sheetKey];
-      if (!isDiffSheet(desiredSheet)) continue;
-      const persisted = await patchLatestChatSheetWithoutTracking(sheetKey, desiredSheet);
-      if (!persisted) {
-        throw new Error(`保存 "${desiredSheet.name || sheetKey}" 的正则转换结果失败：找不到该表的历史数据楼层`);
-      }
-      patchCrudSheetInRecord(liveData, sheetKey, desiredSheet);
-      console.info('[DICE]ACU 正则转换已按表回写 JSON 楼层（不写入更新追踪）:', {
-        tableName: desiredSheet.name || sheetKey,
-        sheetKey,
-        messageIndex: persisted.messageIndex,
-      });
-    }
-
-    if (typeof api.refreshDataAndWorldbook === 'function') {
-      await api.refreshDataAndWorldbook();
-    } else {
-      api._notifyTableUpdate?.();
-    }
-    const refreshedData = getTableData({ silent: true }) || dataToSave;
-    cachedRawData = refreshedData;
-    return refreshedData;
-  };
+  const saveSheetsViaJsonFloorWithoutTracking = createSaveSheetsViaJsonFloorWithoutTracking({
+    assertRuntimeCrudApi: (...a: any[]) => assertRuntimeCrudApi(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    isDiffSheet: (...a: any[]) => isDiffSheet(...a),
+    patchCrudSheetInRecord: (...a: any[]) => patchCrudSheetInRecord(...a),
+    patchLatestChatSheetWithoutTracking: (...a: any[]) => patchLatestChatSheetWithoutTracking(...a),
+    readRuntimeTableDataReference: (...a: any[]) => readRuntimeTableDataReference(...a),
+    sanitizeRuntimeTableData: (...a: any[]) => sanitizeRuntimeTableData(...a),
+    getCachedRawData: () => cachedRawData,
+    setCachedRawData: (v: any) => { cachedRawData = v; },
+  });
 
   const applyJsonCellFallbackForCrud = createApplyJsonCellFallbackForCrud({
     assertCrudRequiredCellValues: (...a: any[]) => assertCrudRequiredCellValues(...a),
@@ -13005,40 +12539,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return [normalizeCheckSuggestionSideShorthand(parts[0]), ...parts.slice(1)].join(' ');
   };
 
-  const normalizeCheckSuggestionCommandInput = (rawCommand: string): string => {
-    let command = String(rawCommand || '')
-      .replace(/^[\s"'`“”‘’「」『』]+|[\s"'`“”‘’「」『』]+$/g, '')
-      .replace(/[，,；;]\s*/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    command = command
-      .replace(/^对抗(?:检定)?\s*[:：]\s*/, '对抗 ')
-      .replace(/^对抗检定\s+/, '对抗 ')
-      .replace(/^普通检定\s*[:：]\s*/, '检定 ')
-      .replace(/^普通检定\s+/, '检定 ')
-      .replace(/^检定\s*[:：]\s*/, '检定 ');
-
-    if (command.startsWith('检定 ')) {
-      return `检定 ${normalizeLeadingCheckSuggestionSideShorthand(command.replace(/^检定\s+/, ''))}`.trim();
-    }
-
-    if (command.startsWith('对抗 ')) {
-      const contestBody = command
-        .replace(/^对抗\s+/, '')
-        .replace(/\s*[VvＶｖ][SsＳｓ]\s*/g, ' vs ')
-        .replace(/\s+(?:对|对抗)\s+/g, ' vs ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      const normalizedSides = contestBody
-        .split(/\s+vs\s+/i)
-        .map(normalizeLeadingCheckSuggestionSideShorthand)
-        .join(' vs ');
-      return `对抗 ${normalizedSides}`.trim();
-    }
-
-    return command;
-  };
+  const normalizeCheckSuggestionCommandInput = createNormalizeCheckSuggestionCommandInput({
+    normalizeLeadingCheckSuggestionSideShorthand: (...a: any[]) => normalizeLeadingCheckSuggestionSideShorthand(...a),
+  });
 
   const buildCheckSuggestionInvalidCommandMessage = (reason: string): string => {
     const normalizedReason = String(reason || '骰子命令解析失败').trim();
@@ -13094,37 +12597,9 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return trimmed;
   };
 
-  const normalizeCheckSuggestionParams = (
-    rawParams: CheckSuggestionRawParams,
-    preset: AdvancedDicePreset,
-  ): CheckSuggestionParams => {
-    const normalized: CheckSuggestionParams = {};
-    const aliases = preset.checkSuggestionAliases;
-    const normalizeSidePrefixedKey = (rawKey: string): { key: string; valueAliasKey: string } => {
-      const lowerKey = rawKey.toLowerCase();
-      const sidePrefix = lowerKey.startsWith('left') ? 'left' : lowerKey.startsWith('right') ? 'right' : '';
-      if (!sidePrefix) {
-        const canonicalKey = aliases?.params?.[rawKey] || rawKey;
-        return { key: canonicalKey, valueAliasKey: canonicalKey };
-      }
-      const prefixLength = sidePrefix.length;
-      const stripped = rawKey.slice(prefixLength);
-      if (!stripped) return { key: rawKey, valueAliasKey: rawKey };
-      const normalizedStripped = stripped.charAt(0).toLowerCase() + stripped.slice(1);
-      const canonicalStripped = aliases?.params?.[stripped] || aliases?.params?.[normalizedStripped] || normalizedStripped;
-      const sideKey = `${sidePrefix}${canonicalStripped.charAt(0).toUpperCase()}${canonicalStripped.slice(1)}`;
-      return { key: sideKey, valueAliasKey: canonicalStripped };
-    };
-    Object.entries(rawParams).forEach(([rawKey, rawValue]) => {
-      if (rawKey === 'preset') return;
-      const { key: canonicalKey, valueAliasKey } = normalizeSidePrefixedKey(rawKey);
-      const valueAliases = aliases?.values?.[canonicalKey] || aliases?.values?.[valueAliasKey] || {};
-      const aliasedValue = valueAliases[rawValue];
-      normalized[canonicalKey] =
-        aliasedValue !== undefined ? aliasedValue : parseCheckSuggestionPrimitiveValue(rawValue);
-    });
-    return normalized;
-  };
+  const normalizeCheckSuggestionParams = createNormalizeCheckSuggestionParams({
+    parseCheckSuggestionPrimitiveValue: (...a: any[]) => parseCheckSuggestionPrimitiveValue(...a),
+  });
 
   const parseCheckSuggestionModifierValue = (value: string): number => {
     const trimmed = String(value || '').trim();
@@ -13875,40 +13350,12 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     FIXED_MODE_ANCHOR_PRIORITY: FIXED_MODE_ANCHOR_PRIORITY,
   });
 
-  const getViewportBottomOffset = (): number => {
-    const targetWindow = getTavernHostWindow();
-    const targetDocument = getTavernHostDocument();
-    const visualViewport = targetWindow.visualViewport;
-    const viewportTop = visualViewport?.offsetTop || 0;
-    const viewportHeight =
-      visualViewport?.height || targetWindow.innerHeight || targetDocument.documentElement.clientHeight || 0;
-    const viewportBottom = viewportTop + viewportHeight;
-    const candidates = getViewportBottomAnchorElements(targetDocument)
-      .filter((el): el is HTMLElement => {
-        const style = targetWindow.getComputedStyle(el);
-        if (style.display === 'none' || style.visibility === 'hidden') return false;
-        const rect = el.getBoundingClientRect();
-        const isComposerElement = VIEWPORT_COMPOSER_ELEMENT_IDS.has(el.id) || el.tagName.toLowerCase() === 'textarea';
-        const minTopRatio = isComposerElement ? 0.2 : 0.45;
-        const maxHeight = isComposerElement
-          ? Math.max(520, viewportHeight * 0.75)
-          : Math.max(220, viewportHeight * 0.4);
-        if (rect.width <= 0 || rect.height <= 0) return false;
-        if (viewportHeight <= 0) return rect.bottom > 0;
-        if (rect.top < viewportTop || rect.bottom > viewportBottom + 80) return false;
-        if (rect.top < viewportTop + viewportHeight * minTopRatio) return false;
-        if (rect.height > maxHeight) return false;
-        return true;
-      })
-      .map(el => el.getBoundingClientRect());
-
-    if (candidates.length === 0 || viewportHeight <= 0) return 12;
-
-    const top = Math.min(...candidates.map(rect => rect.top));
-    const offset = viewportBottom - top + 8;
-    const maxOffset = Math.max(12, Math.round(viewportHeight * 0.65));
-    return Math.min(maxOffset, Math.max(12, Math.round(offset)));
-  };
+  const getViewportBottomOffset = createGetViewportBottomOffset({
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    getViewportBottomAnchorElements: (...a: any[]) => getViewportBottomAnchorElements(...a),
+    VIEWPORT_COMPOSER_ELEMENT_IDS: VIEWPORT_COMPOSER_ELEMENT_IDS,
+  });
 
   const updateViewportWrapperBounds = createUpdateViewportWrapperBounds({
     getCollapsedState: (...a: any[]) => getCollapsedState(...a),
@@ -14491,39 +13938,17 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return `<div class="acu-global-interaction-generic-mark" title="${escapeHtml(displayName)}">${renderCustomTableNameIconContent(renderThemeIconContent(getElementEmoji(displayName, null)), customContext)}</div>`;
   };
 
-  const renderGlobalInteractionRowCard = (
-    group: GlobalInteractionGroup,
-    row: GlobalInteractionRow,
-    sectionKind: GlobalInteractionSectionKind,
-  ): string => {
-    const actionsHtml = row.actions
-      .map((action, actionIndex) => renderGlobalInteractionActionButton(group, row, action, actionIndex))
-      .join('');
-    const displayName = replaceUserPlaceholders(row.title);
-    const iconName = row.iconName || row.title;
-    const customIconContext =
-      sectionKind === 'character' ? null : createGlobalInteractionCustomTableNameIconContext(group.tableName, iconName);
-    const visualHtml =
-      sectionKind === 'character'
-        ? // 角色分区必须保留 AvatarManager 头像与偏移/缩放逻辑，不能走自定义表名图标。
-          renderGlobalInteractionAvatar(row.title)
-        : sectionKind === 'map'
-          ? renderGlobalInteractionMapMark(row.title, group.tableName, iconName)
-          : sectionKind === 'item'
-            ? renderGlobalInteractionItemMark(row.title, customIconContext)
-            : renderGlobalInteractionGenericMark(row.title, customIconContext);
-
-    return `
-                    <div class="acu-global-interaction-row acu-global-interaction-row-${sectionKind}" data-table-key="${safeEncodeURIComponent(String(group.tableKey))}" data-row-index="${safeEncodeURIComponent(String(row.rowIndex))}" data-search-text="${safeEncodeURIComponent(String(row.searchText))}">
-                        <button type="button" class="acu-global-interaction-row-main" aria-expanded="false" aria-label="打开 ${escapeHtml(displayName)} 的交互菜单">
-                            ${visualHtml}
-                        </button>
-                        <div class="acu-global-interaction-details">
-                            <button type="button" class="acu-global-interaction-row-title acu-dash-preview-trigger" data-table-key="${safeEncodeURIComponent(String(group.tableKey))}" data-row-index="${safeEncodeURIComponent(String(row.rowIndex))}" title="${escapeHtml(displayName)}" aria-label="查看 ${escapeHtml(displayName)} 的卡片">${escapeHtml(displayName)}</button>
-                            <div class="acu-global-interaction-actions">${actionsHtml}</div>
-                        </div>
-                    </div>`;
-  };
+  const renderGlobalInteractionRowCard = createRenderGlobalInteractionRowCard({
+    createGlobalInteractionCustomTableNameIconContext: (...a: any[]) => createGlobalInteractionCustomTableNameIconContext(...a),
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    renderGlobalInteractionActionButton: (...a: any[]) => renderGlobalInteractionActionButton(...a),
+    renderGlobalInteractionAvatar: (...a: any[]) => renderGlobalInteractionAvatar(...a),
+    renderGlobalInteractionGenericMark: (...a: any[]) => renderGlobalInteractionGenericMark(...a),
+    renderGlobalInteractionItemMark: (...a: any[]) => renderGlobalInteractionItemMark(...a),
+    renderGlobalInteractionMapMark: (...a: any[]) => renderGlobalInteractionMapMark(...a),
+    replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
+    safeEncodeURIComponent: (...a: any[]) => safeEncodeURIComponent(...a),
+  });
 
   const getGlobalInteractionCollapsedSections = (): string[] => {
     const collapsedSections = Store.get(STORAGE_KEY_GLOBAL_INTERACTION_COLLAPSED_SECTIONS, []);
@@ -15340,68 +14765,15 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     title?: string;
   };
 
-  const renderGachaCustomFieldsPreviewHtml = (
-    item: Pick<GachaItemDefinition, 'customFields' | 'targetColumns'>,
-    options: GachaCustomFieldsPreviewRenderOptions = {},
-  ): string => {
-    const entries = getGachaCustomFieldEntries(item);
-    if (entries.length === 0) return '';
+  const renderGachaCustomFieldsPreviewHtml = createRenderGachaCustomFieldsPreviewHtml({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getGachaCustomFieldEntries: (...a: any[]) => getGachaCustomFieldEntries(...a),
+  });
 
-    const limit = Math.max(0, Math.floor(Number(options.limit ?? 2)));
-    const visibleEntries = limit > 0 ? entries.slice(0, limit) : [];
-    const overflowCount = Math.max(0, entries.length - visibleEntries.length);
-    const fieldsHtml = visibleEntries
-      .map(([key, value]) => {
-        const title = `${key}：${value}`;
-        const valueOnlyClass = options.valueOnly ? ' acu-gacha-custom-field-preview-chip-value-only' : '';
-        return `
-          <span class="acu-gacha-custom-field-preview-chip acu-gacha-custom-field-chip${valueOnlyClass}" title="${escapeHtml(title)}" aria-label="${escapeHtml(title)}">
-            ${options.valueOnly ? '' : `<span class="acu-gacha-custom-field-preview-key">${escapeHtml(key)}</span>`}
-            <span class="acu-gacha-custom-field-preview-value">${escapeHtml(value)}</span>
-          </span>
-        `;
-      })
-      .join('');
-    const overflowHtml =
-      options.showOverflowCount !== false && overflowCount > 0
-        ? `<span class="acu-gacha-custom-field-preview-more">${escapeHtml(options.valueOnly ? `+${String(overflowCount)}` : `+${String(overflowCount)} 字段`)}</span>`
-        : '';
-
-    if (!fieldsHtml && !overflowHtml) return '';
-    return `<div class="acu-gacha-custom-field-preview acu-gacha-custom-fields-preview">${fieldsHtml}${overflowHtml}</div>`;
-  };
-
-  const renderGachaCustomFieldsDetailsHtml = (
-    item: Pick<GachaItemDefinition, 'customFields'>,
-    options: GachaCustomFieldsDetailsRenderOptions = {},
-  ): string => {
-    const entries = getGachaCustomFieldEntries(item);
-    if (entries.length === 0) return '';
-
-    const title = options.title || '自定义字段';
-    const openThreshold = Math.max(0, Math.floor(Number(options.openThreshold ?? 4)));
-    const openAttribute = entries.length <= openThreshold ? ' open' : '';
-    const rowsHtml = entries
-      .map(
-        ([key, value]) => `
-          <div class="acu-gacha-custom-field-detail-row">
-            <span class="acu-gacha-custom-field-detail-key">${escapeHtml(key)}</span>
-            <span class="acu-gacha-custom-field-detail-value">${escapeHtml(value)}</span>
-          </div>
-        `,
-      )
-      .join('');
-
-    return `
-      <details class="acu-gacha-custom-field-details acu-gacha-custom-fields-details"${openAttribute}>
-        <summary>
-          <span><i class="fa-solid fa-table-list"></i><strong>${escapeHtml(title)}</strong></span>
-          <small>${escapeHtml(String(entries.length))} 项</small>
-        </summary>
-        <div class="acu-gacha-custom-field-detail-list">${rowsHtml}</div>
-      </details>
-    `;
-  };
+  const renderGachaCustomFieldsDetailsHtml = createRenderGachaCustomFieldsDetailsHtml({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    getGachaCustomFieldEntries: (...a: any[]) => getGachaCustomFieldEntries(...a),
+  });
 
   const getStoredGachaItemSettings = (): GachaItemSettingsRecord => {
     const stored = Store.get(STORAGE_KEY_GACHA_ITEM_SETTINGS, null);
@@ -17439,38 +16811,13 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     refreshGachaVisualization();
   };
 
-  const flushGachaHeartbeatProgress = (_persistProgress: boolean) => {
-    const state = getGachaState(undefined, true);
-    if (!state) return;
-
-    const now = Date.now();
-    const lastHeartbeatAt = state.inputStats.lastHeartbeatAt || now;
-    const elapsed = Math.max(0, now - lastHeartbeatAt);
-    state.inputStats.lastHeartbeatAt = now;
-    state.inputStats.lastActiveAt = Math.max(state.inputStats.lastActiveAt || 0, lastHumanInputActivityAt || 0);
-    const isTavernPageAwake = document.visibilityState !== 'hidden';
-    if (isTavernPageAwake) {
-      state.inputStats.lastActiveAt = now;
-      state.inputStats.pendingActiveMs += elapsed;
-    }
-
-    const rewardStepMs = GACHA_ACTIVE_SECONDS_PER_FORTUNE * 1000;
-    const rewardCount = Math.floor(state.inputStats.pendingActiveMs / rewardStepMs);
-    if (rewardCount > 0) {
-      state.inputStats.pendingActiveMs -= rewardCount * rewardStepMs;
-      state.inputStats.totalActiveMinutes += (rewardCount * GACHA_ACTIVE_SECONDS_PER_FORTUNE) / 60;
-      state.wallet.fortune += rewardCount;
-      recordGachaFortuneGain(
-        state,
-        rewardCount,
-        '活跃奖励',
-        `活跃 ${rewardCount * GACHA_ACTIVE_SECONDS_PER_FORTUNE} 秒`,
-      );
-    }
-
-    if (!saveStoredGachaStateSnapshot(state)) return;
-    updateGachaFortuneProgressDom(state);
-  };
+  const flushGachaHeartbeatProgress = createFlushGachaHeartbeatProgress({
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    recordGachaFortuneGain: (...a: any[]) => recordGachaFortuneGain(...a),
+    saveStoredGachaStateSnapshot: (...a: any[]) => saveStoredGachaStateSnapshot(...a),
+    updateGachaFortuneProgressDom: (...a: any[]) => updateGachaFortuneProgressDom(...a),
+    getLastHumanInputActivityAt: () => lastHumanInputActivityAt,
+  });
 
   const ensureGachaHeartbeat = () => {
     if (gachaHeartbeatTimer) return;
@@ -18425,38 +17772,11 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
   });
 
   // [新增] 通用状态保存函数 (面板滚动 + 卡片内部滚动)
-  const saveCurrentTabState = () => {
-    const { $ } = getCore();
-    const activeTab = getActiveTabState();
-    const $content = $('.acu-panel-content');
-
-    if (activeTab && $content.length) {
-      const innerScrolls = {};
-      // 遍历所有卡片，记录内部滚动条位置
-      $content.find('.acu-data-card, .acu-card-body, .acu-edit-textarea').each(function () {
-        if (this.scrollTop > 0) {
-          // 尝试找到这张卡片的唯一标识 (Row Index)
-          const $card = $(this).closest('.acu-data-card');
-          const rIdx = $card.find('.acu-editable-title').data('row');
-          // 如果是编辑框，还要加特殊标记
-          const isEdit = $(this).hasClass('acu-edit-textarea');
-
-          if (rIdx !== undefined) {
-            const key = isEdit ? `edit-${rIdx}` : rIdx;
-            innerScrolls[key] = this.scrollTop;
-          }
-        }
-      });
-
-      // 存入全局状态对象
-      tableScrollStates[activeTab] = {
-        left: $content.scrollLeft(),
-        top: $content.scrollTop(),
-        inner: innerScrolls,
-        timestamp: Date.now(), // 加个时间戳方便调试
-      };
-    }
-  };
+  const saveCurrentTabState = createSaveCurrentTabState({
+    getActiveTabState: (...a: any[]) => getActiveTabState(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableScrollStates: () => tableScrollStates,
+  });
 
   const getDataAreaForRoot = ($root?: JQuery<HTMLElement>): JQuery<HTMLElement> => {
     const { $ } = getCore();
@@ -19112,69 +18432,32 @@ $opponent $oppAttrName：$oppFormula=$oppRoll，判定 $oppConditionExpr？$oppJ
     return result;
   };
 
-  const upsertAcuDiceGachaPool = async (input: unknown, options: { silent?: boolean } = {}) => {
-    const normalizedPool =
-      typeof input === 'string'
-        ? normalizeGachaPoolDefinition({ id: input, name: input, includeInAll: true, visibleInTabs: true })
-        : normalizeGachaPoolDefinition(input);
-    if (!normalizedPool || !normalizedPool.id || normalizedPool.id === GACHA_ALL_POOL_TAG) {
-      throw new Error('[AcuDice][Gacha] upsertPool() 需要有效卡池 id');
-    }
+  const upsertAcuDiceGachaPool = createUpsertAcuDiceGachaPool({
+    buildDefaultGachaPoolDefinition: (...a: any[]) => buildDefaultGachaPoolDefinition(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
+    isBuiltinGachaPoolId: (...a: any[]) => isBuiltinGachaPoolId(...a),
+    normalizeGachaPoolDefinition: (...a: any[]) => normalizeGachaPoolDefinition(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    saveGachaPoolSettings: (...a: any[]) => saveGachaPoolSettings(...a),
+    serializeAcuDiceGachaPool: (...a: any[]) => serializeAcuDiceGachaPool(...a),
+    showGachaSettingsDialog: (...a: any[]) => showGachaSettingsDialog(...a),
+  });
 
-    const pools = getConfiguredGachaPoolDefinitions();
-    const index = pools.findIndex(pool => pool.id === normalizedPool.id);
-    const existing = index >= 0 ? pools[index] : null;
-    const nextPool = {
-      ...(existing || buildDefaultGachaPoolDefinition(normalizedPool.id, normalizedPool)),
-      ...normalizedPool,
-      builtin: existing?.builtin === true || isBuiltinGachaPoolId(normalizedPool.id),
-      visibleInTabs: normalizedPool.includeInAll === true,
-      includeInAll: normalizedPool.includeInAll === true,
-    };
-    if (index >= 0) pools[index] = nextPool;
-    else pools.push(nextPool);
-    saveGachaPoolSettings(pools);
-    refreshGachaVisualization();
-    refreshGachaShardShop();
-    if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
-    const result = serializeAcuDiceGachaPool(nextPool);
-    if (!options.silent && window.toastr) window.toastr.success(`卡池「${result.name}」已保存`, '骰子商店');
-    emitEvent('gacha:catalog', { action: 'upsertPool', pool: result });
-    return result;
-  };
-
-  const removeAcuDiceGachaCustomItem = async (itemId: unknown, options: { silent?: boolean } = {}) => {
-    const id = String(itemId || '').trim();
-    if (!id) throw new Error('[AcuDice][Gacha] removeCustomItem() 需要物品 id');
-    let result: { removed: boolean; item: ReturnType<typeof serializeAcuDiceGachaItem> | null } | null = null;
-
-    await runInSaveQueue(async () => {
-      const rawData = getRuntimeGachaRawData();
-      await ensureGachaCatalogLoaded(rawData);
-      const customItems = getCustomGachaItemDefinitions(rawData);
-      const item = customItems.find(candidate => candidate.id === id) || null;
-      if (!item) {
-        if (GACHA_ITEM_DEFINITIONS.some(candidate => candidate.id === id)) {
-          throw new Error('内置物品不能通过 API 删除，只能在商店设置里禁用');
-        }
-        result = { removed: false, item: null };
-        return;
-      }
-      const nextItems = customItems.filter(candidate => candidate.id !== id);
-      const saved = await saveStoredGachaCatalog(nextItems);
-      if (!saved) throw new Error('自定义物品删除保存失败');
-      deleteGachaItemSetting(id);
-      refreshGachaVisualization();
-      refreshGachaShardShop();
-      if ($('.acu-gacha-settings-overlay').length) void showGachaSettingsDialog();
-      result = { removed: true, item: serializeAcuDiceGachaItem(item, new Set([id])) };
-    });
-
-    if (!result) throw new Error('自定义物品删除失败');
-    if (result.removed && !options.silent && window.toastr) window.toastr.success('自定义物品已删除', '骰子商店');
-    emitEvent('gacha:catalog', { action: 'removeCustomItem', ...result });
-    return result;
-  };
+  const removeAcuDiceGachaCustomItem = createRemoveAcuDiceGachaCustomItem({
+    deleteGachaItemSetting: (...a: any[]) => deleteGachaItemSetting(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getCustomGachaItemDefinitions: (...a: any[]) => getCustomGachaItemDefinitions(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    refreshGachaShardShop: (...a: any[]) => refreshGachaShardShop(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    saveStoredGachaCatalog: (...a: any[]) => saveStoredGachaCatalog(...a),
+    serializeAcuDiceGachaItem: (...a: any[]) => serializeAcuDiceGachaItem(...a),
+    showGachaSettingsDialog: (...a: any[]) => showGachaSettingsDialog(...a),
+  });
 
   const removeAcuDiceGachaCustomPool = async (poolId: unknown, options: { silent?: boolean } = {}) => {
     const id = normalizeGachaPoolId(poolId);
