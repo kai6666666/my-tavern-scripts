@@ -644,7 +644,27 @@ export function createBindEvents(deps: any) {
 
     const $searchInput = $('.acu-search-input');
     if ($searchInput.length) {
-      deps.bindCompositionSafeSearchInput(
+      $('body')
+      .off('click.acu_equipment_extra')
+      .on('click.acu_equipment_extra', '.acu-equipment-shop-btn, .acu-equipment-dismantle-btn', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const $btn = $(this);
+        const $overlay = $btn.closest('.acu-preview-overlay');
+        const action = String($btn.data('equip-action') || '');
+        if (action === 'shop') {
+          $('.acu-preview-overlay').remove();
+          void deps.showGachaVisualization();
+          return;
+        }
+        if (action === 'dismantle') {
+          const tableKey = deps.safeDecodeURIComponent(String($overlay.find('[data-key]').first().data('key') || ''));
+          const rowIndex = Number.parseInt(String($overlay.find('[data-row]').first().data('row') ?? ''), 10);
+          if (!tableKey || !Number.isFinite(rowIndex)) return;
+          void deps.dismantleEquipmentItem(tableKey, rowIndex);
+        }
+      });
+    deps.bindCompositionSafeSearchInput(
         { root: $searchInput },
         {
           delay: 300,
@@ -1092,7 +1112,7 @@ export function createBindEvents(deps: any) {
         e.stopPropagation();
         e.preventDefault();
         const nextPoolTag = String($(this).data('pool-tag') || '').trim() as GachaPoolTag;
-        if (!deps.getConfiguredGachaPoolDefinitions().some(pool => pool.id === nextPoolTag)) return;
+        if (!deps.getVisibleGachaPoolConfigDefinitions().some(pool => pool.id === nextPoolTag)) return;
         void deps.updateGachaPoolTag(nextPoolTag);
       });
     $('body')
@@ -1536,6 +1556,7 @@ export function createBindEvents(deps: any) {
         if (!rowData) return;
 
         const config = deps.getConfig();
+        const previewType = String($(this).data('preview-type') || '');
         const title = rowData[1] || '未命名';
         const titleDisplay = isCharacterTable(tableName) ? getDisplayName(String(title)) : String(title);
 
@@ -1605,6 +1626,19 @@ export function createBindEvents(deps: any) {
             .join('');
           actionsHtml = `<div class="acu-card-actions">${actionBtns}</div>`;
         }
+        if (previewType === 'equipment') {
+          const qualityColIdx = headers.findIndex(h => String(h || '').includes('品质'));
+          const equipRarity = qualityColIdx >= 0 ? String(rowData[qualityColIdx] || '').trim() : '';
+          const canDismantleEquip = deps.isGachaRarity(equipRarity);
+          const equipActions = `
+            <button class="acu-action-item acu-equipment-shop-btn" type="button" data-equip-action="shop"><i class="fa-solid fa-store"></i> 骰子商店</button>
+            ${canDismantleEquip ? '<button class="acu-action-item acu-equipment-dismantle-btn" type="button" data-equip-action="dismantle"><i class="fa-solid fa-hammer"></i> 分解碎片</button>' : ''}
+          `;
+          actionsHtml = actionsHtml
+            ? actionsHtml.replace('</div>', `${equipActions}</div>`)
+            : `<div class="acu-card-actions">${equipActions}</div>`;
+        }
+        const actionsHtmlFinal = actionsHtml;
 
         // 构建完整卡片
         const cardHtml = `
@@ -1616,7 +1650,7 @@ export function createBindEvents(deps: any) {
                         <button type="button" class="acu-preview-close acu-card-preview-close" title="关闭" aria-label="关闭卡片预览"><i class="fa-solid fa-times"></i></button>
                     </div>
                     <div class="acu-card-body view-list">${cardBody}</div>
-                    ${actionsHtml}
+                    ${actionsHtmlFinal}
                 </div>
             </div>
         `;

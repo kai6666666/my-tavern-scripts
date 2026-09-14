@@ -458,7 +458,12 @@ export function createRenderDashboard(deps: any) {
                     </div>
 
                     <div class="acu-dash-equipment-task-group">
-                    <h3 class="acu-dash-section-heading acu-dash-table-link acu-dash-equipment-title" data-table="${deps.escapeHtml(equipTableName)}"><span><i class="fa-solid fa-shield-halved"></i> 装备 (${equippedItems.length})</span></h3>
+                    <h3 class="acu-dash-section-heading acu-dash-table-link acu-dash-equipment-title" data-table="${deps.escapeHtml(equipTableName)}">
+                    <span><i class="fa-solid fa-shield-halved"></i> 装备 (${equippedItems.length})</span>
+                    <span class="acu-dash-section-actions">
+                        <i class="fa-solid fa-store acu-dash-gacha-btn acu-dash-section-action" title="骰子商店"></i>
+                    </span>
+                    </h3>
                     <div class="acu-dash-equipment-list">
                     ${
                       equippedItems.length > 0

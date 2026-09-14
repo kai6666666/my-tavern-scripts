@@ -340,7 +340,6 @@ import { createNormalizeGachaRewardTarget } from './features/gacha/normalize-gac
 import { createIsUserPlaceholderKey } from './features/dice/is-user-placeholder-key';
 import { createIsTwoDimensionalArray } from './shared/is-two-dimensional-array';
 import { createIsRecordValue } from './shared/is-record-value';
-import { createIsRecord } from './shared/is-record';
 import { createIsGachaRarity } from './features/gacha/is-gacha-rarity';
 import { createIsGachaPoolEnabled } from './features/gacha/is-gacha-pool-enabled';
 import { createIsGachaPickupItem } from './features/gacha/is-gacha-pickup-item';
@@ -447,7 +446,6 @@ import { createNormalizeGachaItemOrder } from './features/gacha/normalize-gacha-
 import { createNormalizeDiffText } from './features/table/normalize-diff-text';
 import { createNormalizeDatabaseUiText } from './features/table/normalize-database-ui-text';
 import { createNormalizeCrudSqlComment } from './features/table/normalize-crud-sql-comment';
-import { createNormalizeCrudHeaderLookupKey } from './features/table/normalize-crud-header-lookup-key';
 import { createNormalizeAcuDiceGachaImportMode } from './features/api/normalize-acu-dice-gacha-import-mode';
 import { createIsSameKeywordSet } from './shared/is-same-keyword-set';
 import { createIsPlayerTableName } from './features/table/is-player-table-name';
@@ -1240,6 +1238,7 @@ import { createSelectCrazyParticipant } from './features/dice/select-crazy-parti
 import { createInjectIndependentOptions } from './features/ui/inject-independent-options';
 import { createEvaluateFormula } from './features/dice/evaluate-formula';
 import { createDismantleInventoryItem } from './features/table/dismantle-inventory-item';
+import { createDismantleEquipmentItem } from './features/gacha/dismantle-equipment-item';
 import { createParseEquipmentItems } from './features/table/parse-equipment-items';
 import { createParseInventoryItems } from './features/table/parse-inventory-items';
 import { createHandleInventoryAction } from './features/table/handle-inventory-action';
@@ -11658,6 +11657,22 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     showGachaSaveError: (...a: any[]) => showGachaSaveError(...a),
     touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
   });
+  const dismantleEquipmentItem = createDismantleEquipmentItem({
+    addGachaShards: (...a: any[]) => addGachaShards(...a),
+    cloneRuntimeDataValue: (...a: any[]) => cloneRuntimeDataValue(...a),
+    getCachedRawData: () => cachedRawData,
+    getGachaShardLabel: (...a: any[]) => getGachaShardLabel(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    isGachaRarity: (...a: any[]) => isGachaRarity(...a),
+    parseEquipmentItems: (...a: any[]) => parseEquipmentItems(...a),
+    persistRawDataWithGacha: (...a: any[]) => persistRawDataWithGacha(...a),
+    refreshGachaVisualization: (...a: any[]) => refreshGachaVisualization(...a),
+    refreshInventoryVisualization: (...a: any[]) => refreshInventoryVisualization(...a),
+    runInSaveQueue: (...a: any[]) => runInSaveQueue(...a),
+    showGachaSaveError: (...a: any[]) => showGachaSaveError(...a),
+    touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
+  });
 
   const normalizeGachaMessageId = createNormalizeGachaMessageId({
 
@@ -12491,6 +12506,8 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setSuppressNextFloatingCollapseClick: (v: any) => { suppressNextFloatingCollapseClick = v; },
     getTutorialButtonEventsBound: () => tutorialButtonEventsBound,
     setTutorialButtonEventsBound: (v: any) => { tutorialButtonEventsBound = v; },
+    dismantleEquipmentItem: (...a: any[]) => dismantleEquipmentItem(...a),
+    isGachaRarity: (...a: any[]) => isGachaRarity(...a),
   });
 
   let selectedSwapSource = null;

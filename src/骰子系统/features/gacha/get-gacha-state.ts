@@ -5,8 +5,24 @@
  */
 import { mergeLegacyGachaStateForLocalStorage } from './gacha-helpers';
 export function createGetGachaState(deps: any) {
+  let cachedSnapshotKey: string | null = null;
+  let cachedStoredState: GachaState | null = null;
   const getGachaState = (rawData?: unknown, createIfMissing = false): GachaState | null => {
-    const storedState = deps.normalizeGachaStateRecord(deps.getStoredGachaStateSnapshot());
+    const snapshot = deps.getStoredGachaStateSnapshot();
+    let snapshotKey = '';
+    try {
+      snapshotKey = snapshot ? JSON.stringify(snapshot) : '';
+    } catch {
+      snapshotKey = '';
+    }
+    let storedState: GachaState | null;
+    if (snapshotKey && snapshotKey === cachedSnapshotKey) {
+      storedState = cachedStoredState;
+    } else {
+      storedState = deps.normalizeGachaStateRecord(snapshot);
+      cachedSnapshotKey = snapshotKey;
+      cachedStoredState = storedState;
+    }
     const legacyDatabaseState = deps.getLegacyGachaStateFromRawData(rawData);
     if (legacyDatabaseState && (!storedState || !deps.hasMigratedLegacyGachaState())) {
       const migratedState = storedState
