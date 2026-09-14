@@ -9,8 +9,13 @@
 export function createUpdateController(deps: any) {
   const UpdateController = {
     _lastValidationCount: 0,
-    handleUpdate: () => {
+    _lastMeta: null,
+    handleUpdate: (meta?: any) => {
       try {
+        if (meta && meta.persisted === false) {
+          console.info('[DICE]ACU 收到未落盘更新通知（persisted=false），数据仅运行时生效');
+        }
+        UpdateController._lastMeta = meta || null;
         // === 更新拦截逻辑（检查启用了 intercept 的规则） ===
         let newData: unknown = null;
         try {

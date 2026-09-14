@@ -248,10 +248,10 @@ export function createInit(deps: any) {
           }
           diceWindow.__acuDiceTableUpdateHook = deps.UpdateController.handleUpdate;
           if (!api.__acuDiceTableUpdateDispatcher) {
-            const updateDispatcher = () => {
+            const updateDispatcher = (...args: any[]) => {
               try {
                 const hook = diceWindow.__acuDiceTableUpdateHook;
-                if (typeof hook === 'function') hook();
+                if (typeof hook === 'function') hook(...args);
               } catch (dispatcherError) {
                 console.warn('[DICE]ACU 更新回调分发失败（已忽略，不影响数据库）:', dispatcherError);
               }
@@ -269,10 +269,10 @@ export function createInit(deps: any) {
           if (api.registerTableFillStartCallback) {
             diceWindow.__acuDiceFillStartHook = () => deps.maybeRefreshReviewBaselineAtFillStart();
             if (!api.__acuDiceFillStartDispatcher) {
-              const fillStartDispatcher = () => {
+              const fillStartDispatcher = (...args: any[]) => {
                 try {
                   const hook = diceWindow.__acuDiceFillStartHook;
-                  if (typeof hook === 'function') hook();
+                  if (typeof hook === 'function') hook(...args);
                 } catch (dispatcherError) {
                   console.warn('[DICE]ACU 填表开始回调分发失败（已忽略，不影响数据库）:', dispatcherError);
                 }
