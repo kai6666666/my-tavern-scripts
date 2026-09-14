@@ -235,30 +235,56 @@ export function createInit(deps: any) {
         setTimeout(() => {
           deps.hideDiceResultsInUserMessages();
         }, 500);
-        // 注册回调
+        // 注册回调（单例分发器模式：回调只注册一次，始终转发到最新实例的钩子，避免脚本重载导致回调堆积）
+        const diceWindow = window as any;
         if (api.registerTableUpdateCallback) {
           try {
-            const prevCallback = api.__acuDiceHandleUpdateCallback;
-            if (prevCallback && typeof api.unregisterTableUpdateCallback === 'function') {
-              api.unregisterTableUpdateCallback(prevCallback);
+            const legacyCallback = api.__acuDiceHandleUpdateCallback;
+            if (legacyCallback && typeof api.unregisterTableUpdateCallback === 'function') {
+              api.unregisterTableUpdateCallback(legacyCallback);
             }
           } catch (cleanupError) {
-            console.warn('[DICE]ACU 注销旧表格更新回调失败（已忽略）:', cleanupError);
+            console.warn('[DICE]ACU 清理旧版更新回调失败（已忽略）:', cleanupError);
           }
-          const updateCallback = deps.UpdateController.handleUpdate;
-          api.registerTableUpdateCallback(updateCallback);
-          try {
-            api.__acuDiceHandleUpdateCallback = updateCallback;
-          } catch {}
-          console.info('[DICE]ACU 已注册数据库表格更新回调（幂等）');
-          console.info('[DICE]已注册表格更新回调');
+          diceWindow.__acuDiceTableUpdateHook = deps.UpdateController.handleUpdate;
+          if (!api.__acuDiceTableUpdateDispatcher) {
+            const updateDispatcher = () => {
+              try {
+                const hook = diceWindow.__acuDiceTableUpdateHook;
+                if (typeof hook === 'function') hook();
+              } catch (dispatcherError) {
+                console.warn('[DICE]ACU 更新回调分发失败（已忽略，不影响数据库）:', dispatcherError);
+              }
+            };
+            api.registerTableUpdateCallback(updateDispatcher);
+            try {
+              api.__acuDiceTableUpdateDispatcher = updateDispatcher;
+            } catch {}
+            console.info('[DICE]ACU 已注册数据库表格更新回调（单例分发器）');
+          } else {
+            console.info('[DICE]ACU 表格更新回调已存在，仅更新最新钩子');
+          }
 
           // 恢复快照功能
           if (api.registerTableFillStartCallback) {
-            api.registerTableFillStartCallback(() => {
-              deps.saveCurrentDatabaseSnapshotAsReviewBaseline('table_fill_start');
-            });
-            console.info('[DICE]已注册表格填充开始回调');
+            diceWindow.__acuDiceFillStartHook = () => deps.saveCurrentDatabaseSnapshotAsReviewBaseline('table_fill_start');
+            if (!api.__acuDiceFillStartDispatcher) {
+              const fillStartDispatcher = () => {
+                try {
+                  const hook = diceWindow.__acuDiceFillStartHook;
+                  if (typeof hook === 'function') hook();
+                } catch (dispatcherError) {
+                  console.warn('[DICE]ACU 填表开始回调分发失败（已忽略，不影响数据库）:', dispatcherError);
+                }
+              };
+              api.registerTableFillStartCallback(fillStartDispatcher);
+              try {
+                api.__acuDiceFillStartDispatcher = fillStartDispatcher;
+              } catch {}
+              console.info('[DICE]ACU 已注册表格填充开始回调（单例分发器）');
+            } else {
+              console.info('[DICE]ACU 填表开始回调已存在，仅更新最新钩子');
+            }
           }
         } else {
           console.warn('[DICE]数据库 API 不支持回调注册');
