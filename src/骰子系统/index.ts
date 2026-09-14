@@ -7793,6 +7793,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCurrentData?: () => unknown;
     exportTableAsJson?: () => unknown;
     refreshDataAndWorldbook?: () => Promise<unknown> | unknown;
+    triggerUpdate?: () => Promise<unknown> | unknown;
     _notifyTableUpdate?: () => void;
   };
 

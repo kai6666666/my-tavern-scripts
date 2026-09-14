@@ -15,7 +15,20 @@ export function createPatchLatestChatSheetWithoutTracking(deps: any) {
       if (!msg || msg.is_user) continue;
       const patchedKeys = deps.patchCrudSheetInMessage(msg, sheetKey, desiredSheet);
       if (patchedKeys.length === 0) continue;
-      await triggerSlash('savechat');
+      try {
+        await triggerSlash('savechat');
+      } catch (saveError) {
+        try {
+          const helper = (window as any).TavernHelper;
+          if (helper && typeof helper.triggerSlash === 'function') {
+            await helper.triggerSlash('/savechat');
+          } else {
+            console.warn('[DICE]ACU savechat 未找到可用通道（已忽略）:', saveError);
+          }
+        } catch (fallbackError) {
+          console.warn('[DICE]ACU savechat 回退失败（已忽略）:', fallbackError);
+        }
+      }
       return { messageIndex: index, patchedKeys };
     }
     return null;

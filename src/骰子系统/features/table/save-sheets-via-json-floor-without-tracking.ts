@@ -28,10 +28,27 @@ export function createSaveSheetsViaJsonFloorWithoutTracking(deps: any) {
       });
     }
 
+    let refreshError: unknown = null;
     if (typeof api.refreshDataAndWorldbook === 'function') {
-      await api.refreshDataAndWorldbook();
+      try {
+        await api.refreshDataAndWorldbook();
+      } catch (error) {
+        refreshError = error;
+      }
     } else {
-      api._notifyTableUpdate?.();
+      try {
+        api._notifyTableUpdate?.();
+      } catch (error) {
+        refreshError = error;
+      }
+    }
+    if (refreshError) {
+      console.warn('[DICE]ACU刷新数据/世界书失败，回退 triggerUpdate():', refreshError);
+      try {
+        if (typeof api.triggerUpdate === 'function') await api.triggerUpdate();
+      } catch (fallbackError) {
+        console.warn('[DICE]ACU triggerUpdate 回退亦失败（已忽略）:', fallbackError);
+      }
     }
     const refreshedData = deps.getTableData({ silent: true }) || dataToSave;
     deps.setCachedRawData(refreshedData);
