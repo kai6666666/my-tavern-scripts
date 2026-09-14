@@ -456,6 +456,7 @@ export function createRenderInterfaceImpl(deps: any) {
       const navSortedKeys = deps.getStableTableSort(allNavItems.map(item => item.key));
       const navOrderMap = new Map(navSortedKeys.map((k, i) => [k, i]));
       allNavItems.sort((a, b) => (navOrderMap.get(a.key) ?? 9999) - (navOrderMap.get(b.key) ?? 9999));
+      deps.ensureCanonicalTableOrder(allNavItems.map(item => item.key));
 
 // 渲染所有导航项（order 从 1 开始，避免移动端 Grid 布局问题）
       allNavItems.forEach((item, idx) => {

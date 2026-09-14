@@ -83,6 +83,7 @@ export function createShowSettingsModal(deps: any) {
       const orderedItems = [...allItems].sort(
         (a, b) => (stableOrderMap.get(a.key) ?? 9999) - (stableOrderMap.get(b.key) ?? 9999),
       );
+      deps.ensureCanonicalTableOrder(orderedItems.map(item => item.key));
       return orderedItems
         .map(item => {
           const isHidden = hiddenList.includes(item.key);
