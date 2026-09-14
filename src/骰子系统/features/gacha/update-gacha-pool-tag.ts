@@ -8,23 +8,20 @@ export function createUpdateGachaPoolTag(deps: any) {
   const updateGachaPoolTag = (poolTag: GachaPoolTag) => {
     const state = deps.getGachaState(undefined, true);
     const currentPoolTag = deps.getGachaActivePoolTag(state);
-    console.warn('[gacha-debug] updateGachaPoolTag', poolTag, 'current=', currentPoolTag, 'hasState=', Boolean(state));
     deps.saveStoredGachaActivePoolTag(poolTag);
     if (state) state.activePoolTag = poolTag;
     if (state) {
-      const saved = deps.saveStoredGachaStateSnapshot(state);
-      console.warn('[gacha-debug] state snapshot saved=', saved);
+      deps.saveStoredGachaStateSnapshot(state);
     }
     try {
       deps.refreshGachaPoolSelectionUi(poolTag);
-      console.warn('[gacha-debug] pool selection refreshed');
     } catch (error) {
-      console.warn('[gacha-debug] refresh pool selection error:', error);
+      console.warn('[DICE][GACHA]刷新卡池选择失败:', error);
     }
     try {
       deps.refreshGachaShardShop();
     } catch (error) {
-      console.warn('[gacha-debug] refresh shard shop error:', error);
+      console.warn('[DICE][GACHA]刷新碎片商店失败:', error);
     }
   };
   return updateGachaPoolTag;

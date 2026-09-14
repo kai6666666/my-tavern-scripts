@@ -4,13 +4,15 @@
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createShowInventoryVisualization(deps: any) {
-  const showInventoryVisualization = () => {
+  const showInventoryVisualization = (target?: 'inventory' | 'equipment') => {
     const { $ } = deps.getCore();
     deps.closeInventoryVisualization();
     deps.closeGachaVisualization();
+    const panelTarget: 'inventory' | 'equipment' = target === 'equipment' ? 'equipment' : target === 'inventory' ? 'inventory' : deps.getInventoryPanelTarget();
+    deps.saveInventoryPanelTarget(panelTarget);
     const rawData = deps.getCachedRawData() || deps.getTableData();
     const overlay = $(`<div class="acu-inventory-overlay acu-theme-${deps.getConfig().theme}"></div>`);
-    overlay.html(deps.renderInventoryVisualization(rawData));
+    overlay.html(deps.renderInventoryVisualization(rawData, panelTarget));
     $('body').append(overlay);
     deps.hydrateCustomTableNameIconsIn(overlay);
     const overlayEl = overlay[0] as HTMLElement | undefined;

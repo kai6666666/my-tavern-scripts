@@ -12101,6 +12101,8 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     renderInventoryVisualization: (...a: any[]) => renderInventoryVisualization(...a),
     setupOverlayClose: (...a: any[]) => setupOverlayClose(...a),
     getCachedRawData: () => cachedRawData,
+    getInventoryPanelTarget: (...a: any[]) => getInventoryPanelTarget(...a),
+    saveInventoryPanelTarget: (...a: any[]) => saveInventoryPanelTarget(...a),
   });
 
   const findInventoryItemByRow = createFindInventoryItemByRow({

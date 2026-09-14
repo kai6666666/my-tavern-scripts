@@ -75,8 +75,7 @@ export function createBindEvents(deps: any) {
       e.stopPropagation();
       e.preventDefault();
       const target = String($(this).data('inventory-target') || 'inventory') === 'equipment' ? 'equipment' : 'inventory';
-      deps.saveInventoryPanelTarget(target);
-      deps.showInventoryVisualization();
+      deps.showInventoryVisualization(target);
     });
 
     // 仪表盘-骰子商店按钮
@@ -745,8 +744,7 @@ export function createBindEvents(deps: any) {
         e.preventDefault();
         e.stopPropagation();
         const target = String($(this).data('inventory-target') || 'inventory') === 'equipment' ? 'equipment' : 'inventory';
-        deps.saveInventoryPanelTarget(target);
-        deps.showInventoryVisualization();
+        deps.showInventoryVisualization(target);
       });
     $('.acu-gacha-open-btn')
       .off('click')
@@ -1118,14 +1116,10 @@ export function createBindEvents(deps: any) {
         const nextPoolTag = String($(this).data('pool-tag') || '').trim() as GachaPoolTag;
         try {
           const visiblePoolIds = deps.getVisibleGachaPoolConfigDefinitions().map(pool => pool.id);
-          console.warn('[gacha-debug] pool click', nextPoolTag, 'visible=', visiblePoolIds);
-          if (!visiblePoolIds.includes(nextPoolTag)) {
-            console.warn('[gacha-debug] guard blocked:', nextPoolTag);
-            return;
-          }
+          if (!visiblePoolIds.includes(nextPoolTag)) return;
           void deps.updateGachaPoolTag(nextPoolTag);
         } catch (error) {
-          console.warn('[gacha-debug] pool click error:', error);
+          console.warn('[DICE][GACHA]池切换失败:', error);
         }
       });
     $('body')
