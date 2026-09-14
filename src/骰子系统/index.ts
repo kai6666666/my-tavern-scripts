@@ -85,6 +85,67 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createEnsurePanelNavigationVisible } from './features/ui/ensure-panel-navigation-visible';
+import { createUpdateGachaItemSetting } from './features/gacha/update-gacha-item-setting';
+import { createSyncAttributeRuleTagsInTemplate } from './features/dice/sync-attribute-rule-tags-in-template';
+import { createStripSystemInjectedContent } from './features/human-input/strip-system-injected-content';
+import { createSanitizeDiceConfigBackupStoredValue } from './features/dice/sanitize-dice-config-backup-stored-value';
+import { createSanitizeDiceConfigBackupRegexRule } from './features/dice/sanitize-dice-config-backup-regex-rule';
+import { createRunInSaveQueue } from './features/table/run-in-save-queue';
+import { createRunDatabaseManualUpdateViaLegacyButton } from './features/table/run-database-manual-update-via-legacy-button';
+import { createRestoreMutableRuntimeValue } from './features/table/restore-mutable-runtime-value';
+import { createResolveDashboardCustomTableNameIconRowName } from './features/dashboard/resolve-dashboard-custom-table-name-icon-row-name';
+import { createRefreshGachaShardShop } from './features/gacha/refresh-gacha-shard-shop';
+import { createRefreshChangesPanel } from './features/changes/refresh-changes-panel';
+import { createReadAdvancedPresetPolicyNumber } from './features/presets/read-advanced-preset-policy-number';
+import { createPatchCrudSheetCellInRecord } from './features/table/patch-crud-sheet-cell-in-record';
+import { createParseIsolatedData } from './features/table/parse-isolated-data';
+import { createNormalizeGachaCustomFields } from './features/gacha/normalize-gacha-custom-fields';
+import { createMergeDiceConfigBackupSetArray } from './features/dice/merge-dice-config-backup-set-array';
+import { createGetViewportBottomAnchorElements } from './features/ui/get-viewport-bottom-anchor-elements';
+import { createGetPlayerName } from './features/dice/get-player-name';
+import { createGetLatestAssistantMessageElement } from './features/table/get-latest-assistant-message-element';
+import { createGetGachaState } from './features/gacha/get-gacha-state';
+import { createGetGachaShopProgressContainers } from './features/gacha/get-gacha-shop-progress-containers';
+import { createGetDataAreaForRoot } from './features/ui/get-data-area-for-root';
+import { createGachaRegexActionsInstance } from './features/gacha/gacha-regex-actions-instance';
+import { createFindRelationGraphRelationColumnMatch } from './features/table/find-relation-graph-relation-column-match';
+import { createFindGachaDefinitionByNameQuality } from './features/gacha/find-gacha-definition-by-name-quality';
+import { createExtractNumericValue } from './shared/extract-numeric-value';
+import { createDownloadTextFile } from './shared/download-text-file';
+import { createCreateRegexRuleSignature } from './features/regex/create-regex-rule-signature';
+import { createClampPanelHeightToDisplay } from './features/ui/clamp-panel-height-to-display';
+import { createBuildDefaultGachaPoolDefinition } from './features/gacha/build-default-gacha-pool-definition';
+import { createBuildCrudColumnAliasMap } from './features/table/build-crud-column-alias-map';
+import { createBuildAcuDiceGachaStateSnapshot } from './features/gacha/build-acu-dice-gacha-state-snapshot';
+import { createApplyDiceConfigBackupRuleOverrides } from './features/dice/apply-dice-config-backup-rule-overrides';
+import { createDiffIdHeaderKeywords } from './features/table/diff-id-header-keywords';
+import { createUpdateValidationIndicator } from './features/ui/update-validation-indicator';
+import { createTriggerGenerationAfterDirectSend } from './features/textarea/trigger-generation-after-direct-send';
+import { createStringifyAcuDiceGachaCatalogInput } from './features/gacha/stringify-acu-dice-gacha-catalog-input';
+import { createStartGachaShopUiRefresh } from './features/gacha/start-gacha-shop-ui-refresh';
+import { createRunMaybeAsyncDatabaseUiOpener } from './features/table/run-maybe-async-database-ui-opener';
+import { createRenderAsyncImageIconSlotContent } from './features/ui/render-async-image-icon-slot-content';
+import { createParseInSceneStatus } from './features/dice/parse-in-scene-status';
+import { createOpenDatabaseVisualizerInterface } from './features/table/open-database-visualizer-interface';
+import { createIsRelationshipCell } from './features/table/is-relationship-cell';
+import { createGetUserCharacterNameCandidates } from './features/dice/get-user-character-name-candidates';
+import { createGetInventoryGlobalContext } from './features/gacha/get-inventory-global-context';
+import { createGetInventoryFieldColumnIndex } from './features/gacha/get-inventory-field-column-index';
+import { createGetCustomTableNameIconPackImportSummaryText } from './features/table/get-custom-table-name-icon-pack-import-summary-text';
+import { createGetCustomTableNameIconManagerRawSheets } from './features/table/get-custom-table-name-icon-manager-raw-sheets';
+import { createFindRuntimeFunction } from './shared/find-runtime-function';
+import { createDedupeInteractionActions } from './features/table/dedupe-interaction-actions';
+import { createCollectDiceConfigBackupGachaCatalogRollbackSnapshot } from './features/dice/collect-dice-config-backup-gacha-catalog-rollback-snapshot';
+import { createCloneQuickSelectNameMapping } from './features/dice/clone-quick-select-name-mapping';
+import { createClickDatabaseNewUiFormFillNavigation } from './features/table/click-database-new-ui-form-fill-navigation';
+import { createClearViewportInputMutationObserver } from './features/ui/clear-viewport-input-mutation-observer';
+import { createClearFixedAnchorMutationObserver } from './features/ui/clear-fixed-anchor-mutation-observer';
+import { createClearComposerIfCurrentText } from './features/textarea/clear-composer-if-current-text';
+import { createCleanupGlobalInteractionFloatingMenus } from './features/table/cleanup-global-interaction-floating-menus';
+import { createBuildAvatarBackgroundStyle } from './features/avatars/build-avatar-background-style';
+import { createAssertCrudInsertRequiredCells } from './features/table/assert-crud-insert-required-cells';
+import { createGlobalInteractionNameHeaderKeywords } from './features/table/global-interaction-name-header-keywords';
 import { createSetPanelRequestedHeight } from './features/ui/set-panel-requested-height';
 import { createRenderDiceConfigBackupPrivacyNotice } from './features/dice/render-dice-config-backup-privacy-notice';
 import { createPushRecentGachaReward } from './features/gacha/push-recent-gacha-reward';
@@ -1397,19 +1458,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeImageUrlInput: (...a: any[]) => normalizeImageUrlInput(...a),
   });
 
-  const buildAvatarBackgroundStyle = (
-    imageUrl: unknown,
-    offsetX: unknown = 50,
-    offsetY: unknown = 50,
-    scale: unknown = 150,
-  ): string => {
-    const cssImageUrl = formatCssImageUrl(imageUrl, { allowInternalObjectUrl: true });
-    if (!cssImageUrl) return '';
-    const normalizedScale = Number(scale);
-    const normalizedOffsetX = Number(offsetX);
-    const normalizedOffsetY = Number(offsetY);
-    return `background-image:${cssImageUrl};background-size:${Number.isFinite(normalizedScale) ? normalizedScale : 150}%;background-position:${Number.isFinite(normalizedOffsetX) ? normalizedOffsetX : 50}% ${Number.isFinite(normalizedOffsetY) ? normalizedOffsetY : 50}%;`;
-  };
+  const buildAvatarBackgroundStyle = createBuildAvatarBackgroundStyle({
+    formatCssImageUrl: (...a: any[]) => formatCssImageUrl(...a),
+  });
 
 
   const renderDeprecatedBadge = createRenderDeprecatedBadge({
@@ -1565,20 +1616,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeTrackedText: (...a: any[]) => normalizeTrackedText(...a),
   });
 
-  const stripSystemInjectedContent = (text: unknown, systemActionText?: unknown): string => {
-    const normalized = normalizeTrackedText(text);
-    const explicitHumanInput = extractExplicitHumanInputText(normalized);
-    let result = explicitHumanInput || normalized;
-    HUMAN_INPUT_TAG_BLOCK_PATTERNS.forEach(pattern => {
-      result = result.replace(pattern, ' ');
-    });
-    if (!explicitHumanInput) {
-      result = result.replace(HUMAN_INPUT_ACTION_PATTERN, ' ');
-      result = stripKnownSystemActionText(result, systemActionText);
-    }
-    result = result.replace(/\[投骰结果已隐藏\]/g, ' ');
-    return normalizeTrackedText(result);
-  };
+  const stripSystemInjectedContent = createStripSystemInjectedContent({
+    extractExplicitHumanInputText: (...a: any[]) => extractExplicitHumanInputText(...a),
+    normalizeTrackedText: (...a: any[]) => normalizeTrackedText(...a),
+    stripKnownSystemActionText: (...a: any[]) => stripKnownSystemActionText(...a),
+    getHUMAN_INPUT_ACTION_PATTERN: () => HUMAN_INPUT_ACTION_PATTERN,
+    getHUMAN_INPUT_TAG_BLOCK_PATTERNS: () => HUMAN_INPUT_TAG_BLOCK_PATTERNS,
+  });
 
   const countUnicodeCharacters = (text: string): number => Array.from(String(text || '')).length;
 
@@ -1632,19 +1676,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
   });
 
-  const findRuntimeFunction = (name: string) => {
-    for (const runtimeWindow of getRuntimeWindowCandidates()) {
-      const directFn = runtimeWindow?.[name];
-      if (typeof directFn === 'function') return directFn.bind(runtimeWindow);
-
-      const tavernHelper = runtimeWindow?.TavernHelper;
-      const helperFn = tavernHelper?.[name];
-      if (typeof helperFn === 'function') return helperFn.bind(tavernHelper);
-    }
-
-    const globalFn = globalThis?.[name];
-    return typeof globalFn === 'function' ? globalFn.bind(globalThis) : null;
-  };
+  const findRuntimeFunction = createFindRuntimeFunction({
+    getRuntimeWindowCandidates: (...a: any[]) => getRuntimeWindowCandidates(...a),
+  });
 
   const findSillyTavernSlashRunner = createFindSillyTavernSlashRunner({
     getRuntimeWindowCandidates: (...a: any[]) => getRuntimeWindowCandidates(...a),
@@ -1664,19 +1698,14 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     syncTextareaDiceCacheFromVisibleText: (...a: any[]) => syncTextareaDiceCacheFromVisibleText(...a),
   });
 
-  const clearComposerIfCurrentText = (sentText: string) => {
-    const textarea = getComposerTextarea();
-    if (!textarea) return;
-    const currentText = syncTextareaDiceCacheFromVisibleText(textarea, readTextareaVisibleValue(textarea)).trim();
-    if (currentText !== String(sentText ?? '').trim()) return;
-
-    const { $ } = getCore();
-    const $ta = $(textarea);
-    setTextareaValueAndNotify(textarea, '');
-    clearTextareaDiceCache(textarea);
-    $ta.removeData('acu-original-action-text');
-    textarea._acuOriginalActionText = null;
-  };
+  const clearComposerIfCurrentText = createClearComposerIfCurrentText({
+    clearTextareaDiceCache: (...a: any[]) => clearTextareaDiceCache(...a),
+    getComposerTextarea: (...a: any[]) => getComposerTextarea(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    readTextareaVisibleValue: (...a: any[]) => readTextareaVisibleValue(...a),
+    setTextareaValueAndNotify: (...a: any[]) => setTextareaValueAndNotify(...a),
+    syncTextareaDiceCacheFromVisibleText: (...a: any[]) => syncTextareaDiceCacheFromVisibleText(...a),
+  });
 
   const findComposerSendButton = createFindComposerSendButton({
     getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
@@ -1695,19 +1724,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     sendTextViaComposer: (...a: any[]) => sendTextViaComposer(...a),
     triggerGenerationAfterDirectSend: (...a: any[]) => triggerGenerationAfterDirectSend(...a),
   });
-  const triggerGenerationAfterDirectSend = async (): Promise<boolean> => {
-    const triggerSlashFn = findRuntimeFunction('triggerSlash');
-    if (triggerSlashFn) {
-      await triggerSlashFn('/trigger');
-      return true;
-    }
-    const runSlash = findSillyTavernSlashRunner();
-    if (runSlash) {
-      await runSlash('/trigger');
-      return true;
-    }
-    return false;
-  };
+  const triggerGenerationAfterDirectSend = createTriggerGenerationAfterDirectSend({
+    findRuntimeFunction: (...a: any[]) => findRuntimeFunction(...a),
+    findSillyTavernSlashRunner: (...a: any[]) => findSillyTavernSlashRunner(...a),
+  });
 
   // [新增] 在发送消息前恢复真实结果
   const restoreDiceResultBeforeSend = createRestoreDiceResultBeforeSend({
@@ -2327,20 +2347,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // [新增] 获取主角名字（用于判断是否是主角）
-  const getPlayerName = () => {
-    const rawData = cachedRawData || (typeof getTableData === 'function' ? getTableData() : null);
-    if (rawData) {
-      for (const key in rawData) {
-        const sheet = rawData[key];
-        if (sheet?.name?.includes('主角') && sheet.content?.[1]) {
-          const headers = sheet.content[0] || [];
-          const displayName = getRowDisplayName(sheet.content[1], headers);
-          if (displayName) return displayName;
-        }
-      }
-    }
-    return null;
-  };
+  const getPlayerName = createGetPlayerName({
+    getTableData: (...a: any[]) => getTableData(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   // [新增] 获取 SillyTavern Persona 名称（用于显示）
   const getPersonaName = createGetPersonaName({
@@ -2548,19 +2558,15 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     NameAliasRegistry: NameAliasRegistry,
   });
 
-  const getUserCharacterNameCandidates = (): string[] => {
-    const seeds: string[] = [...USER_PLACEHOLDER_KEYS, '主角'];
-    [getPlayerName(), getPersonaName(), getDisplayPlayerName()].forEach(name => pushUniqueNameCandidate(seeds, name));
-    USER_PLACEHOLDER_KEYS.forEach(key =>
-      getAvatarManualAliases(key).forEach(alias => pushUniqueNameCandidate(seeds, alias)),
-    );
-
-    const candidates: string[] = [];
-    seeds.forEach(seed => {
-      getCharacterNameCandidates(seed).forEach(candidate => pushUniqueNameCandidate(candidates, candidate));
-    });
-    return candidates;
-  };
+  const getUserCharacterNameCandidates = createGetUserCharacterNameCandidates({
+    getAvatarManualAliases: (...a: any[]) => getAvatarManualAliases(...a),
+    getCharacterNameCandidates: (...a: any[]) => getCharacterNameCandidates(...a),
+    getDisplayPlayerName: (...a: any[]) => getDisplayPlayerName(...a),
+    getPersonaName: (...a: any[]) => getPersonaName(...a),
+    getPlayerName: (...a: any[]) => getPlayerName(...a),
+    pushUniqueNameCandidate: (...a: any[]) => pushUniqueNameCandidate(...a),
+    getUSER_PLACEHOLDER_KEYS: () => USER_PLACEHOLDER_KEYS,
+  });
 
   const isUserCharacterName = createIsUserCharacterName({
     getCharacterNameCandidates: (...a: any[]) => getCharacterNameCandidates(...a),
@@ -2777,19 +2783,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     resolveGlobalInteractionSectionMeta: (...a: any[]) => resolveGlobalInteractionSectionMeta(...a),
   });
 
-  const renderAsyncImageIconSlotContent = (
-    fallbackContent: string,
-    options: { url?: string | null; localKey?: string | null },
-  ): string => {
-    const url = String(options.url || '').trim();
-    const localKey = String(options.localKey || '').trim();
-    if (!url && !localKey) return fallbackContent;
-    const sourceClass = url ? 'acu-custom-table-name-url-icon' : 'acu-custom-table-name-local-icon';
-    const sourceAttr = url
-      ? ` data-custom-table-name-icon-url="${escapeHtml(url)}"`
-      : ` data-custom-table-name-icon-local-key="${escapeHtml(localKey)}"`;
-    return `<span class="acu-custom-table-name-icon-slot acu-custom-table-name-icon ${sourceClass}"${sourceAttr} style="display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:inherit;overflow:hidden;">${fallbackContent}</span>`;
-  };
+  const renderAsyncImageIconSlotContent = createRenderAsyncImageIconSlotContent({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
   const renderCustomTableNameIconContent = createRenderCustomTableNameIconContent({
     isCustomTableNameIconImageUrlValid: (...a: any[]) => isCustomTableNameIconImageUrlValid(...a),
@@ -3547,19 +3543,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const cloneQuickSelectNameMapping = (
-    mapping: Partial<Record<AttributeQuickSelectTarget, string[]>> | undefined,
-  ): Partial<Record<AttributeQuickSelectTarget, string[]>> => {
-    const result: Partial<Record<AttributeQuickSelectTarget, string[]>> = {};
-    if (!mapping) return result;
-    (['attribute', 'skillMod', 'mod'] as AttributeQuickSelectTarget[]).forEach(target => {
-      const names = mapping[target];
-      if (Array.isArray(names)) {
-        result[target] = names.map(name => String(name).trim()).filter(Boolean);
-      }
-    });
-    return result;
-  };
+  const cloneQuickSelectNameMapping = createCloneQuickSelectNameMapping({
+
+  });
 
   const normalizeAttributeQuickSelectConfig = createNormalizeAttributeQuickSelectConfig({
     cloneQuickSelectNameMapping: (...a: any[]) => cloneQuickSelectNameMapping(...a),
@@ -3726,20 +3712,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isUnmet: boolean;
   }
 
-  const readAdvancedPresetPolicyNumber = (
-    context: Record<string, string | number | boolean | RollResult>,
-    key: string,
-    fallback: number,
-  ): number => {
-    const rawValue = context[key];
-    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) return rawValue;
-    if (typeof rawValue === 'boolean') return rawValue ? 1 : 0;
-    if (typeof rawValue === 'string') {
-      const parsed = Number(rawValue);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    return fallback;
-  };
+  const readAdvancedPresetPolicyNumber = createReadAdvancedPresetPolicyNumber({
+
+  });
 
   const applyAdvancedPresetOutcomePolicy = createApplyAdvancedPresetOutcomePolicy({
     readAdvancedPresetPolicyNumber: (...a: any[]) => readAdvancedPresetPolicyNumber(...a),
@@ -3963,20 +3938,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     replaceTag: (...a: any[]) => replaceTag(...a),
   });
 
-  const syncAttributeRuleTagsInTemplate = (
-    template: RuleTemplateRecord,
-    presetId: string | null | undefined,
-    debugPrefix: string,
-  ): boolean => {
-    const built = buildAttributeRulesContent(presetId);
-    console.info(`${debugPrefix} 已生成当前属性规则内容`, {
-      requestedPresetId: presetId,
-      resolvedPresetId: built.preset.id,
-      presetName: built.preset.name,
-      ...built.debug,
-    });
-    return replaceRuleTagInTemplate(template, '属性规则', built.content, debugPrefix);
-  };
+  const syncAttributeRuleTagsInTemplate = createSyncAttributeRuleTagsInTemplate({
+    buildAttributeRulesContent: (...a: any[]) => buildAttributeRulesContent(...a),
+    replaceRuleTagInTemplate: (...a: any[]) => replaceRuleTagInTemplate(...a),
+  });
 
   const syncCheckRuleTagsInTemplate = createSyncCheckRuleTagsInTemplate({
     buildCheckSuggestionGuide: (...a: any[]) => buildCheckSuggestionGuide(...a),
@@ -4365,20 +4330,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     });
   };
 
-  const downloadTextFile = ({ content, filename, mimeType }: DownloadTextFileOptions): void => {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    try {
-      anchor.click();
-    } finally {
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-    }
-  };
+  const downloadTextFile = createDownloadTextFile({
+
+  });
 
   const downloadJsonFile = createDownloadJsonFile({
     downloadTextFile: (...a: any[]) => downloadTextFile(...a),
@@ -4568,19 +4522,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const GLOBAL_INTERACTION_NAME_HEADERS = createGlobalInteractionNameHeaders({
 
   });
-  const GLOBAL_INTERACTION_NAME_HEADER_KEYWORDS = [
-    '名称',
-    '名字',
-    '姓名',
-    '角色名',
-    '人物名',
-    '地点',
-    '地名',
-    '物品名',
-    '道具名',
-    'name',
-    'title',
-  ];
+  const GLOBAL_INTERACTION_NAME_HEADER_KEYWORDS = createGlobalInteractionNameHeaderKeywords({
+
+  });
   const GLOBAL_INTERACTION_NON_NAME_HEADER_KEYWORDS = createGlobalInteractionNonNameHeaderKeywords({
 
   });
@@ -4604,19 +4548,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
   const normalizeInteractionLabel = (label: string): string => label.trim().toLowerCase();
 
-  const dedupeInteractionActions = (actions: GlobalInteractionAction[]): GlobalInteractionAction[] => {
-    const seenLabels = new Set<string>();
-    const result: GlobalInteractionAction[] = [];
-
-    actions.forEach(action => {
-      const normalizedLabel = normalizeInteractionLabel(action.label);
-      if (!normalizedLabel || seenLabels.has(normalizedLabel)) return;
-      seenLabels.add(normalizedLabel);
-      result.push(action);
-    });
-
-    return result;
-  };
+  const dedupeInteractionActions = createDedupeInteractionActions({
+    normalizeInteractionLabel: (...a: any[]) => normalizeInteractionLabel(...a),
+  });
 
   const getStringLikeCellText = createGetStringLikeCellText({
 
@@ -4704,20 +4638,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const extractNumericValue = value => {
-    if (!value) return 0;
-    const str = String(value).trim();
-    // 处理分数形式 (50/100 -> 取第一个数)
-    if (/^\d+\/\d+$/.test(str)) return parseInt(str.split('/')[0], 10);
-    // 处理百分比
-    if (str.endsWith('%')) return parseInt(str.replace('%', ''), 10);
-    // 处理 "标签:数值" 格式，提取最后一个数字
-    const matches = str.match(/\d+/g);
-    if (matches && matches.length > 0) {
-      return parseInt(matches[matches.length - 1], 10);
-    }
-    return 0;
-  };
+  const extractNumericValue = createExtractNumericValue({
+
+  });
 
   const parseAttributeString = createParseAttributeString({
 
@@ -4730,19 +4653,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // [新增] 检测是否是人际关系格式
-  const isRelationshipCell = (value, headerName) => {
-    if (!value) return false;
-    const str = String(value).trim();
-    const lowerHeader = (headerName || '').toLowerCase();
-    // 表头包含"关系"关键词
-    if (lowerHeader.includes('关系') || lowerHeader.includes('人际')) {
-      return true;
-    }
-    // 非关系字段里常见 "名称(说明)"，单个括号不应被误判为人际关系。
-    // 仅对旧式括号格式做内容兜底识别：如 "张三(朋友);李四(同事)"。
-    // 冒号格式请优先放在列名包含“关系/人际”的关系列中。
-    return /^[^(（;；]+[(（][^)）]+[)）](?:[;；][^(（;；]+[(（][^)）]+[)）])+$/.test(str);
-  };
+  const isRelationshipCell = createIsRelationshipCell({
+
+  });
 
   const processTemplate = createProcessTemplate({
 
@@ -4848,20 +4761,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const AUTO_REGEX_TRANSFORM_COOLDOWN_MS = 5000;
   let lastAutoRegexTransformKey = '';
   let lastAutoRegexTransformAt = 0;
-  const createRegexRuleSignature = (rules: readonly RegexTransformationRule[]): string =>
-    JSON.stringify(
-      rules.map(rule => ({
-        id: rule.id,
-        operation: rule.operation,
-        pattern: rule.pattern,
-        flags: rule.flags,
-        replacement: rule.replacement,
-        scope: rule.scope,
-        priority: rule.priority,
-        executeMode: rule.executeMode,
-        enabled: rule.enabled,
-      })),
-    );
+  const createRegexRuleSignature = createCreateRegexRuleSignature({
+
+  });
   const createAutoRegexTransformKey = createCreateAutoRegexTransformKey({
     createRegexRuleSignature: (...a: any[]) => createRegexRuleSignature(...a),
     createSheetDataFingerprint: (...a: any[]) => createSheetDataFingerprint(...a),
@@ -4905,19 +4807,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     updateValidationIndicator: (...a: any[]) => updateValidationIndicator(...a),
   });
   // 更新导航栏验证指示器
-  const updateValidationIndicator = count => {
-    const { $ } = getCore();
-    const $indicator = $('.acu-validation-indicator');
-
-    if (count > 0) {
-      if ($indicator.length) {
-        $indicator.find('.acu-validation-count').text(count);
-        $indicator.show();
-      }
-    } else {
-      $indicator.hide();
-    }
-  };
+  const updateValidationIndicator = createUpdateValidationIndicator({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // --- [重构] 上下文指纹工具 ---
   const getCurrentContextFingerprint = createGetCurrentContextFingerprint({
@@ -5016,19 +4908,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
   });
 
-  const runMaybeAsyncDatabaseUiOpener = async (opener: () => unknown, context = '数据库界面'): Promise<boolean> => {
-    try {
-      const result = opener();
-      if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
-        const resolved = await result;
-        return resolved !== false;
-      }
-      return result !== false;
-    } catch (error) {
-      console.warn(`[DICE]打开${context}失败:`, error);
-      return false;
-    }
-  };
+  const runMaybeAsyncDatabaseUiOpener = createRunMaybeAsyncDatabaseUiOpener({
+
+  });
 
   const openDatabaseNewUiViaApi = createOpenDatabaseNewUiViaApi({
     collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
@@ -5071,19 +4953,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     runMaybeAsyncDatabaseUiOpener: (...a: any[]) => runMaybeAsyncDatabaseUiOpener(...a),
   });
 
-  const openDatabaseVisualizerInterface = async (): Promise<void> => {
-    const newUiOpenResult = await openDatabaseVisualizerNewUiViaApi();
-    if (newUiOpenResult === 'opened') return;
-    if (newUiOpenResult === 'unavailable' && (await openLegacyDatabaseVisualizer())) return;
-
-    if (window.toastr) {
-      const message =
-        newUiOpenResult === 'failed'
-          ? '新版可视化编辑器入口调用失败，请检查数据库本体控制台日志'
-          : '可视化编辑器接口不可用，请确保数据库脚本已加载';
-      window.toastr.warning(message);
-    }
-  };
+  const openDatabaseVisualizerInterface = createOpenDatabaseVisualizerInterface({
+    openDatabaseVisualizerNewUiViaApi: (...a: any[]) => openDatabaseVisualizerNewUiViaApi(...a),
+    openLegacyDatabaseVisualizer: (...a: any[]) => openLegacyDatabaseVisualizer(...a),
+  });
 
   type DatabaseManualUpdateResult =
     | { status: 'updated'; source: string }
@@ -5185,19 +5058,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS: ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS,
   });
 
-  const clickDatabaseNewUiFormFillNavigation = (): boolean => {
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const targetDocument = getAccessibleDocument(targetWindow);
-      const navButton = targetDocument?.querySelector<HTMLElement>(ACU_DATABASE_FORM_FILL_NAV_SELECTOR);
-      if (!navButton || typeof navButton.click !== 'function') continue;
-      if (!isElementVisibleInLayout(navButton)) continue;
-
-      navButton.click();
-      return true;
-    }
-
-    return false;
-  };
+  const clickDatabaseNewUiFormFillNavigation = createClickDatabaseNewUiFormFillNavigation({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    getAccessibleDocument: (...a: any[]) => getAccessibleDocument(...a),
+    isElementVisibleInLayout: (...a: any[]) => isElementVisibleInLayout(...a),
+    getACU_DATABASE_FORM_FILL_NAV_SELECTOR: () => ACU_DATABASE_FORM_FILL_NAV_SELECTOR,
+  });
 
   const openDatabaseFormFillPage = createOpenDatabaseFormFillPage({
     clickDatabaseNewUiFormFillNavigation: (...a: any[]) => clickDatabaseNewUiFormFillNavigation(...a),
@@ -5225,20 +5091,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     ACU_DATABASE_MANUAL_UPDATE_API_METHODS: ACU_DATABASE_MANUAL_UPDATE_API_METHODS,
   });
 
-  const runDatabaseManualUpdateViaLegacyButton = (): DatabaseManualUpdateResult => {
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const targetDocument = getAccessibleDocument(targetWindow);
-      const manualUpdateButton = targetDocument?.querySelector<HTMLElement>(
-        ACU_DATABASE_LEGACY_MANUAL_UPDATE_BUTTON_SELECTOR,
-      );
-      if (!manualUpdateButton || typeof manualUpdateButton.click !== 'function') continue;
-
-      manualUpdateButton.click();
-      return { status: 'updated', source: '旧版数据库设置面板手动填表按钮' };
-    }
-
-    return { status: 'unavailable' };
-  };
+  const runDatabaseManualUpdateViaLegacyButton = createRunDatabaseManualUpdateViaLegacyButton({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    getAccessibleDocument: (...a: any[]) => getAccessibleDocument(...a),
+    getACU_DATABASE_LEGACY_MANUAL_UPDATE_BUTTON_SELECTOR: () => ACU_DATABASE_LEGACY_MANUAL_UPDATE_BUTTON_SELECTOR,
+  });
 
   const runDatabaseManualUpdate = createRunDatabaseManualUpdate({
     hasDatabaseNewUiRuntime: (...a: any[]) => hasDatabaseNewUiRuntime(...a),
@@ -5409,20 +5266,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCUSTOM_TABLE_NAME_ICON_DASHBOARD_MODULE_CONTEXTS: () => CUSTOM_TABLE_NAME_ICON_DASHBOARD_MODULE_CONTEXTS,
   });
 
-  const resolveDashboardCustomTableNameIconRowName = (
-    tableName: string,
-    headers: unknown[],
-    rowData: unknown[],
-  ): string | null => {
-    for (const moduleKey of getDashboardModuleKeysForTableName(tableName)) {
-      const moduleConfig = getDashboardModuleConfig(moduleKey);
-      if (!moduleConfig?.columns?.name) continue;
-      const nameColumnIndex = DashboardDataParser.findColumnIndex(headers, 'name', moduleConfig);
-      const nameText = nameColumnIndex >= 0 ? getStringLikeCellText(rowData[nameColumnIndex]) : '';
-      if (nameText) return nameText;
-    }
-    return null;
-  };
+  const resolveDashboardCustomTableNameIconRowName = createResolveDashboardCustomTableNameIconRowName({
+    getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
+    getDashboardModuleKeysForTableName: (...a: any[]) => getDashboardModuleKeysForTableName(...a),
+    getStringLikeCellText: (...a: any[]) => getStringLikeCellText(...a),
+    getDashboardDataParser: () => DashboardDataParser,
+  });
 
   const resolveCustomTableNameIconRowName = createResolveCustomTableNameIconRowName({
     resolveDashboardCustomTableNameIconRowName: (...a: any[]) => resolveDashboardCustomTableNameIconRowName(...a),
@@ -5601,19 +5450,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCustomTableNameIconContextKey: (...a: any[]) => getCustomTableNameIconContextKey(...a),
   });
 
-  const getCustomTableNameIconManagerRawSheets = (): CustomTableNameIconManagerRawSheet[] => {
-    const rawData = getTableData({ silent: true }) as unknown;
-    if (!isRecord(rawData)) return [];
-
-    return Object.entries(rawData).reduce<CustomTableNameIconManagerRawSheet[]>((result, [key, sheet]) => {
-      if (!key.startsWith('sheet_') || !isRecord(sheet)) return result;
-      const name = typeof sheet.name === 'string' ? sheet.name.trim() : '';
-      const content = sheet.content;
-      if (!name || !isTwoDimensionalArray(content)) return result;
-      result.push({ key, name, content });
-      return result;
-    }, []);
-  };
+  const getCustomTableNameIconManagerRawSheets = createGetCustomTableNameIconManagerRawSheets({
+    getTableData: (...a: any[]) => getTableData(...a),
+    isRecord: (...a: any[]) => isRecord(...a),
+    isTwoDimensionalArray: (...a: any[]) => isTwoDimensionalArray(...a),
+  });
 
   const resolveCustomTableNameIconManagerDirectSection = createResolveCustomTableNameIconManagerDirectSection({
     normalizeGlobalInteractionCategoryText: (...a: any[]) => normalizeGlobalInteractionCategoryText(...a),
@@ -5697,19 +5538,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     CustomTableNameIconStoreManager: CustomTableNameIconStoreManager,
   });
 
-  const getCustomTableNameIconPackImportSummaryText = (analysis: CustomTableNameIconPackImportAnalysis): string => {
-    const lines = [
-      `将导入 ${analysis.importedCount} 条图标映射。`,
-      `覆盖现有映射：${analysis.overwrittenCount}`,
-      `导入后需重传的本地图标：${analysis.localMissingCount}`,
-      `跳过无效 URL：${analysis.skippedInvalidUrlCount}`,
-      `跳过非白名单上下文：${analysis.skippedNonWhitelistCount}`,
-    ];
-    if (analysis.skippedInvalidEntryCount > 0) {
-      lines.push(`跳过格式无效条目：${analysis.skippedInvalidEntryCount}`);
-    }
-    return lines.join('\n');
-  };
+  const getCustomTableNameIconPackImportSummaryText = createGetCustomTableNameIconPackImportSummaryText({
+
+  });
 
   type DiceSystemConfirmTone = 'warning' | 'danger';
 
@@ -5851,19 +5682,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setCleanupGlobalInteractionOutsideCapture: (v: any) => { cleanupGlobalInteractionOutsideCapture = v; },
   });
 
-  const cleanupGlobalInteractionFloatingMenus = (): void => {
-    const { $ } = getCore();
-    clearGlobalInteractionOutsideCapture();
-    $('.acu-global-interaction-row.is-expanded')
-      .removeClass('is-expanded')
-      .find('.acu-global-interaction-row-main')
-      .attr('aria-expanded', 'false');
-    $('.acu-global-interaction-floating-host').remove();
-    $('#acu-data-area').off('.globalInteractionEvents');
-    $('body').off('.globalInteractionEvents');
-    $(document).off('.globalInteractionEvents');
-    $(window).off('resize.globalInteractionEvents scroll.globalInteractionEvents');
-  };
+  const cleanupGlobalInteractionFloatingMenus = createCleanupGlobalInteractionFloatingMenus({
+    clearGlobalInteractionOutsideCapture: (...a: any[]) => clearGlobalInteractionOutsideCapture(...a),
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   // [修复] 统一清理所有面板状态，避免状态残留导致内容错乱
   const clearAllPanelStates = createClearAllPanelStates({
@@ -5923,20 +5745,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getPanelDisplayMaxHeight: (...a: any[]) => getPanelDisplayMaxHeight(...a),
   });
 
-  const clampPanelHeightToDisplay = (
-    $panel: JQuery<HTMLElement>,
-    height: unknown,
-    displayMaxHeight?: number,
-  ): number | null => {
-    const rawHeight = Number.parseInt(String(height ?? ''), 10);
-    if (!Number.isFinite(rawHeight)) return null;
-    const normalizedHeight = Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, rawHeight));
-    const effectiveMaxHeight =
-      typeof displayMaxHeight === 'number' && Number.isFinite(displayMaxHeight)
-        ? displayMaxHeight
-        : getPanelDisplayMaxHeight($panel);
-    return Math.max(MIN_PANEL_HEIGHT, Math.min(effectiveMaxHeight, normalizedHeight));
-  };
+  const clampPanelHeightToDisplay = createClampPanelHeightToDisplay({
+    getPanelDisplayMaxHeight: (...a: any[]) => getPanelDisplayMaxHeight(...a),
+    getMAX_PANEL_HEIGHT: () => MAX_PANEL_HEIGHT,
+    getMIN_PANEL_HEIGHT: () => MIN_PANEL_HEIGHT,
+  });
 
   const getStoredPanelHeight = createGetStoredPanelHeight({
     getTableHeights: (...a: any[]) => getTableHeights(...a),
@@ -6321,19 +6134,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getContestHistory: () => contestHistory,
   });
 
-  const parseInSceneStatus = (value, headerName) => {
-    const val = String(value || '')
-      .trim()
-      .toLowerCase();
-    const header = String(headerName || '').toLowerCase();
-    if (!val) return false;
+  const parseInSceneStatus = createParseInSceneStatus({
 
-    if (header.includes('离场')) {
-      return val === '否' || val === 'false' || val === 'no';
-    }
-
-    return val.startsWith('在场') || val === 'true' || val === '是' || val === 'yes';
-  };
+  });
 
   const buildMapViewModel = createBuildMapViewModel({
     getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
@@ -6431,20 +6234,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const findRelationGraphRelationColumnMatch = (
-    headers: RelationGraphCell[],
-    configuredKeywords: string[],
-  ): RelationGraphColumnMatch => {
-    const configuredIndex = findRelationGraphColumnIndex(headers, configuredKeywords);
-    if (configuredIndex >= 0) {
-      return { index: configuredIndex, isConfigured: true };
-    }
-
-    return {
-      index: findRelationGraphColumnIndex(headers, RELATION_GRAPH_FALLBACK_RELATION_COLUMN_KEYWORDS),
-      isConfigured: false,
-    };
-  };
+  const findRelationGraphRelationColumnMatch = createFindRelationGraphRelationColumnMatch({
+    findRelationGraphColumnIndex: (...a: any[]) => findRelationGraphColumnIndex(...a),
+    getRELATION_GRAPH_FALLBACK_RELATION_COLUMN_KEYWORDS: () => RELATION_GRAPH_FALLBACK_RELATION_COLUMN_KEYWORDS,
+  });
 
   const findRelationshipGraphSourceTables = createFindRelationshipGraphSourceTables({
 
@@ -6890,20 +6683,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
   });
 
-  const sanitizeDiceConfigBackupRegexRule = (rule: unknown): Record<string, unknown> | null => {
-    if (!isDiceConfigBackupRecord(rule)) return null;
-    if (rule.builtin === true) {
-      const id = getDiceConfigBackupRegexRuleKey(rule);
-      if (!id) return null;
-      if (DEPRECATED_BUILTIN_REGEX_RULE_IDS.has(id)) return null;
-      const result: Record<string, unknown> = { id, builtin: true };
-      copyDiceConfigBackupExistingFields(rule, result, ['enabled']);
-      return result;
-    }
-    const customRule = cloneDiceConfigBackupValue(rule);
-    customRule.builtin = false;
-    return customRule;
-  };
+  const sanitizeDiceConfigBackupRegexRule = createSanitizeDiceConfigBackupRegexRule({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    copyDiceConfigBackupExistingFields: (...a: any[]) => copyDiceConfigBackupExistingFields(...a),
+    getDiceConfigBackupRegexRuleKey: (...a: any[]) => getDiceConfigBackupRegexRuleKey(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    getDEPRECATED_BUILTIN_REGEX_RULE_IDS: () => DEPRECATED_BUILTIN_REGEX_RULE_IDS,
+  });
 
   const sanitizeDiceConfigBackupRuleList = createSanitizeDiceConfigBackupRuleList({
 
@@ -6929,20 +6715,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
   });
 
-  const sanitizeDiceConfigBackupStoredValue = (key: string, value: unknown): unknown => {
-    if (key === STORAGE_KEY_PRESETS)
-      return sanitizeDiceConfigBackupPresetRules(value, sanitizeDiceConfigBackupValidationRule);
-    if (key === STORAGE_KEY_VALIDATION_RULES)
-      return sanitizeDiceConfigBackupRuleList(value, sanitizeDiceConfigBackupValidationRule);
-    if (key === STORAGE_KEY_REGEX_PRESETS)
-      return sanitizeDiceConfigBackupPresetRules(value, sanitizeDiceConfigBackupRegexRule);
-    if (key === STORAGE_KEY_REGEX_RULES)
-      return sanitizeDiceConfigBackupRuleList(value, sanitizeDiceConfigBackupRegexRule);
-    if (key === STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS) {
-      return sanitizeDiceConfigBackupCustomOnlyPresetArrayForExport(value, key);
-    }
-    return value;
-  };
+  const sanitizeDiceConfigBackupStoredValue = createSanitizeDiceConfigBackupStoredValue({
+    sanitizeDiceConfigBackupCustomOnlyPresetArrayForExport: (...a: any[]) => sanitizeDiceConfigBackupCustomOnlyPresetArrayForExport(...a),
+    sanitizeDiceConfigBackupPresetRules: (...a: any[]) => sanitizeDiceConfigBackupPresetRules(...a),
+    sanitizeDiceConfigBackupRegexRule: (...a: any[]) => sanitizeDiceConfigBackupRegexRule(...a),
+    sanitizeDiceConfigBackupRuleList: (...a: any[]) => sanitizeDiceConfigBackupRuleList(...a),
+    sanitizeDiceConfigBackupValidationRule: (...a: any[]) => sanitizeDiceConfigBackupValidationRule(...a),
+  });
 
   const getDiceConfigBackupStoredValue = createGetDiceConfigBackupStoredValue({
     getConfig: (...a: any[]) => getConfig(...a),
@@ -6963,19 +6742,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeDiceConfigBackupGachaCatalogSnapshotRecords: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogSnapshotRecords(...a),
   });
 
-  const collectDiceConfigBackupGachaCatalogRollbackSnapshot =
-    async (): Promise<DiceConfigBackupGachaCatalogRollbackSnapshot> => {
-      try {
-        return { records: normalizeDiceConfigBackupGachaCatalogSnapshotRecords(await GachaCatalogDB.getAll()) };
-      } catch (error) {
-        console.warn('[DICE]配置备份读取商城自定义目录回滚快照失败:', error);
-        const message = error instanceof Error ? error.message : String(error);
-        return {
-          records: null,
-          warning: `骰子商城配置与自定义物品: 无法创建回滚快照，已取消恢复：${message}`,
-        };
-      }
-    };
+  const collectDiceConfigBackupGachaCatalogRollbackSnapshot = createCollectDiceConfigBackupGachaCatalogRollbackSnapshot({
+    normalizeDiceConfigBackupGachaCatalogSnapshotRecords: (...a: any[]) => normalizeDiceConfigBackupGachaCatalogSnapshotRecords(...a),
+  });
 
   const getDiceConfigBackupTableTemplateApi = createGetDiceConfigBackupTableTemplateApi({
     getCore: (...a: any[]) => getCore(...a),
@@ -7071,20 +6840,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const mergeDiceConfigBackupSetArray = (current: unknown, incoming: unknown): unknown[] | null => {
-    if (!Array.isArray(incoming)) return null;
-    const result = cloneDiceConfigBackupValue(incoming);
-    const seen = new Set(result.map(item => getDiceConfigBackupValueIdentity(item)));
-    if (Array.isArray(current)) {
-      current.forEach(item => {
-        const identity = getDiceConfigBackupValueIdentity(item);
-        if (seen.has(identity)) return;
-        seen.add(identity);
-        result.push(cloneDiceConfigBackupValue(item));
-      });
-    }
-    return result;
-  };
+  const mergeDiceConfigBackupSetArray = createMergeDiceConfigBackupSetArray({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupValueIdentity: (...a: any[]) => getDiceConfigBackupValueIdentity(...a),
+  });
 
   const getDiceConfigBackupPresetRecordId = createGetDiceConfigBackupPresetRecordId({
 
@@ -7128,20 +6887,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return result;
   };
 
-  const applyDiceConfigBackupRuleOverrides = (
-    baseRule: Record<string, unknown>,
-    ruleKey: string,
-    overrideMaps: readonly Map<string, Record<string, unknown>>[],
-    fields: readonly string[],
-  ): Record<string, unknown> => {
-    const result = cloneDiceConfigBackupValue(baseRule);
-    result.builtin = true;
-    overrideMaps.forEach(overrides => {
-      const override = overrides.get(ruleKey);
-      if (override) copyDiceConfigBackupExistingFields(override, result, fields);
-    });
-    return result;
-  };
+  const applyDiceConfigBackupRuleOverrides = createApplyDiceConfigBackupRuleOverrides({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    copyDiceConfigBackupExistingFields: (...a: any[]) => copyDiceConfigBackupExistingFields(...a),
+  });
 
   const mergeDiceConfigBackupCustomRules = createMergeDiceConfigBackupCustomRules({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -7898,20 +7647,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   const getDiffRows = (sheet: unknown): DiffRow[] => getDiffSheetContent(sheet).slice(1);
 
-  const DIFF_ID_HEADER_KEYWORDS = [
-    '编码',
-    '编号',
-    '索引',
-    '名称',
-    '名字',
-    '姓名',
-    '地点',
-    '任务',
-    '物品',
-    '角色',
-    '条目',
-    'id',
-  ];
+  const DIFF_ID_HEADER_KEYWORDS = createDiffIdHeaderKeywords({
+
+  });
 
   const getDiffPreferredColumns = createGetDiffPreferredColumns({
     normalizeDiffHeader: (...a: any[]) => normalizeDiffHeader(...a),
@@ -7979,20 +7717,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const restoreMutableRuntimeValue = (target: unknown, snapshot: unknown): void => {
-    if (Array.isArray(target) && Array.isArray(snapshot)) {
-      target.splice(0, target.length, ...snapshot);
-      return;
-    }
-    if (!target || !snapshot || typeof target !== 'object' || typeof snapshot !== 'object') return;
+  const restoreMutableRuntimeValue = createRestoreMutableRuntimeValue({
 
-    const targetRecord = target as Record<string, unknown>;
-    const snapshotRecord = snapshot as Record<string, unknown>;
-    Object.keys(targetRecord).forEach(key => {
-      if (!Object.prototype.hasOwnProperty.call(snapshotRecord, key)) delete targetRecord[key];
-    });
-    Object.assign(targetRecord, snapshotRecord);
-  };
+  });
 
   const getRuntimeErrorMessage = createGetRuntimeErrorMessage({
 
@@ -8048,20 +7775,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const parseIsolatedData = (value: unknown): Record<string, unknown> | null => {
-    if (!value) return null;
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        if (parsed && typeof parsed === 'object') return parsed as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-      return null;
-    }
-    if (typeof value === 'object') return value as Record<string, unknown>;
-    return null;
-  };
+  const parseIsolatedData = createParseIsolatedData({
+
+  });
 
   const hasSheetKeys = createHasSheetKeys({
 
@@ -8375,20 +8091,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     source: string;
   } | null;
 
-  const patchCrudSheetCellInRecord = (
-    record: unknown,
-    sheetKey: string,
-    desiredSheet: unknown,
-    rowIndex: number,
-    colIndex: number,
-    value: unknown,
-  ): string | null => {
-    const entry = findDiffSnapshotEntry(record, sheetKey, desiredSheet);
-    const row = getDiffDataRow(entry?.sheet, rowIndex);
-    if (!entry || !row) return null;
-    row[colIndex] = value;
-    return entry.key;
-  };
+  const patchCrudSheetCellInRecord = createPatchCrudSheetCellInRecord({
+    findDiffSnapshotEntry: (...a: any[]) => findDiffSnapshotEntry(...a),
+    getDiffDataRow: (...a: any[]) => getDiffDataRow(...a),
+  });
 
   const patchCrudSheetInRecord = createPatchCrudSheetInRecord({
     asDiffRecord: (...a: any[]) => asDiffRecord(...a),
@@ -8461,19 +8167,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const assertCrudInsertRequiredCells = (tableName: string, headers, row, sheet, rowIndex: number): void => {
-    try {
-      assertCrudRequiredCellValues(tableName, headers, row, sheet, rowIndex);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(
-        message.replace(
-          `表 "${tableName}" 第 ${rowIndex + 1} 行存在必填列为空`,
-          `向 "${tableName}" 追加第 ${rowIndex + 1} 行前发现必填列为空`,
-        ),
-      );
-    }
-  };
+  const assertCrudInsertRequiredCells = createAssertCrudInsertRequiredCells({
+    assertCrudRequiredCellValues: (...a: any[]) => assertCrudRequiredCellValues(...a),
+  });
   type CrudWriteBatchContext = {
     remainingOperations: number;
   };
@@ -8589,20 +8285,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     }
   };
 
-  const runInSaveQueue = async <T>(task: () => Promise<T>): Promise<T> => {
-    const operation = saveQueue
-      .catch(error => {
-        console.warn('[DICE]ACU runInSaveQueue previous step failed, continue next task:', error);
-      })
-      .then(task);
-
-    saveQueue = operation
-      .then(() => undefined)
-      .catch(e => {
-        console.error('[DICE]ACU runInSaveQueue error:', getRuntimeErrorLogPayload(e));
-      });
-    return operation;
-  };
+  const runInSaveQueue = createRunInSaveQueue({
+    getRuntimeErrorLogPayload: (...a: any[]) => getRuntimeErrorLogPayload(...a),
+    getSaveQueue: () => saveQueue,
+    setSaveQueue: (v: any) => { saveQueue = v; },
+  });
 
   // [新增] 轻量级保存：只保存数据到数据库，不更新快照
   // 使用队列模式确保快速连续编辑时所有修改都能保存成功
@@ -9910,20 +9597,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     FLOATING_COLLAPSE_SIZE: FLOATING_COLLAPSE_SIZE,
   });
 
-  const getViewportBottomAnchorElements = (targetDocument: Document): HTMLElement[] => {
-    const seen = new Set<HTMLElement>();
-    const elements: HTMLElement[] = [];
-
-    VIEWPORT_BOTTOM_ANCHOR_SELECTORS.forEach(selector => {
-      targetDocument.querySelectorAll<HTMLElement>(selector).forEach(el => {
-        if (seen.has(el)) return;
-        seen.add(el);
-        elements.push(el);
-      });
-    });
-
-    return elements;
-  };
+  const getViewportBottomAnchorElements = createGetViewportBottomAnchorElements({
+    getVIEWPORT_BOTTOM_ANCHOR_SELECTORS: () => VIEWPORT_BOTTOM_ANCHOR_SELECTORS,
+  });
 
   const getViewportAnchorRect = createGetViewportAnchorRect({
     getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
@@ -10000,19 +9676,16 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setFixedAnchorTargetsRaf: (v: any) => { fixedAnchorTargetsRaf = v; },
   });
 
-  const clearFixedAnchorMutationObserver = () => {
-    if (fixedAnchorMutationObserver) {
-      fixedAnchorMutationObserver.disconnect();
-      fixedAnchorMutationObserver = null;
-    }
-    fixedAnchorMutationWindow = null;
-    fixedAnchorMutationDocument = null;
-
-    if (fixedAnchorTargetsRaf !== null) {
-      cancelAnimationFrame(fixedAnchorTargetsRaf);
-      fixedAnchorTargetsRaf = null;
-    }
-  };
+  const clearFixedAnchorMutationObserver = createClearFixedAnchorMutationObserver({
+    getFixedAnchorMutationDocument: () => fixedAnchorMutationDocument,
+    setFixedAnchorMutationDocument: (v: any) => { fixedAnchorMutationDocument = v; },
+    getFixedAnchorMutationObserver: () => fixedAnchorMutationObserver,
+    setFixedAnchorMutationObserver: (v: any) => { fixedAnchorMutationObserver = v; },
+    getFixedAnchorMutationWindow: () => fixedAnchorMutationWindow,
+    setFixedAnchorMutationWindow: (v: any) => { fixedAnchorMutationWindow = v; },
+    getFixedAnchorTargetsRaf: () => fixedAnchorTargetsRaf,
+    setFixedAnchorTargetsRaf: (v: any) => { fixedAnchorTargetsRaf = v; },
+  });
 
   const setupFixedAnchorMutationObserver = createSetupFixedAnchorMutationObserver({
     clearFixedAnchorMutationObserver: (...a: any[]) => clearFixedAnchorMutationObserver(...a),
@@ -10114,19 +9787,16 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setViewportInputTargetsRaf: (v: any) => { viewportInputTargetsRaf = v; },
   });
 
-  const clearViewportInputMutationObserver = () => {
-    if (viewportInputMutationObserver) {
-      viewportInputMutationObserver.disconnect();
-      viewportInputMutationObserver = null;
-    }
-    viewportInputMutationWindow = null;
-    viewportInputMutationDocument = null;
-
-    if (viewportInputTargetsRaf !== null) {
-      cancelAnimationFrame(viewportInputTargetsRaf);
-      viewportInputTargetsRaf = null;
-    }
-  };
+  const clearViewportInputMutationObserver = createClearViewportInputMutationObserver({
+    getViewportInputMutationDocument: () => viewportInputMutationDocument,
+    setViewportInputMutationDocument: (v: any) => { viewportInputMutationDocument = v; },
+    getViewportInputMutationObserver: () => viewportInputMutationObserver,
+    setViewportInputMutationObserver: (v: any) => { viewportInputMutationObserver = v; },
+    getViewportInputMutationWindow: () => viewportInputMutationWindow,
+    setViewportInputMutationWindow: (v: any) => { viewportInputMutationWindow = v; },
+    getViewportInputTargetsRaf: () => viewportInputTargetsRaf,
+    setViewportInputTargetsRaf: (v: any) => { viewportInputTargetsRaf = v; },
+  });
 
   const setupViewportInputMutationObserver = createSetupViewportInputMutationObserver({
     clearViewportInputMutationObserver: (...a: any[]) => clearViewportInputMutationObserver(...a),
@@ -10488,20 +10158,17 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // [新增] 刷新变更面板（辅助函数）
-  const refreshChangesPanel = () => {
-    const { $ } = getCore();
-    const rawData = cachedRawData || getTableData();
-    currentDiffMap = generateDiffMap(rawData);
-
-    const $panel = $('#acu-data-area');
-    if ($panel.length && Store.get('acu_changes_panel_active', false)) {
-      $panel.html(renderChangesPanel(rawData));
-      bindChangesEvents();
-
-      // 更新导航栏计数
-      updateChangesCount(rawData);
-    }
-  };
+  const refreshChangesPanel = createRefreshChangesPanel({
+    bindChangesEvents: (...a: any[]) => bindChangesEvents(...a),
+    generateDiffMap: (...a: any[]) => generateDiffMap(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    renderChangesPanel: (...a: any[]) => renderChangesPanel(...a),
+    updateChangesCount: (...a: any[]) => updateChangesCount(...a),
+    getCachedRawData: () => cachedRawData,
+    getCurrentDiffMap: () => currentDiffMap,
+    setCurrentDiffMap: (v: any) => { currentDiffMap = v; },
+  });
 
   // [新增] 更新审核按钮计数（包含变更数 + 验证错误数）
   const updateChangesCount = createUpdateChangesCount({
@@ -10731,20 +10398,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const buildDefaultGachaPoolDefinition = (
-    id: GachaPoolTag,
-    options: Partial<Omit<GachaPoolDefinition, 'id'>> = {},
-  ): GachaPoolDefinition => {
-    const enabled = id !== GACHA_ALL_POOL_TAG && options.includeInAll === true;
-    return {
-      id,
-      name: options.name || id,
-      builtin: options.builtin === true,
-      visibleInTabs: id === GACHA_ALL_POOL_TAG || enabled,
-      includeInAll: enabled,
-      order: Number.isFinite(Number(options.order)) ? Number(options.order) : 999,
-    };
-  };
+  const buildDefaultGachaPoolDefinition = createBuildDefaultGachaPoolDefinition({
+
+  });
 
   const normalizeGachaPoolDefinition = createNormalizeGachaPoolDefinition({
     isBuiltinGachaPoolId: (...a: any[]) => isBuiltinGachaPoolId(...a),
@@ -10779,20 +10435,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   const getRuntimeGachaRawData = () => cachedRawData || getTableData();
   const getGachaCatalogScopeKey = (): string => GACHA_CATALOG_GLOBAL_SCOPE_KEY;
-  const buildCrudColumnAliasMap = (sheet: unknown): Record<string, string> => {
-    const ddl = stripCrudSqlNonStructuralComments(getCrudSheetDdl(sheet));
-    const aliases: Record<string, string> = {};
-    if (!ddl) return aliases;
-
-    ddl.split(/\r?\n/).forEach(line => {
-      const parsed = parseCrudColumnDefinitionLine(line);
-      if (!parsed) return;
-      const { columnName, comment } = parsed;
-      getCrudSqlCommentAliases(comment).forEach(alias => addCrudColumnAlias(aliases, alias, columnName));
-    });
-
-    return aliases;
-  };
+  const buildCrudColumnAliasMap = createBuildCrudColumnAliasMap({
+    addCrudColumnAlias: (...a: any[]) => addCrudColumnAlias(...a),
+    getCrudSheetDdl: (...a: any[]) => getCrudSheetDdl(...a),
+    getCrudSqlCommentAliases: (...a: any[]) => getCrudSqlCommentAliases(...a),
+    parseCrudColumnDefinitionLine: (...a: any[]) => parseCrudColumnDefinitionLine(...a),
+    stripCrudSqlNonStructuralComments: (...a: any[]) => stripCrudSqlNonStructuralComments(...a),
+  });
   const buildAdvancedPresetAgentPrompt = (): string => advancedPresetAgentPromptTemplate;
   const collectGachaPoolTagsFromItems = createCollectGachaPoolTagsFromItems({
     getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
@@ -10921,20 +10570,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     '状态',
   ]);
 
-  const normalizeGachaCustomFields = (raw: unknown): GachaCustomFields | undefined => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-    const customFields: GachaCustomFields = {};
-    for (const [rawKey, rawValue] of Object.entries(raw as Record<string, unknown>)) {
-      if (Object.keys(customFields).length >= GACHA_CUSTOM_FIELD_MAX_COUNT) break;
-      if (typeof rawValue !== 'string') continue;
-      const key = truncateGachaText(rawKey.trim(), GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH);
-      if (!key || GACHA_CUSTOM_FIELD_RESERVED_KEYS.has(key)) continue;
-      const value = truncateGachaText(rawValue.trim(), GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH);
-      if (!value) continue;
-      customFields[key] = value;
-    }
-    return Object.keys(customFields).length ? customFields : undefined;
-  };
+  const normalizeGachaCustomFields = createNormalizeGachaCustomFields({
+    truncateGachaText: (...a: any[]) => truncateGachaText(...a),
+    getGACHA_CUSTOM_FIELD_KEY_MAX_LENGTH: () => GACHA_CUSTOM_FIELD_KEY_MAX_LENGTH,
+    getGACHA_CUSTOM_FIELD_MAX_COUNT: () => GACHA_CUSTOM_FIELD_MAX_COUNT,
+    getGACHA_CUSTOM_FIELD_RESERVED_KEYS: () => GACHA_CUSTOM_FIELD_RESERVED_KEYS,
+    getGACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH: () => GACHA_CUSTOM_FIELD_VALUE_MAX_LENGTH,
+  });
 
   const hasGachaCustomFields = createHasGachaCustomFields({
 
@@ -11017,20 +10659,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeGachaItemEnabled: (...a: any[]) => normalizeGachaItemEnabled(...a),
   });
 
-  const updateGachaItemSetting = (itemId: string, updates: Partial<GachaItemSettingsEntry>): boolean => {
-    const id = String(itemId || '').trim();
-    if (!id) return false;
-    const record = getStoredGachaItemSettings();
-    const existing = record.items[id] || { enabled: true, order: 999 };
-    saveGachaItemSettingsRecord({
-      ...record.items,
-      [id]: {
-        enabled: updates.enabled !== undefined ? normalizeGachaItemEnabled(updates.enabled) : existing.enabled,
-        order: updates.order !== undefined ? normalizeGachaItemOrder(updates.order) : existing.order,
-      },
-    });
-    return true;
-  };
+  const updateGachaItemSetting = createUpdateGachaItemSetting({
+    getStoredGachaItemSettings: (...a: any[]) => getStoredGachaItemSettings(...a),
+    normalizeGachaItemEnabled: (...a: any[]) => normalizeGachaItemEnabled(...a),
+    normalizeGachaItemOrder: (...a: any[]) => normalizeGachaItemOrder(...a),
+    saveGachaItemSettingsRecord: (...a: any[]) => saveGachaItemSettingsRecord(...a),
+  });
 
   const setGachaItemOrder = createSetGachaItemOrder({
     normalizeGachaItemOrder: (...a: any[]) => normalizeGachaItemOrder(...a),
@@ -11379,20 +11013,15 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeGachaStateRecord: (...a: any[]) => normalizeGachaStateRecord(...a),
   });
 
-  const getGachaState = (rawData?: unknown, createIfMissing = false): GachaState | null => {
-    const storedState = normalizeGachaStateRecord(getStoredGachaStateSnapshot());
-    const legacyDatabaseState = getLegacyGachaStateFromRawData(rawData);
-    if (legacyDatabaseState && (!storedState || !hasMigratedLegacyGachaState())) {
-      const migratedState = storedState
-        ? mergeLegacyGachaStateForLocalStorage(storedState, legacyDatabaseState)
-        : legacyDatabaseState;
-      if (saveStoredGachaStateSnapshot(migratedState)) markLegacyGachaStateMigrated();
-      return migratedState;
-    }
-
-    if (storedState) return storedState;
-    return createIfMissing ? createDefaultGachaState() : null;
-  };
+  const getGachaState = createGetGachaState({
+    createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
+    getLegacyGachaStateFromRawData: (...a: any[]) => getLegacyGachaStateFromRawData(...a),
+    getStoredGachaStateSnapshot: (...a: any[]) => getStoredGachaStateSnapshot(...a),
+    hasMigratedLegacyGachaState: (...a: any[]) => hasMigratedLegacyGachaState(...a),
+    markLegacyGachaStateMigrated: (...a: any[]) => markLegacyGachaStateMigrated(...a),
+    normalizeGachaStateRecord: (...a: any[]) => normalizeGachaStateRecord(...a),
+    saveStoredGachaStateSnapshot: (...a: any[]) => saveStoredGachaStateSnapshot(...a),
+  });
 
   const touchGachaActivity = createTouchGachaActivity({
     getGachaState: (...a: any[]) => getGachaState(...a),
@@ -11712,20 +11341,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
   });
 
-  const findGachaDefinitionByNameQuality = (
-    name: string,
-    quality: string,
-    rawData = getRuntimeGachaRawData(),
-  ): GachaItemDefinition | null => {
-    const normalizedName = String(name || '').trim();
-    const normalizedQuality = String(quality || '').trim();
-    if (!normalizedName || !normalizedQuality) return null;
-    return (
-      getAllGachaItemDefinitions(rawData).find(
-        definition => definition.name === normalizedName && definition.quality === normalizedQuality,
-      ) || null
-    );
-  };
+  const findGachaDefinitionByNameQuality = createFindGachaDefinitionByNameQuality({
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+  });
 
   const findGachaDefinitionByInventoryItem = createFindGachaDefinitionByInventoryItem({
     findGachaDefinitionByNameQuality: (...a: any[]) => findGachaDefinitionByNameQuality(...a),
@@ -11862,20 +11481,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     renderGachaPickupHtml: (...a: any[]) => renderGachaPickupHtml(...a),
   });
 
-  const getGachaShopProgressContainers = (): HTMLElement[] => {
-    const roots = new Set<HTMLElement>();
-    if (gachaShopRootElement?.isConnected && gachaShopRootElement.querySelector('.acu-gacha-fortune-progress')) {
-      roots.add(gachaShopRootElement);
-    }
-    collectHostAndLocalNodes<HTMLElement>('.acu-gacha-overlay').forEach(element => {
-      if (element.isConnected && element.querySelector('.acu-gacha-fortune-progress')) roots.add(element);
-    });
-    if (roots.size > 0) return Array.from(roots);
-    collectHostAndLocalNodes<HTMLElement>('.acu-gacha-shell').forEach(element => {
-      if (element.isConnected && element.querySelector('.acu-gacha-fortune-progress')) roots.add(element);
-    });
-    return Array.from(roots);
-  };
+  const getGachaShopProgressContainers = createGetGachaShopProgressContainers({
+    collectHostAndLocalNodes: (...a: any[]) => collectHostAndLocalNodes(...a),
+    getGachaShopRootElement: () => gachaShopRootElement,
+  });
 
   const updateGachaFortuneProgressDom = createUpdateGachaFortuneProgressDom({
     getGachaFortuneProgressView: (...a: any[]) => getGachaFortuneProgressView(...a),
@@ -12234,19 +11843,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setGachaHeartbeatTimer: (v: any) => { gachaHeartbeatTimer = v; },
   });
 
-  const startGachaShopUiRefresh = () => {
-    if (gachaShopUiRefreshTimer) return;
-    gachaShopUiRefreshTimer = setInterval(() => {
-      if (!getGachaShopProgressContainers().length) {
-        if (gachaShopUiRefreshTimer) {
-          clearInterval(gachaShopUiRefreshTimer);
-          gachaShopUiRefreshTimer = null;
-        }
-        return;
-      }
-      updateGachaShopProgressUi();
-    }, GACHA_SHOP_UI_REFRESH_MS);
-  };
+  const startGachaShopUiRefresh = createStartGachaShopUiRefresh({
+    getGachaShopProgressContainers: (...a: any[]) => getGachaShopProgressContainers(...a),
+    updateGachaShopProgressUi: (...a: any[]) => updateGachaShopProgressUi(...a),
+    getGACHA_SHOP_UI_REFRESH_MS: () => GACHA_SHOP_UI_REFRESH_MS,
+    getGachaShopUiRefreshTimer: () => gachaShopUiRefreshTimer,
+    setGachaShopUiRefreshTimer: (v: any) => { gachaShopUiRefreshTimer = v; },
+  });
 
   const getInventoryMetadataContextKey = createGetInventoryMetadataContextKey({
     getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
@@ -12292,19 +11895,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     saveInventoryMetadataRoot: (...a: any[]) => saveInventoryMetadataRoot(...a),
   });
 
-  const getInventoryGlobalContext = rawData => {
-    const tables = processJsonData(rawData || {});
-    const globalResult = DashboardDataParser.findTable(tables, 'global');
-    const headers = globalResult?.data?.headers || [];
-    const row = globalResult?.data?.rows?.[0] || [];
-    const config = globalResult?.config || getDashboardModuleConfig('global') || DASHBOARD_TABLE_CONFIG.global;
-    const detailIdx = DashboardDataParser.findColumnIndex(headers, 'detailLocation', config);
-    const timeIdx = DashboardDataParser.findColumnIndex(headers, 'currentTime', config);
-    return {
-      currentDetailLocation: detailIdx >= 0 ? String(row[detailIdx] || '').trim() : '',
-      currentTime: timeIdx >= 0 ? String(row[timeIdx] || '').trim() : '',
-    };
-  };
+  const getInventoryGlobalContext = createGetInventoryGlobalContext({
+    processJsonData: (...a: any[]) => processJsonData(...a),
+    getDashboardDataParser: () => DashboardDataParser,
+    getDashboardModuleConfig: (...a: any[]) => getDashboardModuleConfig(...a),
+  });
 
   const syncInventoryMetadataForRawData = createSyncInventoryMetadataForRawData({
     getInventoryGlobalContext: (...a: any[]) => getInventoryGlobalContext(...a),
@@ -12460,20 +12055,15 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     showGachaShardExchangeConfirm: (...a: any[]) => showGachaShardExchangeConfirm(...a),
   });
 
-  const refreshGachaShardShop = () => {
-    const { $ } = getCore();
-    const $shopOverlay = $('.acu-gacha-shard-shop-overlay').first();
-    if (!$shopOverlay.length) return;
-    const rawData = cachedRawData || getTableData();
-    void (async () => {
-      await ensureGachaCatalogLoaded(rawData);
-      if (!$shopOverlay.length) return;
-      const $nextOverlay = $(renderGachaShardShopHtml(rawData));
-      $shopOverlay.children().replaceWith($nextOverlay.children());
-      bindGachaShardShopInteractions($shopOverlay as JQuery<HTMLElement>);
-      hydrateCustomTableNameIconsIn($shopOverlay as JQuery<HTMLElement>);
-    })();
-  };
+  const refreshGachaShardShop = createRefreshGachaShardShop({
+    bindGachaShardShopInteractions: (...a: any[]) => bindGachaShardShopInteractions(...a),
+    ensureGachaCatalogLoaded: (...a: any[]) => ensureGachaCatalogLoaded(...a),
+    getCore: (...a: any[]) => getCore(...a),
+    getTableData: (...a: any[]) => getTableData(...a),
+    hydrateCustomTableNameIconsIn: (...a: any[]) => hydrateCustomTableNameIconsIn(...a),
+    renderGachaShardShopHtml: (...a: any[]) => renderGachaShardShopHtml(...a),
+    getCachedRawData: () => cachedRawData,
+  });
 
   const showGachaShardShop = createShowGachaShardShop({
     bindGachaShardShopInteractions: (...a: any[]) => bindGachaShardShopInteractions(...a),
@@ -12656,19 +12246,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     return labelMap[fieldKey];
   };
 
-  const getInventoryFieldColumnIndex = (
-    colMap: ReturnType<typeof getInventoryColumnMap>,
-    fieldKey: Exclude<InventoryEditableField, 'acquiredAtLocation' | 'acquiredAt'>,
-  ): number => {
-    const indexMap: Record<Exclude<InventoryEditableField, 'acquiredAtLocation' | 'acquiredAt'>, number> = {
-      name: colMap.name,
-      type: colMap.type,
-      quantity: colMap.quantity,
-      quality: colMap.quality,
-      description: colMap.description,
-    };
-    return indexMap[fieldKey];
-  };
+  const getInventoryFieldColumnIndex = createGetInventoryFieldColumnIndex({
+    getInventoryColumnMap: (...a: any[]) => getInventoryColumnMap(...a),
+  });
 
   const getInventoryEnumOptions = createGetInventoryEnumOptions({
     INVENTORY_TYPE_OPTIONS: INVENTORY_TYPE_OPTIONS,
@@ -12878,35 +12458,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getTableScrollStates: () => tableScrollStates,
   });
 
-  const getDataAreaForRoot = ($root?: JQuery<HTMLElement>): JQuery<HTMLElement> => {
-    const { $ } = getCore();
+  const getDataAreaForRoot = createGetDataAreaForRoot({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
-    if ($root && $root.length) {
-      const $rootPanel = $root.find<HTMLElement>('#acu-data-area').first();
-      if ($rootPanel.length) return $rootPanel;
-    }
-
-    const $latestRoot = $(DICE_ROOT_SELECTOR).last();
-    const $latestPanel = $latestRoot.find<HTMLElement>('#acu-data-area').first();
-    if ($latestPanel.length) return $latestPanel;
-
-    return $('#acu-data-area').first();
-  };
-
-  const getLatestAssistantMessageElement = (): JQuery<HTMLElement> => {
-    const { $ } = getCore();
-    return $('#chat .mes')
-      .filter(function () {
-        const $message = $(this);
-        if ($message.attr('is_user') === 'true' || $message.attr('is_system') === 'true') return false;
-        if ($message.hasClass('sys_mes') || $message.attr('data-is-system') === 'true') return false;
-        if ($message.find('.name_text').text().trim() === 'System') return false;
-        if ($message.find('.mes_text').length === 0) return false;
-        if ($message.css('display') === 'none') return false;
-        return true;
-      })
-      .last() as JQuery<HTMLElement>;
-  };
+  const getLatestAssistantMessageElement = createGetLatestAssistantMessageElement({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   const getPanelHostMessage = createGetPanelHostMessage({
     getCore: (...a: any[]) => getCore(...a),
@@ -12920,20 +12478,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getPanelHostMessage: (...a: any[]) => getPanelHostMessage(...a),
   });
 
-  function ensurePanelNavigationVisible(_$root?: JQuery<HTMLElement>): void {
-    const config = getConfig();
-    if (isFloatingCollapseActive(config)) return;
-
-    if (config.positionMode === 'viewport') {
-      scheduleViewportBoundsRefresh();
-      return;
-    }
-    if (config.positionMode === 'fixed') {
-      // fixed 模式的根在聊天底部；后台重绘不能主动滚动宿主阅读位置。
-      scheduleFixedWrapperBoundsRefresh();
-      return;
-    }
-  }
+  const ensurePanelNavigationVisible = createEnsurePanelNavigationVisible({
+    getConfig: (...a: any[]) => getConfig(...a),
+    isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
+    scheduleFixedWrapperBoundsRefresh: (...a: any[]) => scheduleFixedWrapperBoundsRefresh(...a),
+    scheduleViewportBoundsRefresh: (...a: any[]) => scheduleViewportBoundsRefresh(...a),
+  });
 
   const closePanel = createClosePanel({
     cleanupGlobalInteractionFloatingMenus: (...a: any[]) => cleanupGlobalInteractionFloatingMenus(...a),
@@ -13373,20 +12923,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const buildAcuDiceGachaStateSnapshot = (state?: GachaState | null) => {
-    const sourceState = state ? cloneGachaState(state) : getGachaState(undefined, true) || createDefaultGachaState();
-    sourceState.activePoolTag = getGachaActivePoolTag(sourceState);
-    return {
-      fortune: Math.max(0, Math.floor(Number(sourceState.wallet.fortune || 0))),
-      wallet: cloneAcuDiceApiValue(sourceState.wallet),
-      activePoolTag: sourceState.activePoolTag,
-      pity: cloneAcuDiceApiValue(sourceState.pity),
-      recentRewards: cloneAcuDiceApiValue(sourceState.recentRewards),
-      totalDraws: Math.max(0, Math.floor(Number(sourceState.totalDraws || 0))),
-      inputStats: cloneAcuDiceApiValue(sourceState.inputStats),
-      progress: getGachaFortuneProgressView(sourceState, { projectActiveProgress: true }),
-    };
-  };
+  const buildAcuDiceGachaStateSnapshot = createBuildAcuDiceGachaStateSnapshot({
+    cloneAcuDiceApiValue: (...a: any[]) => cloneAcuDiceApiValue(...a),
+    createDefaultGachaState: (...a: any[]) => createDefaultGachaState(...a),
+    getGachaActivePoolTag: (...a: any[]) => getGachaActivePoolTag(...a),
+    getGachaFortuneProgressView: (...a: any[]) => getGachaFortuneProgressView(...a),
+    getGachaState: (...a: any[]) => getGachaState(...a),
+  });
 
   const serializeAcuDiceGachaPool = createSerializeAcuDiceGachaPool({
     canDeleteGachaPoolDefinition: (...a: any[]) => canDeleteGachaPoolDefinition(...a),
@@ -13418,19 +12961,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
   });
 
-  const stringifyAcuDiceGachaCatalogInput = (input: unknown): string => {
-    if (typeof input === 'string') return input;
-    if (Array.isArray(input)) {
-      return JSON.stringify({ kind: GACHA_CATALOG_EXPORT_KIND, version: GACHA_CATALOG_VERSION, items: input });
-    }
-    if (input && typeof input === 'object') {
-      const record = input as Record<string, unknown>;
-      if (!Array.isArray(record.items) && record.name && record.quality) {
-        return JSON.stringify({ kind: GACHA_CATALOG_EXPORT_KIND, version: GACHA_CATALOG_VERSION, items: [record] });
-      }
-    }
-    return JSON.stringify(input);
-  };
+  const stringifyAcuDiceGachaCatalogInput = createStringifyAcuDiceGachaCatalogInput({
+
+  });
 
   const normalizeAcuDiceGachaImportMode = createNormalizeAcuDiceGachaImportMode({
 
@@ -13528,19 +13061,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     showSettings: (...a: any[]) => showGachaSettingsDialog(...a),
   });
 
-  const gachaRegexActions = new GachaRegexActions({
-    gachaApi: acuDiceGachaApi,
-    currencyName: FORTUNE_CURRENCY_NAME,
-    getToastr: () => {
-      try {
-        return window.toastr || (rootWindow !== window ? (rootWindow as unknown as { toastr?: typeof window.toastr }).toastr : undefined);
-      } catch {
-        return window.toastr;
-      }
-    },
-    getRuntimeErrorMessage: (error: unknown) => getRuntimeErrorMessage(error),
-    showActionableErrorToast: (message: string, options?: any) => showActionableErrorToast(message, options),
-    getCore: () => getCore(),
+  const gachaRegexActions = createGachaRegexActionsInstance({
+    getCore: (...a: any[]) => getCore(...a),
+    getRuntimeErrorMessage: (...a: any[]) => getRuntimeErrorMessage(...a),
+    getAcuDiceGachaApi: () => acuDiceGachaApi,
+    getRootWindow: () => rootWindow,
   });
 
   const bindAcuDiceGachaRegexActions = createBindAcuDiceGachaRegexActions({
