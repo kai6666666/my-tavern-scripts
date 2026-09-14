@@ -85,6 +85,17 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createCreateDefaultGachaState } from './features/gacha/create-default-gacha-state';
+import { createNormalizeShardWallet } from './features/gacha/normalize-shard-wallet';
+import { createNormalizeRecentGachaRewards } from './features/gacha/normalize-recent-gacha-rewards';
+import { createGetGachaStateStorageKey } from './features/gacha/get-gacha-state-storage-key';
+import { createGetGachaStateMigrationKey } from './features/gacha/get-gacha-state-migration-key';
+import { createHasMigratedLegacyGachaState } from './features/gacha/has-migrated-legacy-gacha-state';
+import { createMarkLegacyGachaStateMigrated } from './features/gacha/mark-legacy-gacha-state-migrated';
+import { createGetStoredGachaStateSnapshot } from './features/gacha/get-stored-gacha-state-snapshot';
+import { createAssertSaveStoredGachaStateSnapshot } from './features/gacha/assert-save-stored-gacha-state-snapshot';
+import { createNormalizeGachaStateRecord } from './features/gacha/normalize-gacha-state-record';
+import { createGetGachaShardLabel } from './features/gacha/get-gacha-shard-label';
 import { createNormalizeImageUrlInput } from './features/ui/normalize-image-url-input';
 import { createIsRemoteImageUrlValid } from './features/ui/is-remote-image-url-valid';
 import { createCreateMetaCheckResultRegex } from './features/regex/create-meta-check-result-regex';
@@ -10548,24 +10559,47 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
     getGACHA_TEST_DEFAULT_FORTUNE: () => GACHA_TEST_DEFAULT_FORTUNE,
   });
-  const createDefaultGachaState = (): GachaState => gachaStateCore.createDefault();
-  const normalizeShardWallet = (rawValue: unknown): GachaShardWallet => gachaStateCore.normalizeShardWallet(rawValue);
-  const normalizeRecentGachaRewards = (rawValue: unknown): GachaRecentRewardRecord[] => gachaStateCore.normalizeRecentRewards(rawValue);
+  const createDefaultGachaState = createCreateDefaultGachaState({
+    getGachaStateCore: () => gachaStateCore,
+  });
+  const normalizeShardWallet = createNormalizeShardWallet({
+    getGachaStateCore: () => gachaStateCore,
+  });
+
+  const normalizeRecentGachaRewards = createNormalizeRecentGachaRewards({
+    getGachaStateCore: () => gachaStateCore,
+  });
 
   const gachaStore = createGachaStoreInstance({
     getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
   });
-  const getGachaStateStorageKey = (): string => gachaStore.getStorageKey();
-  const getGachaStateMigrationKey = (): string => gachaStore.getMigrationKey();
-  const hasMigratedLegacyGachaState = (): boolean => gachaStore.hasMigrated();
-  const markLegacyGachaStateMigrated = () => gachaStore.markMigrated();
-  const getStoredGachaStateSnapshot = (): Record<string, unknown> | null => gachaStore.load();
+  const getGachaStateStorageKey = createGetGachaStateStorageKey({
+    getGachaStore: () => gachaStore,
+  });
+  const getGachaStateMigrationKey = createGetGachaStateMigrationKey({
+    getGachaStore: () => gachaStore,
+  });
+
+  const hasMigratedLegacyGachaState = createHasMigratedLegacyGachaState({
+    getGachaStore: () => gachaStore,
+  });
+  const markLegacyGachaStateMigrated = createMarkLegacyGachaStateMigrated({
+    getGachaStore: () => gachaStore,
+  });
+
+  const getStoredGachaStateSnapshot = createGetStoredGachaStateSnapshot({
+    getGachaStore: () => gachaStore,
+  });
   const saveStoredGachaStateSnapshot = createSaveStoredGachaStateSnapshot({
     getGachaStore: () => gachaStore,
   });
-  const assertSaveStoredGachaStateSnapshot = (state: GachaState): void => gachaStore.assertSave(state);
+  const assertSaveStoredGachaStateSnapshot = createAssertSaveStoredGachaStateSnapshot({
+    getGachaStore: () => gachaStore,
+  });
 
-  const normalizeGachaStateRecord = (rawValue: unknown): GachaState | null => gachaStateCore.normalizeRecord(rawValue);
+  const normalizeGachaStateRecord = createNormalizeGachaStateRecord({
+    getGachaStateCore: () => gachaStateCore,
+  });
 
   let gachaCatalogCache: GachaCatalogCache | null = null;
   let gachaCatalogLoadTask: GachaCatalogLoadTask | null = null;
@@ -10922,7 +10956,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const isGachaRarity = createIsGachaRarity({
 
   });
-  const getGachaShardLabel = (rarity: GachaRarity): string => `${rarity}${FORTUNE_CURRENCY_NAME}碎片`;
+  const getGachaShardLabel = createGetGachaShardLabel({
+
+  });
 
   const getGachaRarityIconClass = createGetGachaRarityIconClass({
     getINVENTORY_QUALITY_FILTER_META: () => INVENTORY_QUALITY_FILTER_META,
