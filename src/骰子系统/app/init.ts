@@ -267,7 +267,7 @@ export function createInit(deps: any) {
 
           // 恢复快照功能
           if (api.registerTableFillStartCallback) {
-            diceWindow.__acuDiceFillStartHook = () => deps.saveCurrentDatabaseSnapshotAsReviewBaseline('table_fill_start');
+            diceWindow.__acuDiceFillStartHook = () => deps.maybeRefreshReviewBaselineAtFillStart();
             if (!api.__acuDiceFillStartDispatcher) {
               const fillStartDispatcher = () => {
                 try {

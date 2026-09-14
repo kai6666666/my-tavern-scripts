@@ -67,6 +67,10 @@ export function createApplyDiceConfigBackup(deps: any) {
     let tableTemplateResourceImportAttempted = false;
     let latestRestoreRawData: unknown = deps.getRuntimeGachaRawData();
     const getTouchedCount = () => stats.added + stats.overwritten + stats.skipped;
+    const planStoredTableOrder = backup.modules?.uiLayout?.storage?.[deps.STORAGE_KEY_TABLE_ORDER];
+    const planHasStoredTableOrder =
+      Array.isArray(planStoredTableOrder) && planStoredTableOrder.length > 0 && selectedIds.includes('uiLayout');
+
     const pushRestoredModule = (moduleId: DiceConfigBackupModuleId, touchedBefore: number) => {
       const definition = deps.getDiceConfigBackupModuleDefinition(moduleId);
       if (!definition || getTouchedCount() <= touchedBefore) return;
@@ -107,6 +111,17 @@ export function createApplyDiceConfigBackup(deps: any) {
         });
         const tableTemplateResourceImported = stats.added > resourceAddedBefore;
         pushRestoredModule('tableTemplate', moduleTouchedBefore);
+        if (!planHasStoredTableOrder) {
+          const plannedTableOrder = deps.buildDiceConfigBackupTableOrder(deferredTableTemplatePayload);
+          if (Array.isArray(plannedTableOrder) && plannedTableOrder.length > 0) {
+            try {
+              deps.saveTableOrder(plannedTableOrder);
+              console.info('[DICE]已按配置方案表格顺序覆盖导航盘管理顺序:', plannedTableOrder.join(' → '));
+            } catch (orderError) {
+              console.warn('[DICE]写入导航盘管理顺序失败（已忽略）:', orderError);
+            }
+          }
+        }
         if (tableTemplateResourceImported) {
           deps.setCachedRawData(null);
           deps.syncDiceConfigBackupRuntimeAfterRestore(selectedIds, { closeSettings: true });

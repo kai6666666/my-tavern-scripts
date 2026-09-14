@@ -42,6 +42,11 @@ export function createUpdateController(deps: any) {
         } catch (renderError) {
           console.warn('[DICE]ACU 更新回调触发渲染失败（已忽略）:', renderError);
         }
+        try {
+          if (typeof deps.refreshChangesPanel === 'function') deps.refreshChangesPanel();
+        } catch (refreshError) {
+          console.warn('[DICE]ACU 更新回调刷新审核面板失败（已忽略）:', refreshError);
+        }
         // 执行实时验证
         setTimeout(() => {
           try {

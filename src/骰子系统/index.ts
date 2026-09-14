@@ -1196,6 +1196,9 @@ import { createUpdateTemplateForActivePreset } from './features/presets/update-t
 import { createShowTemplateInspectionResultModal } from './features/table/show-template-inspection-result-modal';
 import { createUpdateTemplateForActiveCheckPreset } from './features/presets/update-template-for-active-check-preset';
 import { createApplyDiceConfigBackup } from './features/dice/apply-dice-config-backup';
+import { TABLE_NAV_SPECIAL_KEYS } from './shared/table-nav-special-keys';
+import { createBuildDiceConfigBackupTableOrder } from './features/dice/build-dice-config-backup-table-order';
+import { createMaybeRefreshReviewBaselineAtFillStart } from './features/table/maybe-refresh-review-baseline-at-fill-start';
 import { createApplyDiceConfigBackupValue } from './features/dice/apply-dice-config-backup-value';
 import { createWriteAttributesToCharacter } from './features/dice/write-attributes-to-character';
 import { createParseDiceConfigBackup } from './features/dice/parse-dice-config-backup';
@@ -4850,6 +4853,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getValidationRuleManager: () => ValidationRuleManager,
     renderInterface: () => renderInterface(),
     updateValidationIndicator: (...a: any[]) => updateValidationIndicator(...a),
+    refreshChangesPanel: (...a: any[]) => refreshChangesPanel(...a),
   });
   // 更新导航栏验证指示器
   const updateValidationIndicator = createUpdateValidationIndicator({
@@ -5680,6 +5684,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getSavedTableOrder: (...a: any[]) => getSavedTableOrder(...a),
     saveTableOrder: (...a: any[]) => saveTableOrder(...a),
   });
+
   const getCollapsedState = createGetCollapsedState({
 
   });
@@ -5700,6 +5705,14 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const saveSnapshot = createSaveSnapshot({
     getCurrentContextFingerprint: (...a: any[]) => getCurrentContextFingerprint(...a),
   });
+  const maybeRefreshReviewBaselineAtFillStart = createMaybeRefreshReviewBaselineAtFillStart({
+    getTableData: (...a: any[]) => getTableData(...a),
+    hasSheetKeys: (...a: any[]) => hasSheetKeys(...a),
+    loadSnapshot: (...a: any[]) => loadSnapshot(...a),
+    countRuntimeDataChanges: (...a: any[]) => countRuntimeDataChanges(...a),
+    saveSnapshot: (...a: any[]) => saveSnapshot(...a),
+  });
+
 
   const saveCurrentDatabaseSnapshotAsReviewBaseline = createSaveCurrentDatabaseSnapshotAsReviewBaseline({
     getTableData: (...a: any[]) => getTableData(...a),
@@ -6591,6 +6604,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   const DICE_CONFIG_BACKUP_GACHA_CATALOG_RESOURCE_KEY = 'gachaCatalogRecords';
   const DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY = 'tableTemplate';
+  const buildDiceConfigBackupTableOrder = createBuildDiceConfigBackupTableOrder({
+    TABLE_NAV_SPECIAL_KEYS: TABLE_NAV_SPECIAL_KEYS,
+    DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY: DICE_CONFIG_BACKUP_TABLE_TEMPLATE_RESOURCE_KEY,
+  });
 
   interface DiceConfigBackupTableTemplateApi {
     getTableTemplate?: () => unknown;
@@ -7100,6 +7117,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     STORAGE_KEY_REGEX_RULES: STORAGE_KEY_REGEX_RULES,
     getCachedRawData: () => cachedRawData,
     setCachedRawData: (v: any) => { cachedRawData = v; },
+    buildDiceConfigBackupTableOrder: (...a: any[]) => buildDiceConfigBackupTableOrder(...a),
+    saveTableOrder: (...a: any[]) => saveTableOrder(...a),
+    STORAGE_KEY_TABLE_ORDER: STORAGE_KEY_TABLE_ORDER,
   });
 
   const getAllDiceConfigBackupModuleIds = createGetAllDiceConfigBackupModuleIds({
@@ -12638,7 +12658,8 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isFloatingCollapseActive: (...a: any[]) => isFloatingCollapseActive(...a),
     renderInterface: (...a: any[]) => renderInterface(...a),
     restoreDiceResultBeforeSend: (...a: any[]) => restoreDiceResultBeforeSend(...a),
-    saveCurrentDatabaseSnapshotAsReviewBaseline: (...a: any[]) => saveCurrentDatabaseSnapshotAsReviewBaseline(...a),
+        maybeRefreshReviewBaselineAtFillStart: (...a: any[]) => maybeRefreshReviewBaselineAtFillStart(...a),
+saveCurrentDatabaseSnapshotAsReviewBaseline: (...a: any[]) => saveCurrentDatabaseSnapshotAsReviewBaseline(...a),
     scheduleCharacterDiceProfileDetection: (...a: any[]) => scheduleCharacterDiceProfileDetection(...a),
     scheduleDialogueIndentRender: (...a: any[]) => scheduleDialogueIndentRender(...a),
     setTextareaValueAndNotify: (...a: any[]) => setTextareaValueAndNotify(...a),
