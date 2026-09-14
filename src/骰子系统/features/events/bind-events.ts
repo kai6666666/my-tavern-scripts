@@ -744,6 +744,8 @@ export function createBindEvents(deps: any) {
       .on('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
+        const target = String($(this).data('inventory-target') || 'inventory') === 'equipment' ? 'equipment' : 'inventory';
+        deps.saveInventoryPanelTarget(target);
         deps.showInventoryVisualization();
       });
     $('.acu-gacha-open-btn')
@@ -1114,8 +1116,17 @@ export function createBindEvents(deps: any) {
         e.stopPropagation();
         e.preventDefault();
         const nextPoolTag = String($(this).data('pool-tag') || '').trim() as GachaPoolTag;
-        if (!deps.getVisibleGachaPoolConfigDefinitions().some(pool => pool.id === nextPoolTag)) return;
-        void deps.updateGachaPoolTag(nextPoolTag);
+        try {
+          const visiblePoolIds = deps.getVisibleGachaPoolConfigDefinitions().map(pool => pool.id);
+          console.warn('[gacha-debug] pool click', nextPoolTag, 'visible=', visiblePoolIds);
+          if (!visiblePoolIds.includes(nextPoolTag)) {
+            console.warn('[gacha-debug] guard blocked:', nextPoolTag);
+            return;
+          }
+          void deps.updateGachaPoolTag(nextPoolTag);
+        } catch (error) {
+          console.warn('[gacha-debug] pool click error:', error);
+        }
       });
     $('body')
       .off('click.acu_gacha_draw_btn')

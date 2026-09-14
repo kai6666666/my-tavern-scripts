@@ -26,9 +26,9 @@ export function createRenderTableContent(deps: any) {
     }
 
     if (!tableData || !tableData.rows.length) {
-      const emptyHeaderActionCount = 3 + (reverseBtnHtml ? 1 : 0);
+      const emptyHeaderActionCount = 3 + (reverseBtnHtml ? 1 : 0) + (tableName.includes('物品') || tableName.includes('背包') || tableName.includes('道具') || tableName.includes('装备') ? 1 : 0);
       return `
-            <div class="acu-panel-header"><div class="acu-panel-title"><div class="acu-title-main"><i class="fa-solid ${deps.getIconForTableName(tableName)}"></i> <span class="acu-title-text">${deps.escapeHtml(tableName)}</span></div><div class="acu-title-sub">暂无可浏览条目</div></div><div class="acu-header-actions acu-table-header-actions" data-action-count="${emptyHeaderActionCount}"><div class="acu-table-action-set">${deps.getTutorialButtonHtml('table', '查看表格教程')}${reverseBtnHtml}</div><div class="acu-panel-control-set" aria-label="${deps.escapeHtml(tableName)}面板控制"><div class="acu-height-control"><i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${deps.escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i></div><button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${deps.escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button></div></div></div>
+            <div class="acu-panel-header"><div class="acu-panel-title"><div class="acu-title-main"><i class="fa-solid ${deps.getIconForTableName(tableName)}"></i> <span class="acu-title-text">${deps.escapeHtml(tableName)}</span></div><div class="acu-title-sub">暂无可浏览条目</div></div><div class="acu-header-actions acu-table-header-actions" data-action-count="${emptyHeaderActionCount}"><div class="acu-table-action-set">${deps.getTutorialButtonHtml('table', '查看表格教程')}${(tableName.includes('物品') || tableName.includes('背包') || tableName.includes('道具') || tableName.includes('装备')) ? `<button type="button" class="acu-view-btn acu-table-inventory-btn" data-inventory-target="${tableName.includes('装备') ? 'equipment' : 'inventory'}" title="可视化" aria-label="可视化"><i class="fa-solid fa-box-open"></i></button>` : ''}${reverseBtnHtml}</div><div class="acu-panel-control-set" aria-label="${deps.escapeHtml(tableName)}面板控制"><div class="acu-height-control"><i class="fa-solid fa-arrows-up-down acu-height-drag-handle" data-table="${deps.escapeHtml(tableName)}" title="↕️ 拖动调整面板高度 | 双击恢复默认"></i></div><button type="button" class="acu-close-btn" title="关闭" aria-label="关闭${deps.escapeHtml(tableName)}"><i class="fa-solid fa-times"></i></button></div></div></div>
             <div class="acu-panel-content"><div class="acu-empty-state"><i class="fa-regular fa-folder-open"></i><span>暂无数据</span></div></div>`;
     }
 
@@ -46,12 +46,15 @@ export function createRenderTableContent(deps: any) {
     const showRelationGraphButton = isCharacterTable(tableName);
     const showMapButton = tableName.includes('地图');
     const showInventoryButton = tableName.includes('物品') || tableName.includes('背包') || tableName.includes('道具');
+    const showEquipmentButton = tableName.includes('装备');
+    const showInventoryPanelButton = showInventoryButton || showEquipmentButton;
+    const inventoryPanelTarget = showEquipmentButton ? 'equipment' : 'inventory';
     const headerActionCount =
       5 +
       (reverseBtnHtml ? 1 : 0) +
       (showRelationGraphButton ? 1 : 0) +
       (showMapButton ? 1 : 0) +
-      (showInventoryButton ? 1 : 0);
+      (showInventoryPanelButton ? 1 : 0);
 
     let titleColIndex = 1;
     if (tableData.headers.length === 1) {
@@ -130,7 +133,7 @@ export function createRenderTableContent(deps: any) {
                         ${deps.getTutorialButtonHtml('table', '查看表格教程')}
                         ${showRelationGraphButton ? `<button type="button" class="acu-view-btn" id="acu-btn-relation-graph" data-table="${deps.escapeHtml(tableName)}" title="查看人物关系图" aria-label="查看人物关系图"><i class="fa-solid fa-project-diagram"></i></button>` : ''}
                         ${showMapButton ? `<button type="button" class="acu-view-btn acu-table-map-btn" title="地图可视化" aria-label="地图可视化"><i class="fa-solid fa-map"></i></button>` : ''}
-                        ${showInventoryButton ? `<button type="button" class="acu-view-btn acu-table-inventory-btn" title="物品栏可视化" aria-label="物品栏可视化"><i class="fa-solid fa-box-open"></i></button>` : ''}
+                        ${showInventoryPanelButton ? `<button type="button" class="acu-view-btn acu-table-inventory-btn" data-inventory-target="${inventoryPanelTarget}" title="${showEquipmentButton ? '装备栏可视化' : '物品栏可视化'}" aria-label="${showEquipmentButton ? '装备栏可视化' : '物品栏可视化'}"><i class="fa-solid fa-box-open"></i></button>` : ''}
                         ${reverseBtnHtml}
                         <button type="button" class="acu-view-btn" id="acu-btn-switch-style" data-table="${deps.escapeHtml(tableName)}" title="切换视图模式，当前为${isGridMode ? '双列网格' : '单列列表'}" aria-label="切换视图模式">
                             <i class="fa-solid ${isGridMode ? 'fa-th-large' : 'fa-list'}"></i>
