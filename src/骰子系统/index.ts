@@ -194,6 +194,7 @@ import { createRefreshGachaShardShop } from './features/gacha/refresh-gacha-shar
 import { createRefreshChangesPanel } from './features/changes/refresh-changes-panel';
 import { createReadAdvancedPresetPolicyNumber } from './features/presets/read-advanced-preset-policy-number';
 import { createPatchCrudSheetCellInRecord } from './features/table/patch-crud-sheet-cell-in-record';
+import { createGetStableTableSort } from './features/table/get-stable-table-sort';
 import { createParseIsolatedData } from './features/table/parse-isolated-data';
 import { createNormalizeGachaCustomFields } from './features/gacha/normalize-gacha-custom-fields';
 import { createMergeDiceConfigBackupSetArray } from './features/dice/merge-dice-config-backup-set-array';
@@ -9758,6 +9759,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // 实际的渲染实现函数
+const getStableTableSort = createGetStableTableSort({
+    getSavedTableOrder: (...a: any[]) => getSavedTableOrder(...a),
+  });
   const _renderInterfaceImpl = createRenderInterfaceImpl({
     applyStoredPanelHeight: (...a: any[]) => applyStoredPanelHeight(...a),
     bindChangesEvents: (...a: any[]) => bindChangesEvents(...a),
@@ -9845,6 +9849,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setLastOptionHash: (v: any) => { lastOptionHash = v; },
     getCachedRawData: () => cachedRawData,
     setCachedRawData: (v: any) => { cachedRawData = v; },
+    getStableTableSort: (...a: any[]) => getStableTableSort(...a),
   });
 
   // [新增] 独立插入选项到最新气泡
@@ -9890,6 +9895,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     DATA_VALIDATION_DEPRECATED_META: DATA_VALIDATION_DEPRECATED_META,
     STORAGE_KEY_VALIDATION_MODE: STORAGE_KEY_VALIDATION_MODE,
     ValidationEngine: ValidationEngine,
+    getStableTableSort: (...a: any[]) => getStableTableSort(...a),
   });
 
   const renderGlobalInteractionActionButton = createRenderGlobalInteractionActionButton({

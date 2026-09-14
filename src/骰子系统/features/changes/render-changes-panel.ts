@@ -220,7 +220,8 @@ export function createRenderChangesPanel(deps: any) {
 
         html += `<div class="acu-changes-list">`;
 
-        for (const tableName in groupedErrors) {
+        const orderedErrorTables = deps.getStableTableSort(Object.keys(groupedErrors));
+        for (const tableName of orderedErrorTables) {
           const tableErrors = groupedErrors[tableName];
           const isCollapsed = collapsedGroups.includes(tableName);
 
@@ -291,7 +292,8 @@ export function createRenderChangesPanel(deps: any) {
 
         const collapsedGroups = Store.get('acu_changes_collapsed_groups', []);
 
-        for (const tableName in groupedChanges) {
+        const orderedChangeTables = deps.getStableTableSort(Object.keys(groupedChanges));
+        for (const tableName of orderedChangeTables) {
           const tableChanges = groupedChanges[tableName];
           const isCollapsed = collapsedGroups.includes(tableName);
           html += `<div class="acu-changes-group ${isCollapsed ? 'collapsed' : ''}">

@@ -190,6 +190,7 @@ export function createRenderInterfaceImpl(deps: any) {
     let orderedNames = Object.keys(tables);
     if (savedOrder)
       orderedNames = savedOrder.filter(n => tables[n]).concat(orderedNames.filter(n => !savedOrder.includes(n)));
+    orderedNames = deps.getStableTableSort(orderedNames);
 
     const hiddenList = deps.getHiddenTables();
     orderedNames = orderedNames.filter(n => !hiddenList.includes(n));
