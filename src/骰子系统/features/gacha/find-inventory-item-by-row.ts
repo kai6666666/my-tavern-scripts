@@ -4,9 +4,9 @@
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createFindInventoryItemByRow(deps: any) {
-  const findInventoryItemByRow = rowIndex => {
+  const findInventoryItemByRow = (rowIndex, target = 'inventory') => {
     const rawData = deps.getCachedRawData() || deps.getTableData();
-    const parsed = deps.parseInventoryItems(rawData);
+    const parsed = target === 'equipment' ? deps.parseEquipmentItems(rawData) : deps.parseInventoryItems(rawData);
     return parsed.items.find(item => item.rowIndex === rowIndex) || null;
   };
   return findInventoryItemByRow;

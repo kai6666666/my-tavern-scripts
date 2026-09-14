@@ -400,6 +400,8 @@ import { createSaveStoredGachaShardShopRarity } from './features/gacha/save-stor
 import { createSaveStoredGachaActivePoolTag } from './features/gacha/save-stored-gacha-active-pool-tag';
 import { createSaveInventoryMetadataStore } from './features/gacha/save-inventory-metadata-store';
 import { createSaveInventoryFilters } from './features/gacha/save-inventory-filters';
+import { createGetInventoryPanelTarget } from './features/table/get-inventory-panel-target';
+import { createSaveInventoryPanelTarget } from './features/table/save-inventory-panel-target';
 import { createSaveDiceProfileCollapsedSections } from './features/dice/save-dice-profile-collapsed-sections';
 import { createSaveCrazyModeConfig } from './features/dice/save-crazy-mode-config';
 import { createResolveRuntimeMutationSource } from './features/table/resolve-runtime-mutation-source';
@@ -10259,14 +10261,20 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getINVENTORY_TYPE_OPTIONS: () => INVENTORY_TYPE_OPTIONS,
     getINVENTORY_QUALITY_OPTIONS: () => INVENTORY_QUALITY_OPTIONS,
     getINVENTORY_SORT_OPTIONS: () => INVENTORY_SORT_OPTIONS,
+    getInventoryPanelTarget: (...a: any[]) => getInventoryPanelTarget(...a),
   });
 
   const saveInventoryFilters = createSaveInventoryFilters({
     getInventoryFilters: (...a: any[]) => getInventoryFilters(...a),
+    getInventoryPanelTarget: (...a: any[]) => getInventoryPanelTarget(...a),
   });
 
   const getInventoryFiltersCollapsedState = createGetInventoryFiltersCollapsedState({
 
+  });
+  const getInventoryPanelTarget = createGetInventoryPanelTarget({
+  });
+  const saveInventoryPanelTarget = createSaveInventoryPanelTarget({
   });
   const saveInventoryFiltersCollapsedState = createSaveInventoryFiltersCollapsedState({
 
@@ -12072,6 +12080,8 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     INVENTORY_QUALITY_FILTER_META: INVENTORY_QUALITY_FILTER_META,
     INVENTORY_SORT_OPTIONS: INVENTORY_SORT_OPTIONS,
     INVENTORY_TYPE_FILTER_META: INVENTORY_TYPE_FILTER_META,
+    getInventoryPanelTarget: (...a: any[]) => getInventoryPanelTarget(...a),
+    parseEquipmentItems: (...a: any[]) => parseEquipmentItems(...a),
   });
 
   const refreshInventoryVisualization = createRefreshInventoryVisualization({
@@ -12097,6 +12107,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getTableData: (...a: any[]) => getTableData(...a),
     parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
     getCachedRawData: () => cachedRawData,
+    parseEquipmentItems: (...a: any[]) => parseEquipmentItems(...a),
   });
 
   const getInventoryDetailContext = createGetInventoryDetailContext({
@@ -12104,6 +12115,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getTableData: (...a: any[]) => getTableData(...a),
     parseInventoryItems: (...a: any[]) => parseInventoryItems(...a),
     getCachedRawData: () => cachedRawData,
+    parseEquipmentItems: (...a: any[]) => parseEquipmentItems(...a),
   });
 
   const getInventoryFieldLabel = createGetInventoryFieldLabel({
@@ -12205,6 +12217,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     showInventoryGiftDialog: (...a: any[]) => showInventoryGiftDialog(...a),
     ACTION_ICON_MAP: ACTION_ICON_MAP,
     getCachedRawData: () => cachedRawData,
+    dismantleEquipmentItem: (...a: any[]) => dismantleEquipmentItem(...a),
   });
 
   const showInventoryGiftDialog = createShowInventoryGiftDialog({
@@ -12508,6 +12521,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setTutorialButtonEventsBound: (v: any) => { tutorialButtonEventsBound = v; },
     dismantleEquipmentItem: (...a: any[]) => dismantleEquipmentItem(...a),
     isGachaRarity: (...a: any[]) => isGachaRarity(...a),
+    saveInventoryPanelTarget: (...a: any[]) => saveInventoryPanelTarget(...a),
   });
 
   let selectedSwapSource = null;

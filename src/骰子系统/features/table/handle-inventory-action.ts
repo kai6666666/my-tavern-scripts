@@ -5,12 +5,12 @@
  */
 import { Store } from '../../shared/storage/store';
 export function createHandleInventoryAction(deps: any) {
-  const handleInventoryAction = (rowIndex, action) => {
+  const handleInventoryAction = (rowIndex, action, target: 'inventory' | 'equipment' = 'inventory') => {
     const { $ } = deps.getCore();
-    const item = deps.findInventoryItemByRow(rowIndex);
+    const item = deps.findInventoryItemByRow(rowIndex, target);
     if (!item && action !== 'detail') return;
     if (action === 'detail') {
-      deps.showInventoryItemDetail(rowIndex);
+      deps.showInventoryItemDetail(rowIndex, target);
       return;
     }
     if (action === 'gift') {

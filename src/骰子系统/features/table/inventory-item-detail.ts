@@ -4,19 +4,21 @@
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createShowInventoryItemDetail(deps: any) {
-  const showInventoryItemDetail = rowIndex => {
+  const showInventoryItemDetail = (rowIndex, target: 'inventory' | 'equipment' = 'inventory') => {
     const { $ } = deps.getCore();
     const config = deps.getConfig();
     const rawData = deps.getCachedRawData() || deps.getTableData();
-    const item = deps.findInventoryItemByRow(rowIndex);
+    const item = deps.findInventoryItemByRow(rowIndex, target);
     if (!item) {
       if (window.toastr) window.toastr.warning('未找到该物品');
       return;
     }
     const icon = deps.getElementEmoji(item.name, null);
-    const iconContext = deps.createCustomTableNameIconContext('item', item.tableName, 'item', item.name);
-    const metaRecord = deps.getInventoryMetadataForItem(rawData, item);
-    const detailContext = deps.getInventoryDetailContext(rowIndex);
+    const iconCategory = target === 'equipment' ? 'equipment' : 'item';
+    const iconContext = deps.createCustomTableNameIconContext(iconCategory, item.tableName, iconCategory, item.name);
+    const menuClass = target === 'inventory' ? ' acu-inventory-detail-menu-target' : '';
+    const metaRecord = target === 'inventory' ? deps.getInventoryMetadataForItem(rawData, item) : null;
+    const detailContext = deps.getInventoryDetailContext(rowIndex, undefined, target);
     const quickActions = detailContext
       ? deps.getInteractOptionsForRow(item.tableName, detailContext.headers, detailContext.row)
       : [];
@@ -29,12 +31,10 @@ export function createShowInventoryItemDetail(deps: any) {
               <div class="acu-inventory-detail-icon">${deps.renderCustomTableNameIconContent(deps.renderThemeIconContent(icon), iconContext)}</div>
               <div class="acu-inventory-detail-summary">
                 <div class="acu-inventory-detail-title-row">
-                  <button class="acu-inventory-detail-title acu-inventory-detail-menu-target" type="button" data-menu-scope="card">${deps.escapeHtml(item.name)}</button>
-                  <button class="acu-inventory-detail-inline-action acu-inventory-detail-gift" type="button" title="赠与" aria-label="赠与">
-                    <i class="fa-solid fa-gift"></i>
-                  </button>
+                  <button class="acu-inventory-detail-title${menuClass}" type="button" data-menu-scope="card">${deps.escapeHtml(item.name)}</button>
+                  ${target === 'inventory' ? '<button class="acu-inventory-detail-inline-action acu-inventory-detail-gift" type="button" title="赠与" aria-label="赠与"><i class="fa-solid fa-gift"></i></button>' : ''}
                 </div>
-                <button class="acu-inventory-detail-sub acu-inventory-detail-menu-target" type="button" data-menu-scope="summary">${deps.escapeHtml(item.type)} · ${deps.escapeHtml(item.quality)} · 数量 ${deps.escapeHtml(item.quantityText)}</button>
+                <button class="acu-inventory-detail-sub${menuClass}" type="button" data-menu-scope="summary">${deps.escapeHtml(item.type)} · ${deps.escapeHtml(item.quality)} · 数量 ${deps.escapeHtml(item.quantityText)}</button>
               </div>
             </div>
             <div class="acu-inventory-detail-header-actions">
@@ -49,9 +49,9 @@ export function createShowInventoryItemDetail(deps: any) {
             </div>
           </div>
           <div class="acu-inventory-detail-meta-wrap">
-            ${deps.renderInventoryMetadataHtml(metaRecord)}
+            ${metaRecord ? deps.renderInventoryMetadataHtml(metaRecord) : ''}
           </div>
-          <button class="acu-inventory-detail-desc acu-inventory-detail-menu-target" type="button" data-menu-scope="field" data-field-key="description">
+          <button class="acu-inventory-detail-desc${menuClass}" type="button" data-menu-scope="field" data-field-key="description">
             ${deps.escapeHtml(item.description || '暂无描述')}
           </button>
           ${
@@ -98,24 +98,28 @@ export function createShowInventoryItemDetail(deps: any) {
       void deps.showInventoryGiftDialog(rowIndex);
     });
     detail.on('click', '.acu-inventory-detail-jump', () => {
-      deps.handleInventoryAction(rowIndex, 'jump');
+      deps.handleInventoryAction(rowIndex, 'jump', target);
     });
-    detail.on('click', '.acu-inventory-detail-dismantle', () => {
+    const handleDismantle = () => {
       detail.remove();
-      void deps.dismantleInventoryItem(rowIndex);
-    });
+      if (target === 'equipment') {
+        void deps.dismantleEquipmentItem(item.tableKey, rowIndex);
+      } else {
+        void deps.dismantleInventoryItem(rowIndex);
+      }
+    };
+    detail.on('click', '.acu-inventory-detail-dismantle', handleDismantle);
     detail.on('click', '.acu-inventory-detail-dismantle-action', e => {
       e.stopPropagation();
       e.preventDefault();
-      detail.remove();
-      void deps.dismantleInventoryItem(rowIndex);
+      handleDismantle();
     });
     detail.on('click', '.acu-inventory-detail-quick-action', function (e) {
       e.stopPropagation();
       e.preventDefault();
       const actionIdx = Number.parseInt(String($(this).data('action-idx') || ''), 10);
       if (Number.isNaN(actionIdx)) return;
-      const freshContext = deps.getInventoryDetailContext(rowIndex);
+      const freshContext = deps.getInventoryDetailContext(rowIndex, undefined, target);
       if (!freshContext) return;
       const actions = deps.getInteractOptionsForRow(freshContext.item.tableName, freshContext.headers, freshContext.row);
       const action = actions[actionIdx];

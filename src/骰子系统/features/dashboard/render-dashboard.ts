@@ -409,7 +409,7 @@ export function createRenderDashboard(deps: any) {
                         <span><i class="fa-solid fa-bag-shopping"></i> 物品 (${bagParsed.length})</span>
                         <span class="acu-dash-section-actions">
                             <i class="fa-solid fa-store acu-dash-gacha-btn acu-dash-section-action" title="骰子商店"></i>
-                            <i class="fa-solid fa-box-open acu-dash-inventory-btn acu-dash-section-action" title="物品栏可视化"></i>
+                            <i class="fa-solid fa-box-open acu-dash-inventory-btn acu-dash-section-action" data-inventory-target="inventory" title="物品栏可视化"></i>
                         </span>
                     </h3>
                     <div class="acu-dash-items-list">
@@ -462,6 +462,7 @@ export function createRenderDashboard(deps: any) {
                     <span><i class="fa-solid fa-shield-halved"></i> 装备 (${equippedItems.length})</span>
                     <span class="acu-dash-section-actions">
                         <i class="fa-solid fa-store acu-dash-gacha-btn acu-dash-section-action" title="骰子商店"></i>
+                        <i class="fa-solid fa-box-open acu-dash-inventory-btn acu-dash-section-action" data-inventory-target="equipment" title="装备栏可视化"></i>
                     </span>
                     </h3>
                     <div class="acu-dash-equipment-list">

@@ -8,7 +8,9 @@ import { STORAGE_KEY_INVENTORY_FILTERS } from '../../shared/storage-keys';
 import type { InventoryFilterState, InventoryTypeFilter, InventoryQualityFilter, InventorySortFilter } from './gacha-types';
 export function createGetInventoryFilters(deps: any) {
   const getInventoryFilters = (): InventoryFilterState => {
-    const stored = Store.get(STORAGE_KEY_INVENTORY_FILTERS, {}) as Partial<InventoryFilterState>;
+    const target = deps.getInventoryPanelTarget();
+    const storageKey = target === 'equipment' ? STORAGE_KEY_INVENTORY_FILTERS + '_equipment' : STORAGE_KEY_INVENTORY_FILTERS;
+    const stored = Store.get(storageKey, {}) as Partial<InventoryFilterState>;
     return {
       search: String(stored.search || ''),
       type: deps.getINVENTORY_TYPE_OPTIONS().includes(stored.type as InventoryTypeFilter)

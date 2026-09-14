@@ -4,11 +4,15 @@
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createGetInventoryDetailContext(deps: any) {
-  const getInventoryDetailContext = (rowIndex: number, options?: { preferLatest?: boolean }) => {
+  const getInventoryDetailContext = (
+    rowIndex: number,
+    options?: { preferLatest?: boolean },
+    target: 'inventory' | 'equipment' = 'inventory',
+  ) => {
     const rawData = options?.preferLatest
       ? deps.getTableData({ silent: true }) || deps.cloneRuntimeDataValue(deps.getCachedRawData())
       : deps.getCachedRawData() || deps.getTableData();
-    const parsed = deps.parseInventoryItems(rawData);
+    const parsed = target === 'equipment' ? deps.parseEquipmentItems(rawData) : deps.parseInventoryItems(rawData);
     const item = parsed.items.find(candidate => candidate.rowIndex === rowIndex) || null;
     if (!rawData || !item || !item.tableKey) return null;
     const table = rawData[item.tableKey];

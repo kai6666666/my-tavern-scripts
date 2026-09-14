@@ -5,12 +5,13 @@
  */
 import { INVENTORY_QUALITY_ORDER } from '../../shared/defaults-config';
 export function createRenderInventoryVisualization(deps: any) {
-  const renderInventoryVisualization = rawData => {
+  const renderInventoryVisualization = (rawData, target = deps.getInventoryPanelTarget() as 'inventory' | 'equipment') => {
     const config = deps.getConfig();
     const filters = deps.getInventoryFilters();
     const isFilterCollapsed = deps.getInventoryFiltersCollapsedState();
     const activeFilterCount = deps.getInventoryActiveFilterCount(filters);
-    const { tableName, tableKey, items, colMap } = deps.parseInventoryItems(rawData);
+    const { tableName, tableKey, items, colMap } =
+      target === 'equipment' ? deps.parseEquipmentItems(rawData) : deps.parseInventoryItems(rawData);
     const normalizedSearch = String(filters.search || '')
       .trim()
       .toLowerCase();
@@ -64,14 +65,14 @@ export function createRenderInventoryVisualization(deps: any) {
             .join('')
         : `<div class="acu-inventory-empty">
              <i class="fa-solid fa-bag-shopping"></i>
-             <span>${items.length > 0 ? '没有符合筛选条件的物品' : '暂无物品'}</span>
+             <span>${items.length > 0 ? (target === 'equipment' ? '没有符合筛选条件的装备' : '没有符合筛选条件的物品') : (target === 'equipment' ? '暂无装备' : '暂无物品')}</span>
            </div>`;
 
     return `
       <div class="acu-inventory-shell acu-theme-${config.theme}">
         <div class="acu-panel-header acu-inventory-window-header">
           <div class="acu-panel-title">
-            <div class="acu-title-main"><i class="fa-solid fa-box-open"></i> <span class="acu-title-text">物品栏</span></div>
+            <div class="acu-title-main"><i class="fa-solid fa-box-open"></i> <span class="acu-title-text">${target === 'equipment' ? '装备栏' : '物品栏'}</span></div>
             <div class="acu-title-sub">${deps.escapeHtml(tableName)} · ${filteredItems.length}/${items.length} 项</div>
           </div>
           <div class="acu-header-actions">
@@ -83,13 +84,17 @@ export function createRenderInventoryVisualization(deps: any) {
             <button class="acu-view-btn acu-gacha-open-btn" type="button" title="骰子商店" aria-label="打开骰子商店"><i class="fa-solid fa-store"></i></button>
             ${
               tableKey
-                ? `<button class="acu-view-btn acu-inventory-open-table" type="button" data-table="${deps.escapeHtml(tableName)}" title="打开物品表" aria-label="打开物品表"><i class="fa-solid fa-table"></i></button>`
+                ? `<button class="acu-view-btn acu-inventory-open-table" type="button" data-table="${deps.escapeHtml(tableName)}" title="${target === 'equipment' ? '打开装备表' : '打开物品表'}" aria-label="${target === 'equipment' ? '打开装备表' : '打开物品表'}"><i class="fa-solid fa-table"></i></button>`
                 : ''
             }
             <button class="acu-close-btn acu-inventory-close" type="button" title="关闭" aria-label="关闭物品栏"><i class="fa-solid fa-times"></i></button>
           </div>
         </div>
         <div class="acu-inventory-content">
+          <div class="acu-inventory-tabs" role="tablist">
+            <button class="acu-inventory-filter-btn acu-inventory-tab ${target === 'inventory' ? 'active' : ''}" type="button" role="tab" data-target="inventory"><i class="fa-solid fa-bag-shopping"></i> 物品</button>
+            <button class="acu-inventory-filter-btn acu-inventory-tab ${target === 'equipment' ? 'active' : ''}" type="button" role="tab" data-target="equipment"><i class="fa-solid fa-shield-halved"></i> 装备</button>
+          </div>
           <div class="acu-inventory-toolbar acu-inventory-filter-collapsible ${isFilterCollapsed ? 'collapsed' : ''}">
             <button class="acu-inventory-filter-collapse-btn" type="button" title="${isFilterCollapsed ? '展开筛选' : '收起筛选'}">
               <span class="acu-inventory-filter-collapse-title">
@@ -118,7 +123,7 @@ export function createRenderInventoryVisualization(deps: any) {
               </div>
             </div>
           </div>
-          <div class="acu-inventory-grid${isInventoryEmpty ? ' is-empty' : ''}" data-table="${deps.escapeHtml(tableName)}" data-table-key="${deps.escapeHtml(tableKey)}" data-quantity-col="${colMap.quantity}">
+          <div class="acu-inventory-grid${isInventoryEmpty ? ' is-empty' : ''}" data-table="${deps.escapeHtml(tableName)}" data-table-key="${deps.escapeHtml(tableKey)}" data-quantity-col="${colMap.quantity}" data-target="${target}">
             ${itemCardsHtml}
           </div>
         </div>

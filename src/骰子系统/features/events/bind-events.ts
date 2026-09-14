@@ -74,6 +74,8 @@ export function createBindEvents(deps: any) {
     $wrapper.on('click', '.acu-dash-inventory-btn', function (e) {
       e.stopPropagation();
       e.preventDefault();
+      const target = String($(this).data('inventory-target') || 'inventory') === 'equipment' ? 'equipment' : 'inventory';
+      deps.saveInventoryPanelTarget(target);
       deps.showInventoryVisualization();
     });
 
@@ -1286,6 +1288,15 @@ export function createBindEvents(deps: any) {
         deps.closeGachaVisualization();
       });
     $('body')
+      .off('click.acu_inventory_tab')
+      .on('click.acu_inventory_tab', '.acu-inventory-tab', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        const target = String($(this).data('target') || 'inventory') === 'equipment' ? 'equipment' : 'inventory';
+        deps.saveInventoryPanelTarget(target);
+        deps.refreshInventoryVisualization();
+      });
+    $('body')
       .off('click.acu_inventory_card')
       .on('click.acu_inventory_card', '.acu-inventory-card [data-action]', function (e) {
         e.stopPropagation();
@@ -1293,8 +1304,9 @@ export function createBindEvents(deps: any) {
         const $card = $(this).closest('.acu-inventory-card');
         const rowIndex = Number.parseInt(String($card.data('row-index')), 10);
         const action = String($(this).data('action') || 'detail');
+        const target = String($card.closest('.acu-inventory-grid').data('target') || 'inventory');
         if (Number.isNaN(rowIndex)) return;
-        deps.handleInventoryAction(rowIndex, action);
+        deps.handleInventoryAction(rowIndex, action, target);
         if (action !== 'detail' && action !== 'gift') $('#send_textarea').focus();
       });
     $('body')

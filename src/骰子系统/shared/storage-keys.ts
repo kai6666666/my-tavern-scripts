@@ -67,6 +67,7 @@ export const STORAGE_KEY_GM_CONFIG = 'acu_gm_engine_config_v1';
 export const STORAGE_KEY_HIDDEN_TABLES = 'acu_hidden_tables_v19';
 
 export const STORAGE_KEY_INVENTORY_FILTERS = 'acu_inventory_filters_v1';
+export const STORAGE_KEY_INVENTORY_ACTIVE_TARGET = 'acu_inventory_active_target_v1';
 
 export const STORAGE_KEY_INVENTORY_FILTERS_COLLAPSED = 'acu_inventory_filters_collapsed_v1';
 
