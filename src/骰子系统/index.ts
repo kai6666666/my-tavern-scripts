@@ -85,6 +85,46 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createGetCustomTableNameIconLocalFileValidationError } from './features/table/get-custom-table-name-icon-local-file-validation-error';
+import { createSanitizeDiceConfigBackupPresetRules } from './features/dice/sanitize-dice-config-backup-preset-rules';
+import { createResolveQuickSelectTarget } from './features/dice/resolve-quick-select-target';
+import { createResolveIsolationKey } from './features/table/resolve-isolation-key';
+import { createRenderIcon } from './features/ui/render-icon';
+import { createRenderGlobalInteractionsTableGroup } from './features/table/render-global-interactions-table-group';
+import { createRenderGlobalInteractionActionButton } from './features/table/render-global-interaction-action-button';
+import { createPrepareInventoryTutorial } from './features/gacha/prepare-inventory-tutorial';
+import { createPickWeightedValue } from './features/gacha/pick-weighted-value';
+import { createPerformSaveDataOnly } from './features/table/perform-save-data-only';
+import { createParseTableTemplateRequirementPresetJson } from './features/presets/parse-table-template-requirement-preset-json';
+import { createParseJsoncRecord } from './shared/parse-jsonc-record';
+import { createOpenDatabaseNewUiViaMenuEntry } from './features/table/open-database-new-ui-via-menu-entry';
+import { createNormalizeScopedGachaCatalogRecord } from './features/gacha/normalize-scoped-gacha-catalog-record';
+import { createNormalizeRenderPresetStringList } from './features/presets/normalize-render-preset-string-list';
+import { createNormalizeGachaTargetColumns } from './features/gacha/normalize-gacha-target-columns';
+import { createNormalizeGachaCatalogRecord } from './features/gacha/normalize-gacha-catalog-record';
+import { createHasDbPayload } from './features/table/has-db-payload';
+import { createGetTutorialModule } from './features/tutorial/get-tutorial-module';
+import { createGetStoredGachaPoolSettings } from './features/gacha/get-stored-gacha-pool-settings';
+import { createGetResultBadgeClass } from './features/dice/get-result-badge-class';
+import { createGetInventoryFieldLabel } from './features/gacha/get-inventory-field-label';
+import { createGetGachaPickupRotationKey } from './features/gacha/get-gacha-pickup-rotation-key';
+import { createGetElementEmoji } from './features/dice/get-element-emoji';
+import { createGetDiceConfigBackupBuiltinPresetIds } from './features/dice/get-dice-config-backup-builtin-preset-ids';
+import { createGetDashboardModuleKeysForTableName } from './features/dashboard/get-dashboard-module-keys-for-table-name';
+import { createGetCrudChangedColumns } from './features/table/get-crud-changed-columns';
+import { createGetAvatarFallbackColor } from './features/avatars/get-avatar-fallback-color';
+import { createFormatGachaRewardDestinationLabel } from './features/gacha/format-gacha-reward-destination-label';
+import { createDownloadCustomTableNameIconPack } from './features/table/download-custom-table-name-icon-pack';
+import { createCreateSheetDataFingerprint } from './features/table/create-sheet-data-fingerprint';
+import { createCopyDiceConfigBackupExistingFields } from './features/dice/copy-dice-config-backup-existing-fields';
+import { createClearTextareaDiceCache } from './features/textarea/clear-textarea-dice-cache';
+import { createBuildGachaCustomFieldHeaderMap } from './features/gacha/build-gacha-custom-field-header-map';
+import { createBuildDiceConfigBackupRuleOverrideMap } from './features/dice/build-dice-config-backup-rule-override-map';
+import { createAcuDiceProfilesInstance } from './features/api/acu-dice-profiles-instance';
+import { createAcuDiceCheckInstance } from './features/api/acu-dice-check-instance';
+import { createGachaCustomFieldReservedKeys } from './features/gacha/gacha-custom-field-reserved-keys';
+import { createFontsList } from './features/ui/fonts-list';
+import { createCustomTableNameIconDeniedTableNames } from './features/table/custom-table-name-icon-denied-table-names';
 import { createEnsurePanelNavigationVisible } from './features/ui/ensure-panel-navigation-visible';
 import { createUpdateGachaItemSetting } from './features/gacha/update-gacha-item-setting';
 import { createSyncAttributeRuleTagsInTemplate } from './features/dice/sync-attribute-rule-tags-in-template';
@@ -1553,18 +1593,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     readStoredTextareaDiceText: (...a: any[]) => readStoredTextareaDiceText(...a),
     readTextareaVisibleValue: (...a: any[]) => readTextareaVisibleValue(...a),
   });
-  const clearTextareaDiceCache = (textarea: AcuDiceTextareaElement) => {
-    try {
-      const { $ } = getCore();
-      $(textarea).removeData('acu-original-dice-text');
-      $(textarea).removeData('acu-original-textarea-text');
-    } catch (_error) {
-      // ignore cache cleanup failures; DOM fields are cleared below
-    }
-    textarea._acuOriginalDiceText = null;
-    textarea._acuOriginalTextareaText = null;
-    textarea._acuHasDiceData = false;
-  };
+  const clearTextareaDiceCache = createClearTextareaDiceCache({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   const storeTextareaDiceCache = createStoreTextareaDiceCache({
     clearTextareaDiceCache: (...a: any[]) => clearTextareaDiceCache(...a),
@@ -2122,18 +2153,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     updatedAt?: string;
   }
 
-  const normalizeRenderPresetStringList = (value: unknown, fallback: readonly string[] = []): string[] => {
-    const rawItems = Array.isArray(value) ? value : fallback;
-    const seen = new Set<string>();
-    const result: string[] = [];
-    rawItems.forEach(item => {
-      const text = typeof item === 'string' || typeof item === 'number' ? String(item).trim() : '';
-      if (!text || seen.has(text)) return;
-      seen.add(text);
-      result.push(text);
-    });
-    return result;
-  };
+  const normalizeRenderPresetStringList = createNormalizeRenderPresetStringList({
+
+  });
 
   const normalizeRenderPresetTagFilterList = createNormalizeRenderPresetTagFilterList({
 
@@ -2457,18 +2479,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     rgbToAvatarHex: (...a: any[]) => rgbToAvatarHex(...a),
   });
 
-  const getAvatarFallbackColor = (name: unknown): string => {
-    const text = String(name ?? '').trim() || 'avatar';
-    let hash = 2166136261;
-    for (let i = 0; i < text.length; i++) {
-      hash ^= text.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    const hue = Math.abs(hash) % 360;
-    const saturation = 0.54 + ((hash >>> 8) % 18) / 100;
-    const lightness = 0.46 + ((hash >>> 16) % 14) / 100;
-    return hslToAvatarHex(hue, saturation, lightness);
-  };
+  const getAvatarFallbackColor = createGetAvatarFallbackColor({
+    hslToAvatarHex: (...a: any[]) => hslToAvatarHex(...a),
+  });
 
   const isLikelyAvatarSkinTone = createIsLikelyAvatarSkinTone({
 
@@ -2729,18 +2742,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // 渲染图标：支持 fa:xxx 简写格式和原生emoji
-  const renderIcon = (icon: string | null): string => {
-    if (!icon) return '';
-    if (icon.startsWith('fa:')) {
-      const name = icon.slice(3);
-      return `<i class="fa-solid fa-${name} acu-icon"></i>`;
-    }
-    if (icon.startsWith('ti:')) {
-      const name = icon.slice(3);
-      return `<i class="ti ti-${name} acu-icon"></i>`;
-    }
-    return escapeHtml(icon); // 原样返回emoji
-  };
+  const renderIcon = createRenderIcon({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
   const getLocationEmoji = createGetLocationEmoji({
 
@@ -2756,18 +2760,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getEmojiCandidates: (...a: any[]) => getEmojiCandidates(...a),
   });
 
-  const getElementEmoji = (name, type) => {
-    if (!name && !type) return null;
-    const lowerName = name?.toLowerCase();
-    const lowerType = type?.toLowerCase();
-    for (const [pattern, emoji] of ELEMENT_EMOJI_MAP) {
-      if (lowerName && pattern.test(lowerName)) return emoji;
-    }
-    for (const [pattern, emoji] of ELEMENT_EMOJI_MAP) {
-      if (lowerType && pattern.test(lowerType)) return emoji;
-    }
-    return null;
-  };
+  const getElementEmoji = createGetElementEmoji({
+
+  });
 
   const renderThemeIconContent = createRenderThemeIconContent({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -3804,18 +3799,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     };
   };
 
-  const parseTableTemplateRequirementPresetJson = (jsonText: string) => {
-    const parsed = parseJsoncRecord(jsonText, '模板检验预设');
-    if (parsed.template || parsed.preset) return parsed;
-    if (Object.keys(parsed).some(key => key.startsWith('sheet_'))) {
-      return {
-        name: String(parsed.name || '导入的表格模板要求'),
-        description: '从表格模板文件导入生成。',
-        template: parsed,
-      };
-    }
-    return parsed;
-  };
+  const parseTableTemplateRequirementPresetJson = createParseTableTemplateRequirementPresetJson({
+    parseJsoncRecord: (...a: any[]) => parseJsoncRecord(...a),
+  });
 
   const buildNewTableTemplateRequirementPresetJsoncTemplate = createBuildNewTableTemplateRequirementPresetJsoncTemplate({
 
@@ -4317,18 +4303,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     parseJsoncValue: (...a: any[]) => parseJsoncValue(...a),
   });
 
-  const parseJsoncRecord = (jsonText: string, label: string): Record<string, unknown> => {
-    return parseJsoncDocument({
-      text: jsonText,
-      invalidJsonMessage: `${label}不是有效的 JSON/JSONC`,
-      validate: parsed => {
-        if (!isRecordValue(parsed)) {
-          throw new Error(`${label}必须是对象`);
-        }
-        return parsed;
-      },
-    });
-  };
+  const parseJsoncRecord = createParseJsoncRecord({
+    isRecordValue: (...a: any[]) => isRecordValue(...a),
+    parseJsoncDocument: (...a: any[]) => parseJsoncDocument(...a),
+  });
 
   const downloadTextFile = createDownloadTextFile({
 
@@ -4423,18 +4401,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // 统一的结果标签样式生成函数 - 返回 CSS 类名
-  const getResultBadgeClass = resultType => {
-    // resultType: 'critSuccess' | 'extremeSuccess' | 'success' | 'warning' | 'failure' | 'critFailure'
-    const classMap = {
-      critSuccess: 'acu-result-badge acu-result-badge-crit-success',
-      extremeSuccess: 'acu-result-badge acu-result-badge-extreme-success',
-      success: 'acu-result-badge acu-result-badge-success',
-      warning: 'acu-result-badge acu-result-badge-warning',
-      failure: 'acu-result-badge acu-result-badge-failure',
-      critFailure: 'acu-result-badge acu-result-badge-crit-failure',
-    };
-    return classMap[resultType] || classMap.failure;
-  };
+  const getResultBadgeClass = createGetResultBadgeClass({
+
+  });
 
   // [统一] 交互选项的图标映射表，供所有渲染位置共享使用
 
@@ -4741,18 +4710,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getPendingDeletions: () => pendingDeletions,
     setPendingDeletions: (v: any) => { pendingDeletions = v; },
   });
-  const createSheetDataFingerprint = (rawData: unknown): string => {
-    if (!rawData || typeof rawData !== 'object') return '';
-    const tableRecord = rawData as Record<string, unknown>;
-    const sheetEntries = Object.entries(tableRecord)
-      .filter(([key, value]) => key.startsWith('sheet_') && value && typeof value === 'object')
-      .map(([key, value]) => {
-        const sheet = value as Record<string, unknown>;
-        return [key, sheet.name, sheet.content];
-      })
-      .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
-    return JSON.stringify(sheetEntries);
-  };
+  const createSheetDataFingerprint = createCreateSheetDataFingerprint({
+
+  });
 
   const isSameSheetData = createIsSameSheetData({
     createSheetDataFingerprint: (...a: any[]) => createSheetDataFingerprint(...a),
@@ -4830,18 +4790,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const FONTS = [
-    { id: 'default', name: '系统默认 (Modern)', val: `'Segoe UI', 'Microsoft YaHei', sans-serif` },
-    { id: 'hanchan', name: '寒蝉全圆体', val: `"寒蝉全圆体", sans-serif` },
-    { id: 'maple', name: 'Maple Mono (代码风)', val: `"Maple Mono NF CN", monospace` },
-    { id: 'huiwen', name: '汇文明朝体 (Huiwen)', val: `"Huiwen-mincho", serif` },
-    { id: 'cooper', name: 'Cooper正楷', val: `"CooperZhengKai", serif` },
-    { id: 'yffyt', name: 'YFFYT (艺术体)', val: `"YFFYT", sans-serif` },
-    { id: 'fusion', name: 'Fusion Pixel (像素风)', val: `"Fusion Pixel 12px M latin", monospace` },
-    { id: 'wenkai', name: '霞鹜文楷 (WenKai)', val: `"LXGW WenKai", serif` },
-    { id: 'notosans', name: '思源黑体 (Noto Sans)', val: `"Noto Sans CJK", sans-serif` },
-    { id: 'zhuque', name: '朱雀仿宋 (Zhuque)', val: `"Zhuque Fangsong (technical preview)", serif` },
-  ];
+  const FONTS = createFontsList({
+
+  });
 
   // 主题维护提示：这里控制设置界面的骰子系统主题选项。
   // 新增、改名或改 theme id 时，同步更新 外部参考/数据库主题/acu-db-theme-dice-<theme-id>.json
@@ -4918,18 +4869,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getACU_DATABASE_NEW_UI_API_METHODS: () => ACU_DATABASE_NEW_UI_API_METHODS,
   });
 
-  const openDatabaseNewUiViaMenuEntry = (): boolean => {
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const targetDocument = getAccessibleDocument(targetWindow);
-      const menuItem = targetDocument?.querySelector<HTMLElement>(ACU_DATABASE_NEW_UI_MENU_SELECTOR);
-      if (!menuItem || typeof menuItem.click !== 'function') continue;
-
-      menuItem.click();
-      return true;
-    }
-
-    return false;
-  };
+  const openDatabaseNewUiViaMenuEntry = createOpenDatabaseNewUiViaMenuEntry({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    getAccessibleDocument: (...a: any[]) => getAccessibleDocument(...a),
+    getACU_DATABASE_NEW_UI_MENU_SELECTOR: () => ACU_DATABASE_NEW_UI_MENU_SELECTOR,
+  });
 
   const openLegacyDatabaseSettings = createOpenLegacyDatabaseSettings({
     getCore: (...a: any[]) => getCore(...a),
@@ -5243,18 +5187,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const getDashboardModuleKeysForTableName = (tableName: string): string[] => {
-    const normalizedTableName = normalizeGlobalInteractionCategoryText(tableName);
-    if (!normalizedTableName) return [];
-
-    return Object.entries(getDashboardRuntimeConfig())
-      .filter(([, moduleConfig]) =>
-        moduleConfig.tableKeywords.some(keyword =>
-          normalizedTableName.includes(normalizeGlobalInteractionCategoryText(keyword)),
-        ),
-      )
-      .map(([moduleKey]) => moduleKey);
-  };
+  const getDashboardModuleKeysForTableName = createGetDashboardModuleKeysForTableName({
+    getDashboardRuntimeConfig: (...a: any[]) => getDashboardRuntimeConfig(...a),
+    normalizeGlobalInteractionCategoryText: (...a: any[]) => normalizeGlobalInteractionCategoryText(...a),
+  });
 
   const resolveDashboardGlobalInteractionSectionKind = createResolveDashboardGlobalInteractionSectionKind({
     getDashboardModuleKeysForTableName: (...a: any[]) => getDashboardModuleKeysForTableName(...a),
@@ -5293,18 +5229,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const CUSTOM_TABLE_NAME_ICON_DENIED_SECTIONS = createCustomTableNameIconDeniedSections({
 
   });
-  const CUSTOM_TABLE_NAME_ICON_DENIED_TABLE_NAMES = new Set<string>([
-    '全局数据表',
-    '纪要表',
-    '总结表',
-    '总结大纲表',
-    '总体大纲',
-    '选项表',
-    '检定建议表',
-    '主角信息',
-    '重要人物表',
-    '重要角色表',
-  ]);
+  const CUSTOM_TABLE_NAME_ICON_DENIED_TABLE_NAMES = createCustomTableNameIconDeniedTableNames({
+
+  });
 
   const isCustomTableNameIconModuleId = createIsCustomTableNameIconModuleId({
     getCUSTOM_TABLE_NAME_ICON_MODULE_IDS: () => CUSTOM_TABLE_NAME_ICON_MODULE_IDS,
@@ -5354,18 +5281,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getRemoteImageUrlValidationError: (...a: any[]) => getRemoteImageUrlValidationError(...a),
   });
 
-  function getCustomTableNameIconLocalFileValidationError(
-    file: File | null,
-  ): CustomTableNameIconInvalidSourceReason | null {
-    if (!file) return 'invalid_url';
-    const mimeType = String(file.type || '')
-      .trim()
-      .toLowerCase();
-    if (isCustomTableNameIconSvgMimeType(mimeType)) return 'svg_mime';
-    if (!CUSTOM_TABLE_NAME_ICON_ALLOWED_LOCAL_MIME_TYPES.has(mimeType)) return 'unsupported_mime';
-    if (file.size > CUSTOM_TABLE_NAME_ICON_MAX_LOCAL_FILE_SIZE) return 'oversize';
-    return null;
-  }
+  const getCustomTableNameIconLocalFileValidationError = createGetCustomTableNameIconLocalFileValidationError({
+    isCustomTableNameIconSvgMimeType: (...a: any[]) => isCustomTableNameIconSvgMimeType(...a),
+    getCUSTOM_TABLE_NAME_ICON_ALLOWED_LOCAL_MIME_TYPES: () => CUSTOM_TABLE_NAME_ICON_ALLOWED_LOCAL_MIME_TYPES,
+    getCUSTOM_TABLE_NAME_ICON_MAX_LOCAL_FILE_SIZE: () => CUSTOM_TABLE_NAME_ICON_MAX_LOCAL_FILE_SIZE,
+  });
 
 
   const isCustomTableNameIconContextAllowed = createIsCustomTableNameIconContextAllowed({
@@ -5515,18 +5435,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCustomTableNameIconStoreManager: () => CustomTableNameIconStoreManager,
   });
 
-  const downloadCustomTableNameIconPack = (pack: CustomTableNameIconPack): void => {
-    const json = JSON.stringify(pack, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = getCustomTableNameIconPackDownloadFileName();
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  };
+  const downloadCustomTableNameIconPack = createDownloadCustomTableNameIconPack({
+
+  });
 
   const analyzeCustomTableNameIconPackImport = createAnalyzeCustomTableNameIconPackImport({
     getCustomTableNameIconContextKey: (...a: any[]) => getCustomTableNameIconContextKey(...a),
@@ -5888,18 +5799,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const resolveQuickSelectTarget = (
-    attrName: string,
-    source: CharacterAttributeSource | null | undefined,
-    preset: QuickSelectCheckPresetConfig | null | undefined,
-    mode: 'normal' | 'contest',
-  ): AttributeQuickSelectTarget => {
-    const activeAttributePreset = AttributePresetManager.getActivePreset() as AttributePresetConfig | null;
-    const mappedByAttributePreset = getAttributePresetMappedTarget(activeAttributePreset, attrName, source);
-    const mappedByCheckPreset = mappedByAttributePreset || getAdvancedPresetMappedTarget(preset, attrName);
-    const target = mappedByCheckPreset || 'attribute';
-    return isQuickSelectTargetAvailable(target, preset, mode) ? target : 'attribute';
-  };
+  const resolveQuickSelectTarget = createResolveQuickSelectTarget({
+    getAdvancedPresetMappedTarget: (...a: any[]) => getAdvancedPresetMappedTarget(...a),
+    getAttributePresetMappedTarget: (...a: any[]) => getAttributePresetMappedTarget(...a),
+    isQuickSelectTargetAvailable: (...a: any[]) => isQuickSelectTargetAvailable(...a),
+    getAttributePresetManager: () => AttributePresetManager,
+  });
 
   const formatSignedModifier = (value: number): string => (value >= 0 ? `+${value}` : String(value));
 
@@ -6663,18 +6568,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getDiceConfigBackupRecordString: (...a: any[]) => getDiceConfigBackupRecordString(...a),
   });
 
-  const copyDiceConfigBackupExistingFields = (
-    source: Record<string, unknown>,
-    target: Record<string, unknown>,
-    fields: readonly string[],
-  ): void => {
-    fields.forEach(field => {
-      if (Object.prototype.hasOwnProperty.call(source, field)) {
-        const value = source[field];
-        target[field] = value === undefined ? undefined : cloneDiceConfigBackupValue(value);
-      }
-    });
-  };
+  const copyDiceConfigBackupExistingFields = createCopyDiceConfigBackupExistingFields({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+  });
 
   const sanitizeDiceConfigBackupValidationRule = createSanitizeDiceConfigBackupValidationRule({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -6695,18 +6591,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const sanitizeDiceConfigBackupPresetRules = (
-    value: unknown,
-    sanitizeRule: (rule: unknown) => Record<string, unknown> | null,
-  ): unknown => {
-    if (!Array.isArray(value)) return value;
-    return value.map(item => {
-      if (!isDiceConfigBackupRecord(item)) return item === undefined ? undefined : cloneDiceConfigBackupValue(item);
-      const preset = cloneDiceConfigBackupValue(item);
-      preset.rules = sanitizeDiceConfigBackupRuleList(preset.rules, sanitizeRule);
-      return preset;
-    });
-  };
+  const sanitizeDiceConfigBackupPresetRules = createSanitizeDiceConfigBackupPresetRules({
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    isDiceConfigBackupRecord: (...a: any[]) => isDiceConfigBackupRecord(...a),
+    sanitizeDiceConfigBackupRuleList: (...a: any[]) => sanitizeDiceConfigBackupRuleList(...a),
+  });
 
   const sanitizeDiceConfigBackupCustomOnlyPresetArrayForExport = createSanitizeDiceConfigBackupCustomOnlyPresetArrayForExport({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -6874,18 +6763,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const buildDiceConfigBackupRuleOverrideMap = (
-    rules: readonly Record<string, unknown>[],
-    getRuleKey: (rule: Record<string, unknown>) => string,
-  ): Map<string, Record<string, unknown>> => {
-    const result = new Map<string, Record<string, unknown>>();
-    rules.forEach(rule => {
-      if (rule.builtin !== true) return;
-      const key = getRuleKey(rule);
-      if (key) result.set(key, rule);
-    });
-    return result;
-  };
+  const buildDiceConfigBackupRuleOverrideMap = createBuildDiceConfigBackupRuleOverrideMap({
+
+  });
 
   const applyDiceConfigBackupRuleOverrides = createApplyDiceConfigBackupRuleOverrides({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -6959,18 +6839,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     normalizeDiceConfigBackupGachaItemSettings: (...a: any[]) => normalizeDiceConfigBackupGachaItemSettings(...a),
   });
 
-  const getDiceConfigBackupBuiltinPresetIds = (presetKey: string): string[] => {
-    if (presetKey === STORAGE_KEY_ADVANCED_PRESETS) return BUILTIN_ADVANCED_PRESETS.map(preset => preset.id);
-    if (presetKey === STORAGE_KEY_ATTRIBUTE_PRESETS) return BUILTIN_ATTRIBUTE_PRESETS.map(preset => String(preset.id));
-    if (presetKey === STORAGE_KEY_ACTION_PRESETS) return BUILTIN_ACTION_PRESETS.map(preset => String(preset.id));
-    if (presetKey === STORAGE_KEY_DASHBOARD_PRESETS) return [DASHBOARD_DEFAULT_PRESET_ID];
-    if (presetKey === STORAGE_KEY_RENDER_PRESETS) return [RENDER_DEFAULT_PRESET_ID];
-    if (presetKey === STORAGE_KEY_TABLE_TEMPLATE_REQUIREMENT_PRESETS)
-      return BUILTIN_TABLE_TEMPLATE_REQUIREMENT_PRESETS.map(preset => preset.id);
-    if (presetKey === STORAGE_KEY_PRESETS) return ['default'];
-    if (presetKey === STORAGE_KEY_REGEX_PRESETS) return ['regex_default'];
-    return [];
-  };
+  const getDiceConfigBackupBuiltinPresetIds = createGetDiceConfigBackupBuiltinPresetIds({
+    getBUILTIN_TABLE_TEMPLATE_REQUIREMENT_PRESETS: () => BUILTIN_TABLE_TEMPLATE_REQUIREMENT_PRESETS,
+    getDASHBOARD_DEFAULT_PRESET_ID: () => DASHBOARD_DEFAULT_PRESET_ID,
+    getRENDER_DEFAULT_PRESET_ID: () => RENDER_DEFAULT_PRESET_ID,
+  });
 
   const getDiceConfigBackupKnownPresetIds = createGetDiceConfigBackupKnownPresetIds({
     getDiceConfigBackupBuiltinPresetIds: (...a: any[]) => getDiceConfigBackupBuiltinPresetIds(...a),
@@ -7500,18 +7373,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   let tutorialModule: TutorialModule | null = null;
-  const getTutorialModule = (): TutorialModule => {
-    if (!tutorialModule) {
-      tutorialModule = createTutorialModule({
-        getTheme: () => String(getConfig().theme || 'modern'),
-        getStore: (key, fallback) => Store.get(key, fallback),
-        setStore: (key, value) => Store.set(key, value),
-        getDocument: getTavernHostDocument,
-        getWindow: getTavernHostWindow,
-      });
-    }
-    return tutorialModule;
-  };
+  const getTutorialModule = createGetTutorialModule({
+    getConfig: (...a: any[]) => getConfig(...a),
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    getTutorialModule: () => tutorialModule,
+    setTutorialModule: (v: any) => { tutorialModule = v; },
+  });
 
   const getTutorialButtonHtml = createGetTutorialButtonHtml({
 
@@ -7531,18 +7399,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     renderInterface: (...a: any[]) => renderInterface(...a),
   });
 
-  const prepareInventoryTutorial = (button: Element): boolean => {
-    const { $ } = getCore();
-    const $overlay = $(button).closest('.acu-inventory-overlay');
-    if (!$overlay.length) return false;
-
-    const $filterPanel = $overlay.find('.acu-inventory-filter-collapsible').first();
-    if ($filterPanel.length) {
-      $filterPanel.removeClass('collapsed');
-      $filterPanel[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-    return true;
-  };
+  const prepareInventoryTutorial = createPrepareInventoryTutorial({
+    getCore: (...a: any[]) => getCore(...a),
+  });
 
   const SETTINGS_GROUP_TUTORIAL_MAP = createSettingsGroupTutorialMap({
 
@@ -7783,36 +7642,19 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const hasDbPayload = (msg: DbChatMessage): boolean => {
-    if (hasSheetKeys(msg.TavernDB_ACU_IndependentData)) return true;
-    if (hasSheetKeys(msg.TavernDB_ACU_Data)) return true;
-    if (hasSheetKeys(msg.TavernDB_ACU_SummaryData)) return true;
-    const isolated = parseIsolatedData(msg.TavernDB_ACU_IsolatedData);
-    if (!isolated) return false;
-    return Object.values(isolated).some(tagData => {
-      if (!tagData || typeof tagData !== 'object') return false;
-      const data = (tagData as Record<string, unknown>).independentData;
-      return hasSheetKeys(data);
-    });
-  };
+  const hasDbPayload = createHasDbPayload({
+    hasSheetKeys: (...a: any[]) => hasSheetKeys(...a),
+    parseIsolatedData: (...a: any[]) => parseIsolatedData(...a),
+  });
 
   const findLatestDbMessageIndex = createFindLatestDbMessageIndex({
     getDbChatMessages: (...a: any[]) => getDbChatMessages(...a),
     hasDbPayload: (...a: any[]) => hasDbPayload(...a),
   });
 
-  const resolveIsolationKey = (msg: DbChatMessage, isolated: Record<string, unknown> | null): string | null => {
-    if (typeof msg?.TavernDB_ACU_Identity === 'string') {
-      const identity = msg.TavernDB_ACU_Identity;
-      if (isolated && Object.prototype.hasOwnProperty.call(isolated, identity)) return identity;
-    }
-    if (isolated && Object.prototype.hasOwnProperty.call(isolated, '')) return '';
-    if (isolated) {
-      const keys = Object.keys(isolated);
-      if (keys.length === 1) return keys[0];
-    }
-    return null;
-  };
+  const resolveIsolationKey = createResolveIsolationKey({
+
+  });
 
   const relocateDbPayloadToAnchor = createRelocateDbPayloadToAnchor({
     findLatestDbMessageIndex: (...a: any[]) => findLatestDbMessageIndex(...a),
@@ -8044,18 +7886,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCrudCellValueForWrite: (...a: any[]) => getCrudCellValueForWrite(...a),
   });
 
-  const getCrudChangedColumns = (headers, currentRow, nextRow): Set<number> => {
-    const changedColumns = new Set<number>();
-    if (!Array.isArray(headers)) return changedColumns;
-    headers.forEach((header, colIndex) => {
-      if (colIndex === 0) return;
-      if (!header) return;
-      if (String(currentRow?.[colIndex] ?? '') !== String(nextRow?.[colIndex] ?? '')) {
-        changedColumns.add(colIndex);
-      }
-    });
-    return changedColumns;
-  };
+  const getCrudChangedColumns = createGetCrudChangedColumns({
+
+  });
 
   const isCrudRowIdMissing = createIsCrudRowIdMissing({
 
@@ -8272,18 +8105,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     setIsSaving: (v: any) => { isSaving = v; },
 });
 
-  const performSaveDataOnly = async (tableData, modifiedSheetKeys?: string[]) => {
-    try {
-      return await applyRuntimeDataViaCrud(tableData, modifiedSheetKeys);
-    } catch (e) {
-      console.error(
-        '[DICE]ACU saveDataOnly error:',
-        getRuntimeErrorLogPayload(e),
-        modifiedSheetKeys ? { modifiedSheetKeys } : undefined,
-      );
-      throw e;
-    }
-  };
+  const performSaveDataOnly = createPerformSaveDataOnly({
+    applyRuntimeDataViaCrud: (...a: any[]) => applyRuntimeDataViaCrud(...a),
+    getRuntimeErrorLogPayload: (...a: any[]) => getRuntimeErrorLogPayload(...a),
+  });
 
   const runInSaveQueue = createRunInSaveQueue({
     getRuntimeErrorLogPayload: (...a: any[]) => getRuntimeErrorLogPayload(...a),
@@ -8827,29 +8652,24 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const acuDiceRoll = createAcuDiceRollInstance({
     evaluateFormula: (...a: any[]) => evaluateFormula(...a),
   });
-  const acuDiceProfiles = new AcuDiceProfiles({
-    refreshDiceProfileIndex: () => refreshDiceProfileIndex(),
-    saveCurrentDiceProfile: (o: any) => saveCurrentDiceProfile(o),
-    toDiceProfileSummary: (p: any) => toDiceProfileSummary(p),
-    importDiceProfile: (i: unknown, o: any) => importDiceProfile(i, o),
-    applyDiceProfile: (id: string, o: any) => applyDiceProfile(id, o),
-    exportDiceProfile: (id: string) => exportDiceProfile(id),
-    detectCharacterDiceProfile: (o: any) => detectCharacterDiceProfile(o),
-    getDiceProfileCharacterContext: () => getDiceProfileCharacterContext(),
-    getDiceProfilePromptState: (c: string, f: string) => getDiceProfilePromptState(c, f),
-    getAcuDiceProfilePromptKey: (c: string, f: string) => getAcuDiceProfilePromptKey(c, f),
+  const acuDiceProfiles = createAcuDiceProfilesInstance({
+    refreshDiceProfileIndex: (...a: any[]) => refreshDiceProfileIndex(...a),
+    saveCurrentDiceProfile: (...a: any[]) => saveCurrentDiceProfile(...a),
+    toDiceProfileSummary: (...a: any[]) => toDiceProfileSummary(...a),
+    importDiceProfile: (...a: any[]) => importDiceProfile(...a),
+    applyDiceProfile: (...a: any[]) => applyDiceProfile(...a),
+    exportDiceProfile: (...a: any[]) => exportDiceProfile(...a),
+    detectCharacterDiceProfile: (...a: any[]) => detectCharacterDiceProfile(...a),
+    getDiceProfileCharacterContext: (...a: any[]) => getDiceProfileCharacterContext(...a),
+    getDiceProfilePromptState: (...a: any[]) => getDiceProfilePromptState(...a),
+    getAcuDiceProfilePromptKey: (...a: any[]) => getAcuDiceProfilePromptKey(...a),
   });
-  const acuDiceCheck = new AcuDiceCheck({
-    getDiceConfig: () => getDiceConfig(),
-    getAttributeValueInternal: (name: string, attr: string) => getAttributeValue(name, attr),
-    rollComplexDiceExpression: (expr: string, ctx?: any) => rollComplexDiceExpression(expr, ctx),
-    appendCheckHistory: (entry: any) => {
-      checkHistory.push(entry);
-      if (checkHistory.length > MAX_HISTORY) {
-        checkHistory.shift();
-      }
-    },
-    emitEvent: (event: string, payload: any) => emitEvent(event, payload),
+  const acuDiceCheck = createAcuDiceCheckInstance({
+    getDiceConfig: (...a: any[]) => getDiceConfig(...a),
+    getAttributeValue: (...a: any[]) => getAttributeValue(...a),
+    emitEvent: (...a: any[]) => emitEvent(...a),
+    getCheckHistory: () => checkHistory,
+    getMAX_HISTORY: () => MAX_HISTORY,
   });
   const acuDiceContest = createAcuDiceContest({
     emitEvent: (...a: any[]) => emitEvent(...a),
@@ -9984,18 +9804,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     ValidationEngine: ValidationEngine,
   });
 
-  const renderGlobalInteractionActionButton = (
-    group: GlobalInteractionGroup,
-    row: GlobalInteractionRow,
-    action: GlobalInteractionAction,
-    actionIndex: number,
-  ): string => {
-    const actionLabel = String(action.label);
-    const iconClass = String(action.icon || 'fa-hand-pointer').trim() || 'fa-hand-pointer';
-    const ariaLabel = `执行 ${actionLabel}：${row.title}`;
-
-    return `<button type="button" class="acu-global-interaction-action" data-table-key="${safeEncodeURIComponent(String(group.tableKey))}" data-row-index="${safeEncodeURIComponent(String(row.rowIndex))}" data-action-label="${safeEncodeURIComponent(String(actionLabel))}" data-action-index="${safeEncodeURIComponent(String(actionIndex))}" aria-label="${escapeHtml(String(ariaLabel))}"><i class="fa-solid ${escapeHtml(String(iconClass))}"></i> ${escapeHtml(String(actionLabel))}</button>`;
-  };
+  const renderGlobalInteractionActionButton = createRenderGlobalInteractionActionButton({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+    safeEncodeURIComponent: (...a: any[]) => safeEncodeURIComponent(...a),
+  });
 
   const getGlobalInteractionAvatarLookupNames = createGetGlobalInteractionAvatarLookupNames({
     replaceUserPlaceholders: (...a: any[]) => replaceUserPlaceholders(...a),
@@ -10049,18 +9861,10 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const renderGlobalInteractionsTableGroup = (
-    group: GlobalInteractionGroup,
-    sectionKind: GlobalInteractionSectionKind,
-  ): string => {
-    const rowsHtml = group.rows.map(row => renderGlobalInteractionRowCard(group, row, sectionKind)).join('');
-    const groupSearchText = [group.tableName, ...group.rows.map(row => row.searchText)].join(' ');
-
-    return `
-                    <div class="acu-global-interaction-group" data-table-key="${safeEncodeURIComponent(String(group.tableKey))}" data-table-name="${safeEncodeURIComponent(String(group.tableName))}" data-search-text="${safeEncodeURIComponent(String(groupSearchText))}">
-                        <div class="acu-global-interaction-grid">${rowsHtml}</div>
-                    </div>`;
-  };
+  const renderGlobalInteractionsTableGroup = createRenderGlobalInteractionsTableGroup({
+    renderGlobalInteractionRowCard: (...a: any[]) => renderGlobalInteractionRowCard(...a),
+    safeEncodeURIComponent: (...a: any[]) => safeEncodeURIComponent(...a),
+  });
 
   const renderGlobalInteractionsSection = createRenderGlobalInteractionsSection({
     escapeHtml: (...a: any[]) => escapeHtml(...a),
@@ -10406,18 +10210,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isBuiltinGachaPoolId: (...a: any[]) => isBuiltinGachaPoolId(...a),
   });
 
-  const getStoredGachaPoolSettings = (): GachaPoolSettingsRecord => {
-    const stored = Store.get(STORAGE_KEY_GACHA_POOL_SETTINGS, null);
-    const record = stored && typeof stored === 'object' ? (stored as Record<string, unknown>) : {};
-    const pools = Array.isArray(record.pools)
-      ? record.pools.map(normalizeGachaPoolDefinition).filter((pool): pool is GachaPoolDefinition => Boolean(pool))
-      : [];
-    return {
-      version: Number(record.version) || 1,
-      pools,
-      updatedAt: Math.max(0, Number(record.updatedAt) || 0),
-    };
-  };
+  const getStoredGachaPoolSettings = createGetStoredGachaPoolSettings({
+    normalizeGachaPoolDefinition: (...a: any[]) => normalizeGachaPoolDefinition(...a),
+  });
 
   const saveGachaPoolSettings = createSaveGachaPoolSettings({
     cloneGachaPoolDefinitions: (...a: any[]) => cloneGachaPoolDefinitions(...a),
@@ -10523,18 +10318,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getGACHA_TARGET_TABLE_MAX_LENGTH: () => GACHA_TARGET_TABLE_MAX_LENGTH,
   });
 
-  const normalizeGachaTargetColumns = (raw: unknown): GachaRewardTargetColumns | undefined => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-    const columns: GachaRewardTargetColumns = {};
-    const record = raw as Record<string, unknown>;
-    GACHA_TARGET_COLUMN_KEYS.forEach(key => {
-      const value = record[key];
-      if (typeof value !== 'string') return;
-      const headerName = truncateGachaText(value.trim(), GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH);
-      if (headerName) columns[key] = headerName;
-    });
-    return Object.keys(columns).length ? columns : undefined;
-  };
+  const normalizeGachaTargetColumns = createNormalizeGachaTargetColumns({
+    truncateGachaText: (...a: any[]) => truncateGachaText(...a),
+    getGACHA_TARGET_COLUMN_KEYS: () => GACHA_TARGET_COLUMN_KEYS,
+    getGACHA_TARGET_COLUMN_VALUE_MAX_LENGTH: () => GACHA_TARGET_COLUMN_VALUE_MAX_LENGTH,
+  });
 
   const getGachaTargetColumnEntries = createGetGachaTargetColumnEntries({
     getGACHA_TARGET_COLUMN_KEYS: () => GACHA_TARGET_COLUMN_KEYS,
@@ -10557,18 +10345,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS = createGachaEquipmentWrittenTargetColumnKeys({
     getGACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS: () => GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS,
   });
-  const GACHA_CUSTOM_FIELD_RESERVED_KEYS = new Set([
-    'row_id',
-    '物品名称',
-    '装备名称',
-    '类型',
-    '数量',
-    '品质',
-    '标签',
-    '效果',
-    '描述',
-    '状态',
-  ]);
+  const GACHA_CUSTOM_FIELD_RESERVED_KEYS = createGachaCustomFieldReservedKeys({
+
+  });
 
   const normalizeGachaCustomFields = createNormalizeGachaCustomFields({
     truncateGachaText: (...a: any[]) => truncateGachaText(...a),
@@ -10711,31 +10490,14 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
 
-  const normalizeGachaCatalogRecord = (catalogRaw: unknown): GachaCatalog | null => {
-    if (!catalogRaw || typeof catalogRaw !== 'object') return null;
-    const record = catalogRaw as Record<string, unknown>;
-    const items = Array.isArray(record.items)
-      ? record.items.filter((item): item is GachaItemDefinition => Boolean(item && typeof item === 'object'))
-      : [];
-    return {
-      version: Number(record.version) || GACHA_CATALOG_VERSION,
-      items,
-      updatedAt: Math.max(0, Number(record.updatedAt) || 0),
-    };
-  };
+  const normalizeGachaCatalogRecord = createNormalizeGachaCatalogRecord({
 
-  const normalizeScopedGachaCatalogRecord = (recordRaw: unknown): GachaCatalogRecord | null => {
-    if (!recordRaw || typeof recordRaw !== 'object') return null;
-    const scopeKey = String((recordRaw as Record<string, unknown>).scopeKey || '').trim();
-    const catalog = normalizeGachaCatalogRecord(recordRaw);
-    if (!scopeKey || !catalog) return null;
-    return {
-      scopeKey,
-      version: catalog.version,
-      items: cloneGachaCatalogItems(catalog.items),
-      updatedAt: catalog.updatedAt,
-    };
-  };
+  });
+
+  const normalizeScopedGachaCatalogRecord = createNormalizeScopedGachaCatalogRecord({
+    cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
+    normalizeGachaCatalogRecord: (...a: any[]) => normalizeGachaCatalogRecord(...a),
+  });
 
   const getGachaCatalogItemMergeTimestamp = createGetGachaCatalogItemMergeTimestamp({
 
@@ -11090,18 +10852,12 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const formatGachaRewardDestinationLabel = (
-    rawData,
-    item: Pick<GachaItemDefinition, 'rewardTarget' | 'targetTable' | 'targetColumns'>,
-  ): string => {
-    const fallback = normalizeGachaTargetTable(item.targetTable) || getGachaRewardTargetTableLabel(item.rewardTarget);
-    try {
-      const parsed = getGachaRewardParseResult(rawData, item.rewardTarget, getGachaRewardTargetOptions(item));
-      return parsed.tableName || fallback;
-    } catch {
-      return fallback;
-    }
-  };
+  const formatGachaRewardDestinationLabel = createFormatGachaRewardDestinationLabel({
+    getGachaRewardParseResult: (...a: any[]) => getGachaRewardParseResult(...a),
+    getGachaRewardTargetOptions: (...a: any[]) => getGachaRewardTargetOptions(...a),
+    getGachaRewardTargetTableLabel: (...a: any[]) => getGachaRewardTargetTableLabel(...a),
+    normalizeGachaTargetTable: (...a: any[]) => normalizeGachaTargetTable(...a),
+  });
 
   const getGachaRewardTargetOptions = createGetGachaRewardTargetOptions({
     normalizeGachaTargetColumns: (...a: any[]) => normalizeGachaTargetColumns(...a),
@@ -11134,18 +10890,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   });
 
-  const pickWeightedValue = <T>(entries: Array<{ value: T; weight: number }>): T | null => {
-    const safeEntries = entries.filter(entry => Number(entry.weight) > 0);
-    if (safeEntries.length === 0) return null;
-    const totalWeight = safeEntries.reduce((sum, entry) => sum + Number(entry.weight), 0);
-    if (totalWeight <= 0) return safeEntries[0].value;
-    let cursor = Math.random() * totalWeight;
-    for (const entry of safeEntries) {
-      cursor -= Number(entry.weight);
-      if (cursor <= 0) return entry.value;
-    }
-    return safeEntries[safeEntries.length - 1].value;
-  };
+  const pickWeightedValue = createPickWeightedValue({
+
+  });
 
   const getActiveGachaPoolTags = createGetActiveGachaPoolTags({
     getGachaAllExpandablePoolTags: (...a: any[]) => getGachaAllExpandablePoolTags(...a),
@@ -11195,18 +10942,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   let gachaPickupRotationKeyCache: { chatLength: number; dateKey: string; key: string } | null = null;
 
-  const getGachaPickupRotationKey = (): string => {
-    const chatLength = getDbChatMessages()?.length || 0;
-    const dateKey = getGachaLocalDateKey();
-    const cachedRotation = gachaPickupRotationKeyCache;
-    if (cachedRotation && cachedRotation.chatLength === chatLength && cachedRotation.dateKey === dateKey) {
-      return cachedRotation.key;
-    }
-    const depthBucket = Math.floor(chatLength / GACHA_PICKUP_CHAT_DEPTH_BUCKET);
-    const key = `${getGachaChatIdSeed()}|${dateKey}|${depthBucket}`;
-    gachaPickupRotationKeyCache = { chatLength, dateKey, key };
-    return key;
-  };
+  const getGachaPickupRotationKey = createGetGachaPickupRotationKey({
+    getDbChatMessages: (...a: any[]) => getDbChatMessages(...a),
+    getGachaChatIdSeed: (...a: any[]) => getGachaChatIdSeed(...a),
+    getGachaLocalDateKey: (...a: any[]) => getGachaLocalDateKey(...a),
+    getGachaPickupRotationKeyCache: () => gachaPickupRotationKeyCache,
+    setGachaPickupRotationKeyCache: (v: any) => { gachaPickupRotationKeyCache = v; },
+  });
 
   let gachaPickupItemsCache: { key: string; items: GachaItemDefinition[] } | null = null;
 
@@ -11297,18 +11039,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getGACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS: () => GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS,
   });
 
-  const buildGachaCustomFieldHeaderMap = (headers: unknown[]): Map<string, number> => {
-    const headerMap = new Map<string, number>();
-    if (!Array.isArray(headers)) return headerMap;
+  const buildGachaCustomFieldHeaderMap = createBuildGachaCustomFieldHeaderMap({
 
-    headers.forEach((header, index) => {
-      const headerName = String(header ?? '').trim();
-      if (!headerName || headerMap.has(headerName)) return;
-      headerMap.set(headerName, index);
-    });
-
-    return headerMap;
-  };
+  });
 
   const applyGachaCustomFieldsToRow = createApplyGachaCustomFieldsToRow({
     buildGachaCustomFieldHeaderMap: (...a: any[]) => buildGachaCustomFieldHeaderMap(...a),
@@ -12233,18 +11966,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCachedRawData: () => cachedRawData,
   });
 
-  const getInventoryFieldLabel = (fieldKey: InventoryEditableField): string => {
-    const labelMap: Record<InventoryEditableField, string> = {
-      name: '名称',
-      type: '类型',
-      quantity: '数量',
-      quality: '品质',
-      description: '描述',
-      acquiredAtLocation: '获得地',
-      acquiredAt: '获取时间',
-    };
-    return labelMap[fieldKey];
-  };
+  const getInventoryFieldLabel = createGetInventoryFieldLabel({
+
+  });
 
   const getInventoryFieldColumnIndex = createGetInventoryFieldColumnIndex({
     getInventoryColumnMap: (...a: any[]) => getInventoryColumnMap(...a),
