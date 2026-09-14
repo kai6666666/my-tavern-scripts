@@ -85,6 +85,11 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createNormalizeAdvancedPresetData } from './features/presets/normalize-advanced-preset-data';
+import { createAcuDatabaseManualUpdateActionSelector } from './features/table/acu-database-manual-update-action-selector';
+import { createAcuDatabaseLegacyManualUpdateButtonSelector } from './features/table/acu-database-legacy-manual-update-button-selector';
+import { createAcuDatabaseManualUpdateButtonWaitMs } from './features/table/acu-database-manual-update-button-wait-ms';
+import { createAcuDatabaseManualUpdateButtonPollMs } from './features/table/acu-database-manual-update-button-poll-ms';
 import { createIsRecord } from './shared/is-record';
 import { createGetFloatingCollapsePosition } from './features/ui/get-floating-collapse-position';
 import { createGetDiceConfigBackupWarningCount } from './features/dice/get-dice-config-backup-warning-count';
@@ -3640,92 +3645,13 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
   });
 
-  const normalizeAdvancedPresetData = (
-    rawData: Record<string, unknown>,
-    options: { idOverride?: string; nameOverride?: string; descriptionOverride?: string } = {},
-  ): { preset: AdvancedDicePreset; importedVersion: string; needsUpdate: boolean } => {
-    const data: Record<string, unknown> = { ...rawData };
-    const importedVersion = typeof data.version === 'string' ? data.version : '0.0.0';
-    const needsUpdate = compareVersion(importedVersion, PRESET_FORMAT_VERSION) < 0;
-
-    const ui = data.ui;
-    if (isAdvancedPresetRecord(ui)) {
-      const attribute = isAdvancedPresetRecord(data.attribute) ? { ...data.attribute } : {};
-      const dc = isAdvancedPresetRecord(data.dc) ? { ...data.dc } : {};
-      if (typeof ui.attributeLabel === 'string' && !attribute.label) attribute.label = ui.attributeLabel;
-      if (typeof ui.dcLabel === 'string' && !dc.label) dc.label = ui.dcLabel;
-      data.attribute = attribute;
-      data.dc = dc;
-      delete data.ui;
-    }
-
-    delete data.format;
-    delete data.tests;
-    delete data.notes;
-    delete data.preset;
-
-    const name =
-      typeof options.nameOverride === 'string' && options.nameOverride.trim()
-        ? options.nameOverride.trim()
-        : typeof data.name === 'string'
-          ? data.name.trim()
-          : '';
-    const description =
-      typeof options.descriptionOverride === 'string'
-        ? options.descriptionOverride.trim()
-        : typeof data.description === 'string'
-          ? data.description.trim()
-          : '';
-    const id =
-      typeof options.idOverride === 'string' && options.idOverride.trim()
-        ? options.idOverride.trim()
-        : typeof data.id === 'string' && data.id.trim()
-          ? data.id.trim()
-          : `custom_${Date.now()}`;
-
-    data.attribute = cloneAdvancedPresetFieldWithDefaults(data.attribute, {
-      label: '属性值',
-      placeholder: '留空=50',
-      defaultValue: 50,
-    });
-    const hasDcConfig = hasAdvancedPresetFieldConfig(data.dc);
-    const hasModConfig = hasAdvancedPresetFieldConfig(data.mod);
-    data.dc = cloneAdvancedPresetFieldWithDefaults(
-      data.dc,
-      hasDcConfig
-        ? { defaultValue: 0 }
-        : {
-            hidden: true,
-            defaultValue: 0,
-          },
-    );
-    data.mod = cloneAdvancedPresetFieldWithDefaults(
-      data.mod,
-      hasModConfig
-        ? { defaultValue: 0 }
-        : {
-            hidden: true,
-            defaultValue: 0,
-          },
-    );
-
-    const preset = {
-      ...data,
-      id,
-      kind: 'advanced' as const,
-      name,
-      description,
-      builtin: false,
-      version: PRESET_FORMAT_VERSION,
-      attribute: data.attribute,
-      dc: data.dc,
-      mod: data.mod,
-      outcomes: Array.isArray(data.outcomes) ? data.outcomes : [],
-      diceExpression: typeof data.diceExpression === 'string' ? data.diceExpression.trim() : '',
-    } as AdvancedDicePreset;
-
-    return { preset, importedVersion, needsUpdate };
-  };
+  const normalizeAdvancedPresetData = createNormalizeAdvancedPresetData({
+    isAdvancedPresetRecord: (...a: any[]) => isAdvancedPresetRecord(...a),
+    cloneAdvancedPresetFieldWithDefaults: (...a: any[]) => cloneAdvancedPresetFieldWithDefaults(...a),
+    compareVersion: (...a: any[]) => compareVersion(...a),
+    getPRESET_FORMAT_VERSION: () => PRESET_FORMAT_VERSION,
+    hasAdvancedPresetFieldConfig: (...a: any[]) => hasAdvancedPresetFieldConfig(...a),
+  });
 
   const pushAdvancedPresetIssue = createPushAdvancedPresetIssue({
 
@@ -5094,11 +5020,18 @@ ${examples}`;
   const ACU_DATABASE_V2_ROOT_SELECTOR = '#acu-app-v2, .acu-v2-app';
   const ACU_DATABASE_FORM_FILL_NAV_SELECTOR = '[data-page-id="form-fill"]';
   const ACU_DATABASE_MANUAL_UPDATE_PANEL_SELECTOR = '#form-fill-manual-panel';
-  const ACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR =
-    '#form-fill-manual-panel button, .acu-v2-form-fill-page__actions button, button.acu-btn--primary';
-  const ACU_DATABASE_LEGACY_MANUAL_UPDATE_BUTTON_SELECTOR = '[id$="-manual-update-card"]';
-  const ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS = 1800;
-  const ACU_DATABASE_MANUAL_UPDATE_BUTTON_POLL_MS = 120;
+  const ACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR = createAcuDatabaseManualUpdateActionSelector({
+
+  });
+  const ACU_DATABASE_LEGACY_MANUAL_UPDATE_BUTTON_SELECTOR = createAcuDatabaseLegacyManualUpdateButtonSelector({
+
+  });
+  const ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS = createAcuDatabaseManualUpdateButtonWaitMs({
+
+  });
+  const ACU_DATABASE_MANUAL_UPDATE_BUTTON_POLL_MS = createAcuDatabaseManualUpdateButtonPollMs({
+
+  });
 
   const collectAccessibleRuntimeWindows = createCollectAccessibleRuntimeWindows({
     getAccessibleDocument: (...a: any[]) => getAccessibleDocument(...a),
