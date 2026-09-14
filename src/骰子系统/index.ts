@@ -85,6 +85,20 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createSetPanelRequestedHeight } from './features/ui/set-panel-requested-height';
+import { createRenderDiceConfigBackupPrivacyNotice } from './features/dice/render-dice-config-backup-privacy-notice';
+import { createPushRecentGachaReward } from './features/gacha/push-recent-gacha-reward';
+import { createOpenDatabaseNewUiViaApi } from './features/table/open-database-new-ui-via-api';
+import { createNormalizeAvatarHexColor } from './features/avatars/normalize-avatar-hex-color';
+import { createGetInventoryMetadataForItem } from './features/gacha/get-inventory-metadata-for-item';
+import { createGetInventoryFilters } from './features/gacha/get-inventory-filters';
+import { createGetGlobalInteractionActionRuleGroups } from './features/table/get-global-interaction-action-rule-groups';
+import { createGetCrudCellValueForWrite } from './features/table/get-crud-cell-value-for-write';
+import { createGetConfig } from './features/table/get-config';
+import { createGetAttributePresetMappedTarget } from './features/dice/get-attribute-preset-mapped-target';
+import { createFindGachaColumnByKeywords } from './features/gacha/find-gacha-column-by-keywords';
+import { createCreateDiceProfileTavernRegex } from './features/dice/create-dice-profile-tavern-regex';
+import { createBuildCheckSuggestionGuide } from './features/dice/build-check-suggestion-guide';
 import { createParseJsoncDocument } from './features/presets/parse-jsonc-document';
 import { createOpenDatabaseVisualizerNewUiViaApi } from './features/table/open-database-visualizer-new-ui-via-api';
 import { createNormalizeGachaMessageId } from './features/gacha/normalize-gacha-message-id';
@@ -2380,21 +2394,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
 
   type AvatarImageColorSource = 'manual' | 'auto';
 
-  const normalizeAvatarHexColor = (value: unknown): string | null => {
-    const raw = String(value ?? '').trim();
-    const hex = raw.startsWith('#') ? raw.slice(1) : raw;
-    if (/^[0-9a-fA-F]{3}$/.test(hex)) {
-      return `#${hex
-        .split('')
-        .map(char => `${char}${char}`)
-        .join('')
-        .toUpperCase()}`;
-    }
-    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
-      return `#${hex.toUpperCase()}`;
-    }
-    return null;
-  };
+  const normalizeAvatarHexColor = createNormalizeAvatarHexColor({
+
+  });
 
   const clampAvatarNumber = createClampAvatarNumber({
 
@@ -3904,21 +3906,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     AdvancedDicePresetManager: AdvancedDicePresetManager,
   });
 
-  const buildCheckSuggestionGuide = (preset: AdvancedDicePreset): string => {
-    const autoGuide = buildAutoCheckSuggestionGuide(preset);
-    const manualGuide = preset.checkSuggestionGuide || {};
-    const rule = String(manualGuide.rule || autoGuide.rule).trim();
-    const dsl = String(manualGuide.dsl || autoGuide.dsl).trim();
-    const examples = String(manualGuide.examples || autoGuide.examples).trim();
-    return `【检定规则】
-${rule}
-
-【DSL 命令】
-${dsl}
-
-【格式示例】
-${examples}`;
-  };
+  const buildCheckSuggestionGuide = createBuildCheckSuggestionGuide({
+    buildAutoCheckSuggestionGuide: (...a: any[]) => buildAutoCheckSuggestionGuide(...a),
+  });
 
   interface AttributeRuleAttributeConfig {
     name: string;
@@ -4668,21 +4658,10 @@ ${examples}`;
     getStringLikeCellText: (...a: any[]) => getStringLikeCellText(...a),
   });
 
-  const getGlobalInteractionActionRuleGroups = (): GlobalInteractionActionRuleGroup[] => {
-    const config = getGMConfig() as {
-      enabled?: boolean;
-      action_rules_disabled?: boolean;
-      custom_action_groups?: unknown;
-      action_groups?: unknown;
-    };
-    if (config.enabled === false || config.action_rules_disabled) return [];
-
-    const customRules = Array.isArray(config.custom_action_groups) ? config.custom_action_groups : [];
-    const builtinRules = Array.isArray(config.action_groups) ? config.action_groups : [];
-    return [...customRules, ...builtinRules]
-      .map(rule => ({ table_keywords: getGlobalInteractionRuleKeywords(rule) }))
-      .filter(rule => rule.table_keywords.length > 0);
-  };
+  const getGlobalInteractionActionRuleGroups = createGetGlobalInteractionActionRuleGroups({
+    getGMConfig: (...a: any[]) => getGMConfig(...a),
+    getGlobalInteractionRuleKeywords: (...a: any[]) => getGlobalInteractionRuleKeywords(...a),
+  });
 
   const getMatchedGlobalInteractionRuleKeywords = createGetMatchedGlobalInteractionRuleKeywords({
     getGlobalInteractionActionRuleGroups: (...a: any[]) => getGlobalInteractionActionRuleGroups(...a),
@@ -5051,21 +5030,11 @@ ${examples}`;
     }
   };
 
-  const openDatabaseNewUiViaApi = async (): Promise<boolean> => {
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const api = (targetWindow as any).AutoCardUpdaterV2API;
-      if (!api || typeof api !== 'object') continue;
-
-      for (const methodName of ACU_DATABASE_NEW_UI_API_METHODS) {
-        const method = api[methodName];
-        if (typeof method !== 'function') continue;
-        const opened = await runMaybeAsyncDatabaseUiOpener(() => method.call(api), '数据库新 UI 入口');
-        if (opened) return true;
-      }
-    }
-
-    return false;
-  };
+  const openDatabaseNewUiViaApi = createOpenDatabaseNewUiViaApi({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    runMaybeAsyncDatabaseUiOpener: (...a: any[]) => runMaybeAsyncDatabaseUiOpener(...a),
+    getACU_DATABASE_NEW_UI_API_METHODS: () => ACU_DATABASE_NEW_UI_API_METHODS,
+  });
 
   const openDatabaseNewUiViaMenuEntry = (): boolean => {
     for (const targetWindow of collectAccessibleRuntimeWindows()) {
@@ -5978,21 +5947,11 @@ ${examples}`;
     applyPanelDisplayMaxHeight: (...a: any[]) => applyPanelDisplayMaxHeight(...a),
   });
 
-  const setPanelRequestedHeight = ($panel: JQuery<HTMLElement>, height: unknown): number | null => {
-    if (!$panel?.length) return null;
-    const displayMaxHeight = getPanelDisplayMaxHeight($panel);
-    const normalizedHeight = clampPanelHeightToDisplay($panel, height, displayMaxHeight);
-    $panel[0].style.setProperty('max-height', `${displayMaxHeight}px`, 'important');
-    if (!normalizedHeight) {
-      clearPanelRequestedHeight($panel);
-      return null;
-    }
-    $panel
-      .css('height', `${normalizedHeight}px`)
-      .addClass('acu-manual-mode')
-      .attr('data-acu-requested-height', String(normalizedHeight));
-    return normalizedHeight;
-  };
+  const setPanelRequestedHeight = createSetPanelRequestedHeight({
+    getPanelDisplayMaxHeight: (...a: any[]) => getPanelDisplayMaxHeight(...a),
+    clampPanelHeightToDisplay: (...a: any[]) => clampPanelHeightToDisplay(...a),
+    clearPanelRequestedHeight: (...a: any[]) => clearPanelRequestedHeight(...a),
+  });
 
   const applyStoredPanelHeight = createApplyStoredPanelHeight({
     clearPanelRequestedHeight: (...a: any[]) => clearPanelRequestedHeight(...a),
@@ -6107,21 +6066,10 @@ ${examples}`;
     isAttributeQuickSelectTarget: (...a: any[]) => isAttributeQuickSelectTarget(...a),
   });
 
-  const getAttributePresetMappedTarget = (
-    preset: AttributePresetConfig | null | undefined,
-    attrName: string,
-    source: CharacterAttributeSource | null | undefined,
-  ): AttributeQuickSelectTarget | null => {
-    if (!preset?.quickSelect) return null;
-    const config = normalizeAttributeQuickSelectConfig(preset.quickSelect);
-    for (const [target, names] of Object.entries(config.nameTargetMapping)) {
-      if (!isAttributeQuickSelectTarget(target)) continue;
-      if (Array.isArray(names) && names.includes(attrName)) return target;
-    }
-    if (source === 'base') return config.baseTarget;
-    if (source === 'special') return config.specialTarget;
-    return config.fallbackTarget;
-  };
+  const getAttributePresetMappedTarget = createGetAttributePresetMappedTarget({
+    normalizeAttributeQuickSelectConfig: (...a: any[]) => normalizeAttributeQuickSelectConfig(...a),
+    isAttributeQuickSelectTarget: (...a: any[]) => isAttributeQuickSelectTarget(...a),
+  });
 
   const isQuickSelectTargetAvailable = createIsQuickSelectTargetAvailable({
 
@@ -6696,21 +6644,12 @@ ${examples}`;
     getLEGACY_DB_THEME_SYNC_CONFIG_KEY: () => LEGACY_DB_THEME_SYNC_CONFIG_KEY,
   });
 
-  const getConfig = () => {
-    if (!_configCache) {
-      const storedConfig = Store.get(STORAGE_KEY_UI_CONFIG, {}) || {};
-      const storedConfigObject = typeof storedConfig === 'object' ? storedConfig : {};
-      const mergedConfig = { ...DEFAULT_CONFIG, ...storedConfigObject };
-      _configCache = sanitizeUiConfig(mergedConfig);
-      const needsWriteback =
-        Object.prototype.hasOwnProperty.call(storedConfigObject, LEGACY_DB_THEME_SYNC_CONFIG_KEY) ||
-        mergedConfig.collapseStyle !== _configCache.collapseStyle;
-      if (needsWriteback) {
-        Store.set(STORAGE_KEY_UI_CONFIG, _configCache);
-      }
-    }
-    return _configCache;
-  };
+  const getConfig = createGetConfig({
+    sanitizeUiConfig: (...a: any[]) => sanitizeUiConfig(...a),
+    getLEGACY_DB_THEME_SYNC_CONFIG_KEY: () => LEGACY_DB_THEME_SYNC_CONFIG_KEY,
+    get_configCache: () => _configCache,
+    set_configCache: (v: any) => { _configCache = v; },
+  });
   const saveConfig = createSaveConfig({
     getConfig: (...a: any[]) => getConfig(...a),
     applyConfigStyles: (...a: any[]) => applyConfigStyles(...a),
@@ -7583,20 +7522,9 @@ ${examples}`;
 
   });
 
-  const createDiceProfileTavernRegex = (profile: DiceProfileRecord): Record<string, unknown> => ({
-    id: createDiceProfileRegexId(),
-    scriptName: `骰子系统配置注入 - ${profile.name || '角色卡内置方案'}`,
-    findRegex: '/$^/',
-    replaceString: createDiceProfileTavernRegexReplaceString(profile),
-    trimStrings: [],
-    placement: [2],
-    disabled: true,
-    markdownOnly: true,
-    promptOnly: false,
-    runOnEdit: false,
-    substituteRegex: 0,
-    minDepth: null,
-    maxDepth: 0,
+  const createDiceProfileTavernRegex = createCreateDiceProfileTavernRegex({
+    createDiceProfileRegexId: (...a: any[]) => createDiceProfileRegexId(...a),
+    createDiceProfileTavernRegexReplaceString: (...a: any[]) => createDiceProfileTavernRegexReplaceString(...a),
   });
 
   const downloadDiceProfileTavernRegex = createDownloadDiceProfileTavernRegex({
@@ -7727,21 +7655,9 @@ ${examples}`;
     renderDiceConfigBackupWarningList: (...a: any[]) => renderDiceConfigBackupWarningList(...a),
   });
 
-  const renderDiceConfigBackupPrivacyNotice = (mode: 'export' | 'restore'): string => {
-    const title = mode === 'export' ? '公开分享前请检查备份文件' : '恢复前请确认备份来源可信';
-    const message =
-      mode === 'export'
-        ? '备份文件可能包含{{user}}别名等隐私内容。'
-        : '外来备份会合并或覆盖本地配置，可能启用对方的表格正则、验证规则、各类骰子系统预设、头像部分可能访问外链资源。';
-    return `
-      <div class="acu-config-backup-privacy-notice">
-        <i class="fa-solid fa-user-shield acu-config-backup-privacy-icon"></i>
-        <span class="acu-config-backup-privacy-text">
-          <strong>${escapeHtml(title)}</strong>
-          <span>${escapeHtml(message)}</span>
-        </span>
-      </div>`;
-  };
+  const renderDiceConfigBackupPrivacyNotice = createRenderDiceConfigBackupPrivacyNotice({
+    escapeHtml: (...a: any[]) => escapeHtml(...a),
+  });
 
   const renderDiceConfigBackupExportBody = createRenderDiceConfigBackupExportBody({
     renderDiceConfigBackupPrivacyNotice: (...a: any[]) => renderDiceConfigBackupPrivacyNotice(...a),
@@ -8398,21 +8314,13 @@ ${examples}`;
     getCrudRequiredColumnsByHeaderIndex: (...a: any[]) => getCrudRequiredColumnsByHeaderIndex(...a),
   });
 
-  const getCrudCellValueForWrite = (
-    headers,
-    row,
-    index: number,
-    sheet: unknown,
-    columnAliasMap = buildCrudColumnAliasMap(sheet),
-    enumConstraints = buildCrudEnumConstraintMap(sheet),
-  ): unknown => {
-    const value = Array.isArray(row) ? row[index] : undefined;
-    const headerName = normalizeDiffText(Array.isArray(headers) ? headers[index] : '');
-    const columnName = getCrudColumnNameForHeader(columnAliasMap, headerName);
-    const constraint = columnName ? enumConstraints[columnName] : undefined;
-    if (constraint?.nullable && isCrudNullableEnumEmptyValue(value)) return null;
-    return value ?? '';
-  };
+  const getCrudCellValueForWrite = createGetCrudCellValueForWrite({
+    buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
+    buildCrudEnumConstraintMap: (...a: any[]) => buildCrudEnumConstraintMap(...a),
+    normalizeDiffText: (...a: any[]) => normalizeDiffText(...a),
+    getCrudColumnNameForHeader: (...a: any[]) => getCrudColumnNameForHeader(...a),
+    isCrudNullableEnumEmptyValue: (...a: any[]) => isCrudNullableEnumEmptyValue(...a),
+  });
 
   const buildRowDataForCrud = createBuildRowDataForCrud({
     buildCrudColumnAliasMap: (...a: any[]) => buildCrudColumnAliasMap(...a),
@@ -10791,21 +10699,11 @@ ${examples}`;
 
   });
 
-  const getInventoryFilters = (): InventoryFilterState => {
-    const stored = Store.get(STORAGE_KEY_INVENTORY_FILTERS, {}) as Partial<InventoryFilterState>;
-    return {
-      search: String(stored.search || ''),
-      type: INVENTORY_TYPE_OPTIONS.includes(stored.type as InventoryTypeFilter)
-        ? (stored.type as InventoryTypeFilter)
-        : '全部',
-      quality: INVENTORY_QUALITY_OPTIONS.includes(stored.quality as InventoryQualityFilter)
-        ? (stored.quality as InventoryQualityFilter)
-        : '全部',
-      sort: INVENTORY_SORT_OPTIONS.some(option => option.value === stored.sort)
-        ? (stored.sort as InventorySortFilter)
-        : 'default',
-    };
-  };
+  const getInventoryFilters = createGetInventoryFilters({
+    getINVENTORY_TYPE_OPTIONS: () => INVENTORY_TYPE_OPTIONS,
+    getINVENTORY_QUALITY_OPTIONS: () => INVENTORY_QUALITY_OPTIONS,
+    getINVENTORY_SORT_OPTIONS: () => INVENTORY_SORT_OPTIONS,
+  });
 
   const saveInventoryFilters = createSaveInventoryFilters({
     getInventoryFilters: (...a: any[]) => getInventoryFilters(...a),
@@ -11873,21 +11771,9 @@ ${examples}`;
     getGachaRarityRank: (...a: any[]) => getGachaRarityRank(...a),
   });
 
-  const pushRecentGachaReward = (state: GachaState, outcome: GachaDrawOutcome, poolTag: GachaPoolTag) => {
-    const record: GachaRecentRewardRecord = {
-      itemId: outcome.item.id,
-      name: outcome.item.name,
-      quality: outcome.item.quality,
-      quantity: Math.max(1, outcome.quantity),
-      duplicateConverted: outcome.duplicateConverted === true,
-      shardGain: Math.max(0, outcome.shardGain || 0),
-      poolTag,
-      rewardTarget: outcome.item.rewardTarget,
-      createdAt: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
-    };
-    state.recentRewards.unshift(record);
-    state.recentRewards = state.recentRewards.slice(0, GACHA_RECENT_REWARD_LIMIT);
-  };
+  const pushRecentGachaReward = createPushRecentGachaReward({
+
+  });
 
   const drawSingleGachaOutcome = createDrawSingleGachaOutcome({
     getAvailableGachaRewardTargets: (...a: any[]) => getAvailableGachaRewardTargets(...a),
@@ -12395,21 +12281,10 @@ ${examples}`;
 
   });
 
-  const getInventoryMetadataForItem = (
-    rawData,
-    item: Pick<InventoryParsedItem, 'tableKey' | 'tableName' | 'name'>,
-  ): InventoryMetadataRecord | null => {
-    const root = getInventoryMetadataRoot(rawData, false);
-    const scopeKey = getInventoryMetadataScopeKey(item.tableKey, item.tableName);
-    const scope = root[scopeKey];
-    if (!scope || typeof scope !== 'object') return null;
-    const record = scope[item.name];
-    if (!record || typeof record !== 'object') return null;
-    return {
-      acquiredAt: String(record.acquiredAt || '').trim(),
-      acquiredAtLocation: String(record.acquiredAtLocation || '').trim(),
-    };
-  };
+  const getInventoryMetadataForItem = createGetInventoryMetadataForItem({
+    getInventoryMetadataRoot: (...a: any[]) => getInventoryMetadataRoot(...a),
+    getInventoryMetadataScopeKey: (...a: any[]) => getInventoryMetadataScopeKey(...a),
+  });
 
   const setInventoryMetadataForItem = createSetInventoryMetadataForItem({
     getInventoryMetadataRoot: (...a: any[]) => getInventoryMetadataRoot(...a),
@@ -12504,21 +12379,9 @@ ${examples}`;
     getDashboardDataParser: () => DashboardDataParser,
   });
 
-  const findGachaColumnByKeywords = (headers: unknown[], keywords: readonly string[], fallbackIndex = -1): number => {
-    const normalizedHeaders = headers.map(header => String(header || '').trim().toLowerCase());
-    const normalizedKeywords = keywords.map(keyword => String(keyword || '').trim().toLowerCase()).filter(Boolean);
+  const findGachaColumnByKeywords = createFindGachaColumnByKeywords({
 
-    // 先按关键词优先级精确匹配，避免“效果”列抢先命中“描述”的宽泛别名。
-    for (const keyword of normalizedKeywords) {
-      const exactIndex = normalizedHeaders.findIndex(header => header === keyword);
-      if (exactIndex >= 0) return exactIndex;
-    }
-    for (const keyword of normalizedKeywords) {
-      const partialIndex = normalizedHeaders.findIndex(header => header.includes(keyword));
-      if (partialIndex >= 0) return partialIndex;
-    }
-    return fallbackIndex;
-  };
+  });
 
   const getInventoryColumnMap = createGetInventoryColumnMap({
     applyGachaTargetColumnOverrides: (...a: any[]) => applyGachaTargetColumnOverrides(...a),
