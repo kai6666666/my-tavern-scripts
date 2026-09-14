@@ -89,16 +89,13 @@ import { createNormalizeImageUrlInput } from './features/ui/normalize-image-url-
 import { createIsRemoteImageUrlValid } from './features/ui/is-remote-image-url-valid';
 import { createCreateMetaCheckResultRegex } from './features/regex/create-meta-check-result-regex';
 import { createCreateDiceResultPlaceholderRegex } from './features/regex/create-dice-result-placeholder-regex';
-import { createCreateDiceResultPlaceholderRegex } from './features/regex/create-dice-result-placeholder-regex';
 import { createCountUnicodeCharacters } from './shared/count-unicode-characters';
 import { createRefreshDialogueIndentRender } from './features/ui/refresh-dialogue-indent-render';
 import { createGetDiceConfig } from './features/dice/get-dice-config';
 import { createParseAdvancedPresetJsonCandidate } from './features/presets/parse-advanced-preset-json-candidate';
 import { createBuildDashboardPresetAgentPrompt } from './features/presets/build-dashboard-preset-agent-prompt';
 import { createBuildActionPresetAgentPrompt } from './features/presets/build-action-preset-agent-prompt';
-import { createBuildActionPresetAgentPrompt } from './features/presets/build-action-preset-agent-prompt';
 import { createBuildRenderPresetAgentPrompt } from './features/presets/build-render-preset-agent-prompt';
-import { createBuildTableTemplateRequirementPresetAgentPrompt } from './features/presets/build-table-template-requirement-preset-agent-prompt';
 import { createBuildTableTemplateRequirementPresetAgentPrompt } from './features/presets/build-table-template-requirement-preset-agent-prompt';
 import { createBuildGachaCatalogAgentPrompt } from './features/presets/build-gacha-catalog-agent-prompt';
 import { createParseJsoncValue } from './shared/parse-jsonc-value';
@@ -121,11 +118,9 @@ import { createIsTutorialScope } from './features/tutorial/is-tutorial-scope';
 import { createNormalizeDiffRow } from './features/table/normalize-diff-row';
 import { createGetDiffHeaders } from './features/table/get-diff-headers';
 import { createGetDiffRows } from './features/table/get-diff-rows';
-import { createGetDiffRows } from './features/table/get-diff-rows';
 import { createBuildCheckSuggestionMetaBlock } from './features/dice/build-check-suggestion-meta-block';
 import { createGetInventoryFiltersCollapsedState } from './features/gacha/get-inventory-filters-collapsed-state';
 import { createGetRuntimeGachaRawData } from './features/gacha/get-runtime-gacha-raw-data';
-import { createGetGachaCatalogScopeKey } from './features/gacha/get-gacha-catalog-scope-key';
 import { createGetGachaCatalogScopeKey } from './features/gacha/get-gacha-catalog-scope-key';
 import { createBuildAdvancedPresetAgentPrompt } from './features/presets/build-advanced-preset-agent-prompt';
 import { createNormalizeGachaItemEnabled } from './features/gacha/normalize-gacha-item-enabled';
@@ -7578,7 +7573,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   const getDiffHeaders = createGetDiffHeaders({
     getDiffSheetContent: (...a: any[]) => getDiffSheetContent(...a),
   });
-  const getDiffRows = createGetDiffRows({});
+  const getDiffRows = createGetDiffRows({
+    getDiffSheetContent: (...a: any[]) => getDiffSheetContent(...a),
+  });
 
 
   const DIFF_ID_HEADER_KEYWORDS = createDiffIdHeaderKeywords({
@@ -10312,7 +10309,9 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getTableData: (...a: any[]) => getTableData(...a),
     getCachedRawData: () => cachedRawData,
   });
-  const getGachaCatalogScopeKey = createGetGachaCatalogScopeKey({});
+  const getGachaCatalogScopeKey = createGetGachaCatalogScopeKey({
+    getGACHA_CATALOG_GLOBAL_SCOPE_KEY: () => GACHA_CATALOG_GLOBAL_SCOPE_KEY,
+  });
 
   const buildCrudColumnAliasMap = createBuildCrudColumnAliasMap({
     addCrudColumnAlias: (...a: any[]) => addCrudColumnAlias(...a),
