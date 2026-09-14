@@ -237,7 +237,20 @@ export function createInit(deps: any) {
         }, 500);
         // 注册回调
         if (api.registerTableUpdateCallback) {
-          api.registerTableUpdateCallback(deps.UpdateController.handleUpdate);
+          try {
+            const prevCallback = api.__acuDiceHandleUpdateCallback;
+            if (prevCallback && typeof api.unregisterTableUpdateCallback === 'function') {
+              api.unregisterTableUpdateCallback(prevCallback);
+            }
+          } catch (cleanupError) {
+            console.warn('[DICE]ACU 注销旧表格更新回调失败（已忽略）:', cleanupError);
+          }
+          const updateCallback = deps.UpdateController.handleUpdate;
+          api.registerTableUpdateCallback(updateCallback);
+          try {
+            api.__acuDiceHandleUpdateCallback = updateCallback;
+          } catch {}
+          console.info('[DICE]ACU 已注册数据库表格更新回调（幂等）');
           console.info('[DICE]已注册表格更新回调');
 
           // 恢复快照功能
