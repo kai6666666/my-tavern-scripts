@@ -85,6 +85,29 @@ import { createShowGachaShardExchangeConfirm } from './features/gacha/gacha-shar
 import { createShowGachaVisualization } from './features/gacha/gacha-visualization';
 import { createShowCustomTableNameIconManager } from './features/table/custom-icon-manager-dialog';
 import { createInitSortable } from './shared/ui/init-sortable';
+import { createParseJsoncDocument } from './features/presets/parse-jsonc-document';
+import { createOpenDatabaseVisualizerNewUiViaApi } from './features/table/open-database-visualizer-new-ui-via-api';
+import { createNormalizeGachaMessageId } from './features/gacha/normalize-gacha-message-id';
+import { createNormalizeDiceConfigBackupGachaCatalogSnapshotRecords } from './features/dice/normalize-dice-config-backup-gacha-catalog-snapshot-records';
+import { createNormalizeCustomTableNameIconContext } from './features/table/normalize-custom-table-name-icon-context';
+import { createMergeDiceConfigBackupRegexRules } from './features/dice/merge-dice-config-backup-regex-rules';
+import { createIsQuickSelectTargetAvailable } from './features/dice/is-quick-select-target-available';
+import { createHasDatabaseManualUpdateSurface } from './features/table/has-database-manual-update-surface';
+import { createGetSuccessLevel } from './features/dice/get-success-level';
+import { createGetPanelDisplayMaxHeight } from './features/ui/get-panel-display-max-height';
+import { createGetGachaReservedCustomFieldHeaders } from './features/gacha/get-gacha-reserved-custom-field-headers';
+import { createGetGachaPoolDefinitions } from './features/gacha/get-gacha-pool-definitions';
+import { createGetDiffPreferredColumns } from './features/table/get-diff-preferred-columns';
+import { createCreateUniqueGachaItemId } from './features/gacha/create-unique-gacha-item-id';
+import { createCollectGachaPoolTagsFromItems } from './features/gacha/collect-gacha-pool-tags-from-items';
+import { createCharacterNamesMatch } from './features/dice/character-names-match';
+import { createDiceConfigBackupPrivacyRiskText } from './features/dice/dice-config-backup-privacy-risk-text';
+import { createShowDiceProfileApplyConfirm } from './features/dice/show-dice-profile-apply-confirm';
+import { createShowDiceConfigBackupPrivacyConfirm } from './features/dice/show-dice-config-backup-privacy-confirm';
+import { createCustomTableNameIconSections } from './features/table/custom-table-name-icon-sections';
+import { createCustomTableNameIconModuleIds } from './features/table/custom-table-name-icon-module-ids';
+import { createCustomTableNameIconManagerSectionLabels } from './features/table/custom-table-name-icon-manager-section-labels';
+import { createCustomTableNameIconManagerModuleLabels } from './features/table/custom-table-name-icon-manager-module-labels';
 import { createNormalizeAdvancedPresetData } from './features/presets/normalize-advanced-preset-data';
 import { createAcuDatabaseManualUpdateActionSelector } from './features/table/acu-database-manual-update-action-selector';
 import { createAcuDatabaseLegacyManualUpdateButtonSelector } from './features/table/acu-database-legacy-manual-update-button-selector';
@@ -2548,22 +2571,11 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getNameAliasRegistry: () => NameAliasRegistry,
   });
 
-  const characterNamesMatch = (storedName: unknown, lookupName: unknown): boolean => {
-    const lookupRaw = String(lookupName ?? '').trim();
-    if (!lookupRaw) return isUserCharacterName(storedName);
-
-    const storedIsUser = isUserCharacterName(storedName);
-    const lookupIsUser = isUserCharacterName(lookupRaw);
-    if (storedIsUser || lookupIsUser) return storedIsUser && lookupIsUser;
-
-    const storedKeys = new Set(
-      getCharacterNameCandidates(storedName).map(normalizeCharacterNameForCompare).filter(Boolean),
-    );
-    return getCharacterNameCandidates(lookupRaw).some(candidate => {
-      const key = normalizeCharacterNameForCompare(candidate);
-      return Boolean(key) && storedKeys.has(key);
-    });
-  };
+  const characterNamesMatch = createCharacterNamesMatch({
+    getCharacterNameCandidates: (...a: any[]) => getCharacterNameCandidates(...a),
+    isUserCharacterName: (...a: any[]) => isUserCharacterName(...a),
+    normalizeCharacterNameForCompare: (...a: any[]) => normalizeCharacterNameForCompare(...a),
+  });
 
   const dialogueIndentRenderer = createDialogueIndentRenderer({
     getConfig: () => getConfig(),
@@ -4346,22 +4358,9 @@ ${examples}`;
 
   const parseJsoncValue = (jsonText: string): unknown => JSON.parse(stripJsoncSyntax(jsonText));
 
-  const parseJsoncDocument = <T>({
-    text,
-    emptyMessage = '请输入 JSONC 配置',
-    invalidJsonMessage = '不是有效的 JSON/JSONC',
-    validate,
-  }: JsoncDocumentParseOptions<T>): T => {
-    const trimmed = String(text || '').trim();
-    if (!trimmed) throw new Error(emptyMessage);
-    let parsed: unknown;
-    try {
-      parsed = parseJsoncValue(trimmed);
-    } catch {
-      throw new Error(invalidJsonMessage);
-    }
-    return validate(parsed);
-  };
+  const parseJsoncDocument = createParseJsoncDocument({
+    parseJsoncValue: (...a: any[]) => parseJsoncValue(...a),
+  });
 
   const parseJsoncRecord = (jsonText: string, label: string): Record<string, unknown> => {
     return parseJsoncDocument({
@@ -5093,22 +5092,10 @@ ${examples}`;
 
   type DatabaseVisualizerNewUiOpenResult = 'opened' | 'unavailable' | 'failed';
 
-  const openDatabaseVisualizerNewUiViaApi = async (): Promise<DatabaseVisualizerNewUiOpenResult> => {
-    let hasNewUiVisualizerApi = false;
-
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const api = (targetWindow as any).AutoCardUpdaterV2API;
-      if (!api || typeof api.openVisualizer !== 'function') continue;
-      hasNewUiVisualizerApi = true;
-      const opened = await runMaybeAsyncDatabaseUiOpener(
-        () => api.openVisualizer.call(api),
-        '新版可视化表格编辑器',
-      );
-      if (opened) return 'opened';
-    }
-
-    return hasNewUiVisualizerApi ? 'failed' : 'unavailable';
-  };
+  const openDatabaseVisualizerNewUiViaApi = createOpenDatabaseVisualizerNewUiViaApi({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    runMaybeAsyncDatabaseUiOpener: (...a: any[]) => runMaybeAsyncDatabaseUiOpener(...a),
+  });
 
   const openLegacyDatabaseVisualizer = createOpenLegacyDatabaseVisualizer({
     collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
@@ -5213,22 +5200,14 @@ ${examples}`;
     ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS: ACU_DATABASE_MANUAL_UPDATE_BUTTON_WAIT_MS,
   });
 
-  const hasDatabaseManualUpdateSurface = (): boolean => {
-    for (const targetWindow of collectAccessibleRuntimeWindows()) {
-      const targetDocument = getAccessibleDocument(targetWindow);
-      if (!targetDocument) continue;
-
-      const panel = targetDocument.querySelector<HTMLElement>(ACU_DATABASE_MANUAL_UPDATE_PANEL_SELECTOR);
-      if (panel && isElementVisibleInLayout(panel)) return true;
-
-      const manualButton = Array.from(
-        targetDocument.querySelectorAll<HTMLButtonElement>(ACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR),
-      ).find(button => isElementVisibleInLayout(button) && isDatabaseManualUpdateActionButton(button));
-      if (manualButton) return true;
-    }
-
-    return false;
-  };
+  const hasDatabaseManualUpdateSurface = createHasDatabaseManualUpdateSurface({
+    collectAccessibleRuntimeWindows: (...a: any[]) => collectAccessibleRuntimeWindows(...a),
+    getAccessibleDocument: (...a: any[]) => getAccessibleDocument(...a),
+    isDatabaseManualUpdateActionButton: (...a: any[]) => isDatabaseManualUpdateActionButton(...a),
+    isElementVisibleInLayout: (...a: any[]) => isElementVisibleInLayout(...a),
+    getACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR: () => ACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR,
+    getACU_DATABASE_MANUAL_UPDATE_PANEL_SELECTOR: () => ACU_DATABASE_MANUAL_UPDATE_PANEL_SELECTOR,
+  });
 
   const waitForDatabaseManualUpdateSurface = createWaitForDatabaseManualUpdateSurface({
     hasDatabaseManualUpdateSurface: (...a: any[]) => hasDatabaseManualUpdateSurface(...a),
@@ -5481,36 +5460,12 @@ ${examples}`;
     resolveGlobalInteractionRowTitle: (...a: any[]) => resolveGlobalInteractionRowTitle(...a),
   });
 
-  const CUSTOM_TABLE_NAME_ICON_MODULE_IDS: readonly CustomTableNameIconModuleId[] = [
-    'table-name',
-    'item',
-    'equipment',
-    'faction',
-    'global-interaction-panel',
-    'global-interaction-map-marker',
-    'shop',
-    'avatar-manager',
-    'relationship-graph',
-    'map-character-node',
-    'character-interaction-panel',
-    'alias-resolution',
-    'user-graph-resolution',
-  ];
-  const CUSTOM_TABLE_NAME_ICON_SECTIONS: readonly CustomTableNameIconSection[] = [
-    'table',
-    'map',
-    'item',
-    'equipment',
-    'faction',
-    'shop',
-    'task',
-    'skill',
-    'generic',
-    'character',
-    'relationship',
-    'alias',
-    'user',
-  ];
+  const CUSTOM_TABLE_NAME_ICON_MODULE_IDS = createCustomTableNameIconModuleIds({
+
+  });
+  const CUSTOM_TABLE_NAME_ICON_SECTIONS = createCustomTableNameIconSections({
+
+  });
   const CUSTOM_TABLE_NAME_ICON_ALLOWED_PANEL_SECTIONS = createCustomTableNameIconAllowedPanelSections({
 
   });
@@ -5549,22 +5504,11 @@ ${examples}`;
     getCUSTOM_TABLE_NAME_ICON_DENIED_TABLE_NAMES: () => CUSTOM_TABLE_NAME_ICON_DENIED_TABLE_NAMES,
   });
 
-  const normalizeCustomTableNameIconContext = (value: unknown): CustomTableNameIconContext | null => {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const raw = value as Record<string, unknown>;
-    const moduleId = normalizeCustomTableNameIconKeyPart(raw.moduleId);
-    const tableName = normalizeCustomTableNameIconKeyPart(raw.tableName);
-    const section = normalizeCustomTableNameIconKeyPart(raw.section);
-    const name = normalizeCustomTableNameIconKeyPart(raw.name);
-    if (!isCustomTableNameIconModuleId(moduleId) || !isCustomTableNameIconSection(section)) return null;
-    if (!tableName || !name) return null;
-    return {
-      moduleId,
-      tableName,
-      section,
-      name,
-    };
-  };
+  const normalizeCustomTableNameIconContext = createNormalizeCustomTableNameIconContext({
+    isCustomTableNameIconModuleId: (...a: any[]) => isCustomTableNameIconModuleId(...a),
+    isCustomTableNameIconSection: (...a: any[]) => isCustomTableNameIconSection(...a),
+    normalizeCustomTableNameIconKeyPart: (...a: any[]) => normalizeCustomTableNameIconKeyPart(...a),
+  });
 
   const getCustomTableNameIconContextKey = createGetCustomTableNameIconContextKey({
     normalizeCustomTableNameIconKeyPart: (...a: any[]) => normalizeCustomTableNameIconKeyPart(...a),
@@ -5654,37 +5598,13 @@ ${examples}`;
     searchText: string;
   }
 
-  const CUSTOM_TABLE_NAME_ICON_MANAGER_MODULE_LABELS: Record<CustomTableNameIconModuleId, string> = {
-    'table-name': '通用表格',
-    item: '物品',
-    equipment: '装备',
-    faction: '势力',
-    'global-interaction-panel': '交互面板',
-    'global-interaction-map-marker': '地图标记',
-    shop: '商店',
-    'avatar-manager': '角色头像预设',
-    'relationship-graph': '关系图',
-    'map-character-node': '地图角色',
-    'character-interaction-panel': '角色交互',
-    'alias-resolution': '别名解析',
-    'user-graph-resolution': '用户解析',
-  };
+  const CUSTOM_TABLE_NAME_ICON_MANAGER_MODULE_LABELS = createCustomTableNameIconManagerModuleLabels({
 
-  const CUSTOM_TABLE_NAME_ICON_MANAGER_SECTION_LABELS: Record<CustomTableNameIconSection, string> = {
-    table: '表格',
-    map: '地图',
-    item: '物品',
-    equipment: '装备',
-    faction: '势力',
-    shop: '商店',
-    task: '任务',
-    skill: '技能',
-    generic: '通用',
-    character: '角色',
-    relationship: '关系',
-    alias: '别名',
-    user: '用户',
-  };
+  });
+
+  const CUSTOM_TABLE_NAME_ICON_MANAGER_SECTION_LABELS = createCustomTableNameIconManagerSectionLabels({
+
+  });
 
   const CUSTOM_TABLE_NAME_ICON_MANAGER_DIRECT_MODULE_BY_SECTION = createCustomTableNameIconManagerDirectModuleBySection({
 
@@ -6023,22 +5943,12 @@ ${examples}`;
     getMIN_PANEL_HEIGHT: () => MIN_PANEL_HEIGHT,
   });
 
-  const getPanelDisplayMaxHeight = ($panel?: JQuery<HTMLElement>): number => {
-    const panelEl = $panel?.[0];
-    const panelDocument = panelEl?.ownerDocument || getTavernHostDocument();
-    const panelWindow = panelDocument.defaultView || getTavernHostWindow();
-    const viewport = panelWindow.visualViewport;
-    const viewportTop = viewport?.offsetTop ?? 0;
-    const viewportHeight = viewport?.height || panelWindow.innerHeight || panelDocument.documentElement.clientHeight || 600;
-    const viewportMaxHeight = Math.max(120, Math.floor(viewportHeight - PANEL_VIEWPORT_TOP_GUTTER));
-    if (!panelEl) return Math.min(MAX_PANEL_HEIGHT, viewportMaxHeight);
-
-    const rect = panelEl.getBoundingClientRect();
-    const availableAbovePanel = Math.floor(rect.bottom - viewportTop - PANEL_VIEWPORT_TOP_GUTTER);
-    const availableHeight =
-      availableAbovePanel > 0 ? Math.min(viewportMaxHeight, availableAbovePanel) : viewportMaxHeight;
-    return Math.max(120, Math.min(MAX_PANEL_HEIGHT, availableHeight));
-  };
+  const getPanelDisplayMaxHeight = createGetPanelDisplayMaxHeight({
+    getTavernHostDocument: (...a: any[]) => getTavernHostDocument(...a),
+    getTavernHostWindow: (...a: any[]) => getTavernHostWindow(...a),
+    getMAX_PANEL_HEIGHT: () => MAX_PANEL_HEIGHT,
+    getPANEL_VIEWPORT_TOP_GUTTER: () => PANEL_VIEWPORT_TOP_GUTTER,
+  });
 
   const applyPanelDisplayMaxHeight = createApplyPanelDisplayMaxHeight({
     getPanelDisplayMaxHeight: (...a: any[]) => getPanelDisplayMaxHeight(...a),
@@ -6213,22 +6123,9 @@ ${examples}`;
     return config.fallbackTarget;
   };
 
-  const isQuickSelectTargetAvailable = (
-    target: AttributeQuickSelectTarget,
-    preset: QuickSelectCheckPresetConfig | null | undefined,
-    mode: 'normal' | 'contest',
-  ): boolean => {
-    if (target === 'attribute') return true;
-    if (target === 'skillMod') {
-      if (!preset?.skillMod || preset.skillMod.hidden) return false;
-      return mode !== 'contest' || preset.contestRule?.hideSkillMod !== true;
-    }
-    if (target === 'mod') {
-      if (!preset?.mod || preset.mod.hidden) return false;
-      return mode !== 'contest' || preset.contestRule?.hideMod !== true;
-    }
-    return false;
-  };
+  const isQuickSelectTargetAvailable = createIsQuickSelectTargetAvailable({
+
+  });
 
   const resolveQuickSelectTarget = (
     attrName: string,
@@ -6424,22 +6321,9 @@ ${examples}`;
   });
 
   // 判定成功等级（供对抗检定面板和 API contest() 共用）
-  const getSuccessLevel = function (roll: number, target: number, sides: number) {
-    if (sides === 100) {
-      if (roll <= 5) return { level: 3, name: '大成功', color: 'var(--acu-crit-success-text)' };
-      if (roll >= 96) return { level: -1, name: '大失败', color: 'var(--acu-crit-failure-text)' };
-      if (roll <= Math.floor(target / 5))
-        return { level: 2, name: '极难成功', color: 'var(--acu-extreme-success-text)' };
-      if (roll <= Math.floor(target / 2)) return { level: 1, name: '困难成功', color: 'var(--acu-success-text)' };
-      if (roll <= target) return { level: 0, name: '普通成功', color: 'var(--acu-warning-text)' };
-      return { level: -1, name: '失败', color: 'var(--acu-failure-text)' };
-    } else {
-      if (roll === 20) return { level: 3, name: '大成功', color: 'var(--acu-crit-success-text)' };
-      if (roll === 1) return { level: -1, name: '大失败', color: 'var(--acu-crit-failure-text)' };
-      if (roll >= target) return { level: 0, name: '成功', color: 'var(--acu-success-text)' };
-      return { level: -1, name: '失败', color: 'var(--acu-failure-text)' };
-    }
-  };
+  const getSuccessLevel = createGetSuccessLevel({
+
+  });
 
   // [新增] 显示对抗检定面板
   const showContestPanel = createShowContestPanel({
@@ -6978,22 +6862,9 @@ ${examples}`;
 
 
 
-  const DICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT: Record<DiceConfigBackupModuleId, string> = {
-    uiLayout: '风险较低，但会暴露主题、布局、表格顺序、隐藏项、折叠状态等使用偏好。',
-    diceConfig: '可能暴露当前检定玩法偏好、疯狂模式权重、头像与图标联动开关、当前激活检定模式。',
-    advancedPresets: '可能包含自定义检定规则、公式、输出文本、资源消耗与结果分支。',
-    attributePresets: '可能包含角色属性模板、属性名、默认值、世界观或规则体系关键词。',
-    actionGm: '可能包含交互按钮、发送模板、表名关键词，以及旧版 GM 引擎配置。',
-    dashboardPresets: '可能包含仪表盘模块、表名、列名、关系图和展示规则。',
-    renderPresets: '可能包含列名别名、关系/属性解析规则、正文头像渲染白名单与黑名单。',
-    tableTemplate: '不包含当前表格行数据，但可能包含模板名、字段、说明、示例 SQL 或世界观设定。',
-    tableTemplateRequirementPresets: '可能包含模板检验规则、核心表名、列名、DDL、说明文本和世界观模板要求。',
-    validation: '可能包含数据验证预设、表名、列名、枚举值、错误提示与拦截偏好。',
-    regex: '可能包含正则表达式、替换文本、测试用例、表名/列名关键词和文本处理偏好。',
-    avatarMap: '可能包含角色名、别名、头像 URL、裁剪偏移、缩放和颜色信息。',
-    customIcons: '可能包含表名、物品、装备、势力等名称，以及图标 URL 或本地图标引用元数据。',
-    gachaSettings: '可能包含自定义物品、卡池、描述、自定义字段、外链图标和剧情偏好内容。',
-  };
+  const DICE_CONFIG_BACKUP_PRIVACY_RISK_TEXT = createDiceConfigBackupPrivacyRiskText({
+
+  });
 
 
 
@@ -7035,21 +6906,10 @@ ${examples}`;
     formatDiceConfigBackupSelectedModuleRiskLines: (...a: any[]) => formatDiceConfigBackupSelectedModuleRiskLines(...a),
   });
 
-  const showDiceConfigBackupPrivacyConfirm = (
-    mode: 'export' | 'restore',
-    moduleIds: readonly DiceConfigBackupModuleId[],
-    backup?: DiceConfigBackupDocument,
-  ): Promise<boolean> =>
-    showDiceSystemConfirmDialog({
-      title: mode === 'export' ? '导出配置备份' : '恢复配置备份',
-      message:
-        mode === 'export' ? '备份文件可能包含可识别的私密配置。' : '恢复外来备份可能覆盖本地配置并启用对方规则。',
-      detail: formatDiceConfigBackupPrivacyDetail(mode, moduleIds, backup),
-      iconClass: 'fa-triangle-exclamation',
-      confirmText: mode === 'export' ? '确认导出' : '确认恢复',
-      cancelText: '取消',
-      tone: 'warning',
-    });
+  const showDiceConfigBackupPrivacyConfirm = createShowDiceConfigBackupPrivacyConfirm({
+    formatDiceConfigBackupPrivacyDetail: (...a: any[]) => formatDiceConfigBackupPrivacyDetail(...a),
+    showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
+  });
 
   const normalizeDiceConfigBackupSelectedModuleIds = createNormalizeDiceConfigBackupSelectedModuleIds({
     isDiceConfigBackupModuleId: (...a: any[]) => isDiceConfigBackupModuleId(...a),
@@ -7154,22 +7014,10 @@ ${examples}`;
     TableTemplateRequirementPresetManager: TableTemplateRequirementPresetManager,
   });
 
-  const normalizeDiceConfigBackupGachaCatalogSnapshotRecords = (
-    records: readonly GachaCatalogRecord[],
-  ): GachaCatalogRecord[] =>
-    records
-      .map(record => {
-        const scopeKey = String(record.scopeKey || '').trim();
-        const catalog = normalizeGachaCatalogRecord(record);
-        if (!scopeKey || !catalog) return null;
-        return {
-          scopeKey,
-          version: catalog.version,
-          items: cloneGachaCatalogItems(catalog.items),
-          updatedAt: catalog.updatedAt,
-        } satisfies GachaCatalogRecord;
-      })
-      .filter((record): record is GachaCatalogRecord => Boolean(record));
+  const normalizeDiceConfigBackupGachaCatalogSnapshotRecords = createNormalizeDiceConfigBackupGachaCatalogSnapshotRecords({
+    cloneGachaCatalogItems: (...a: any[]) => cloneGachaCatalogItems(...a),
+    normalizeGachaCatalogRecord: (...a: any[]) => normalizeGachaCatalogRecord(...a),
+  });
 
   const collectDiceConfigBackupGachaCatalogRecords = createCollectDiceConfigBackupGachaCatalogRecords({
     migrateGachaCatalogRecordsToGlobalScope: (...a: any[]) => migrateGachaCatalogRecordsToGlobalScope(...a),
@@ -7370,22 +7218,15 @@ ${examples}`;
     sanitizeDiceConfigBackupValidationRule: (...a: any[]) => sanitizeDiceConfigBackupValidationRule(...a),
   });
 
-  const mergeDiceConfigBackupRegexRules = (current: unknown, incoming: unknown): Record<string, unknown>[] => {
-    const currentRules = getDiceConfigBackupRuleRecords(current, sanitizeDiceConfigBackupRegexRule);
-    const incomingRules = getDiceConfigBackupRuleRecords(incoming, sanitizeDiceConfigBackupRegexRule);
-    const currentOverrides = buildDiceConfigBackupRuleOverrideMap(currentRules, getDiceConfigBackupRegexRuleKey);
-    const incomingOverrides = buildDiceConfigBackupRuleOverrideMap(incomingRules, getDiceConfigBackupRegexRuleKey);
-    const builtinRules = BUILTIN_REGEX_RULES.map(rule => {
-      const baseRule = cloneDiceConfigBackupValue(rule) as Record<string, unknown>;
-      const key = getDiceConfigBackupRegexRuleKey(baseRule);
-      return applyDiceConfigBackupRuleOverrides(baseRule, key, [currentOverrides, incomingOverrides], ['enabled']);
-    });
-    const builtinKeys = new Set(builtinRules.map(getDiceConfigBackupRegexRuleKey).filter(Boolean));
-    return [
-      ...builtinRules,
-      ...mergeDiceConfigBackupCustomRules(currentRules, incomingRules, builtinKeys, getDiceConfigBackupRegexRuleKey),
-    ];
-  };
+  const mergeDiceConfigBackupRegexRules = createMergeDiceConfigBackupRegexRules({
+    applyDiceConfigBackupRuleOverrides: (...a: any[]) => applyDiceConfigBackupRuleOverrides(...a),
+    buildDiceConfigBackupRuleOverrideMap: (...a: any[]) => buildDiceConfigBackupRuleOverrideMap(...a),
+    cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
+    getDiceConfigBackupRegexRuleKey: (...a: any[]) => getDiceConfigBackupRegexRuleKey(...a),
+    getDiceConfigBackupRuleRecords: (...a: any[]) => getDiceConfigBackupRuleRecords(...a),
+    mergeDiceConfigBackupCustomRules: (...a: any[]) => mergeDiceConfigBackupCustomRules(...a),
+    sanitizeDiceConfigBackupRegexRule: (...a: any[]) => sanitizeDiceConfigBackupRegexRule(...a),
+  });
 
   const getDiceConfigBackupSafeCurrentPresets = createGetDiceConfigBackupSafeCurrentPresets({
     cloneDiceConfigBackupValue: (...a: any[]) => cloneDiceConfigBackupValue(...a),
@@ -7711,21 +7552,11 @@ ${examples}`;
     getDiceConfigBackupModuleDefinition: (...a: any[]) => getDiceConfigBackupModuleDefinition(...a),
   });
 
-  const showDiceProfileApplyConfirm = async (
-    profile: DiceProfileRecord,
-    moduleIds: readonly DiceConfigBackupModuleId[],
-  ): Promise<boolean> => {
-    const allWarnings = getDiceConfigBackupRestoreWarnings(profile.backup, [], moduleIds);
-    return showDiceSystemConfirmDialog({
-      title: '应用配置方案',
-      message: `应用「${profile.name}」？`,
-      detailHtml: renderDiceProfileApplyConfirmDetailHtml(moduleIds, allWarnings),
-      iconClass: 'fa-layer-group',
-      confirmText: '应用配置方案',
-      cancelText: '取消',
-      tone: 'warning',
-    });
-  };
+  const showDiceProfileApplyConfirm = createShowDiceProfileApplyConfirm({
+    getDiceConfigBackupRestoreWarnings: (...a: any[]) => getDiceConfigBackupRestoreWarnings(...a),
+    renderDiceProfileApplyConfirmDetailHtml: (...a: any[]) => renderDiceProfileApplyConfirmDetailHtml(...a),
+    showDiceSystemConfirmDialog: (...a: any[]) => showDiceSystemConfirmDialog(...a),
+  });
 
   const applyDiceProfile = createApplyDiceProfile({
     applyDiceConfigBackup: (...a: any[]) => applyDiceConfigBackup(...a),
@@ -8166,22 +7997,10 @@ ${examples}`;
     'id',
   ];
 
-  const getDiffPreferredColumns = (headers: DiffRow): number[] => {
-    const indices: number[] = [];
-    const add = (index: number): void => {
-      if (index >= 0 && !indices.includes(index)) indices.push(index);
-    };
-
-    headers.forEach((header, index) => {
-      const normalized = normalizeDiffHeader(header);
-      if (!normalized) return;
-      if (DIFF_ID_HEADER_KEYWORDS.some(keyword => normalized.includes(keyword.toLowerCase()))) add(index);
-    });
-
-    add(1);
-    add(0);
-    return indices;
-  };
+  const getDiffPreferredColumns = createGetDiffPreferredColumns({
+    normalizeDiffHeader: (...a: any[]) => normalizeDiffHeader(...a),
+    getDIFF_ID_HEADER_KEYWORDS: () => DIFF_ID_HEADER_KEYWORDS,
+  });
 
   const getDiffRowIdentityKeys = createGetDiffRowIdentityKeys({
     getDiffPreferredColumns: (...a: any[]) => getDiffPreferredColumns(...a),
@@ -11077,22 +10896,10 @@ ${examples}`;
     return aliases;
   };
   const buildAdvancedPresetAgentPrompt = (): string => advancedPresetAgentPromptTemplate;
-  const collectGachaPoolTagsFromItems = (rawData = getRuntimeGachaRawData()): GachaPoolTag[] => {
-    const tags = new Set<GachaPoolTag>();
-    try {
-      getAllGachaItemDefinitions(rawData).forEach(item => {
-        (item.poolTags || []).forEach(tag => {
-          const normalized = normalizeGachaPoolId(tag);
-          if (normalized && normalized !== GACHA_ALL_POOL_TAG) tags.add(normalized);
-        });
-      });
-    } catch {
-      GACHA_POOL_TAGS.forEach(tag => {
-        if (tag !== GACHA_ALL_POOL_TAG) tags.add(tag);
-      });
-    }
-    return Array.from(tags);
-  };
+  const collectGachaPoolTagsFromItems = createCollectGachaPoolTagsFromItems({
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+  });
 
   const ensureGachaPoolsForTags = createEnsureGachaPoolsForTags({
     getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
@@ -11473,22 +11280,9 @@ ${examples}`;
     EQUIPMENT_TABLE_TYPE_VALUES: EQUIPMENT_TABLE_TYPE_VALUES,
   });
 
-  const createUniqueGachaItemId = (baseId: string, existingIds: Set<string>): string => {
-    const safeBase =
-      String(baseId || 'custom_item')
-        .trim()
-        .replace(/[^\w-]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 64) || 'custom_item';
-    let nextId = safeBase;
-    let suffix = 2;
-    while (existingIds.has(nextId)) {
-      nextId = `${safeBase}_${suffix}`;
-      suffix += 1;
-    }
-    existingIds.add(nextId);
-    return nextId;
-  };
+  const createUniqueGachaItemId = createCreateUniqueGachaItemId({
+
+  });
 
   const normalizeGachaTimestamp = createNormalizeGachaTimestamp({
 
@@ -11837,22 +11631,15 @@ ${examples}`;
     items: GachaItemDefinition[];
   } | null = null;
 
-  const getGachaPoolDefinitions = (
-    poolTag: GachaPoolTag,
-    rawData = getRuntimeGachaRawData(),
-  ): GachaItemDefinition[] => {
-    const activeTags = getActiveGachaPoolTags(poolTag);
-    const activeTagsKey = activeTags.join('|');
-    const cached = gachaPoolDefinitionsCache;
-    if (cached && cached.poolTag === poolTag && cached.rawData === rawData && cached.activeTagsKey === activeTagsKey) {
-      return cached.items;
-    }
-    const items = getAllGachaItemDefinitions(rawData)
-      .filter(item => isGachaItemEnabled(item) && item.poolTags.some(tag => activeTags.includes(tag)))
-      .sort(compareGachaItemDefinitionsForDisplay);
-    gachaPoolDefinitionsCache = { poolTag, rawData, activeTagsKey, items };
-    return items;
-  };
+  const getGachaPoolDefinitions = createGetGachaPoolDefinitions({
+    compareGachaItemDefinitionsForDisplay: (...a: any[]) => compareGachaItemDefinitionsForDisplay(...a),
+    getActiveGachaPoolTags: (...a: any[]) => getActiveGachaPoolTags(...a),
+    getAllGachaItemDefinitions: (...a: any[]) => getAllGachaItemDefinitions(...a),
+    getRuntimeGachaRawData: (...a: any[]) => getRuntimeGachaRawData(...a),
+    isGachaItemEnabled: (...a: any[]) => isGachaItemEnabled(...a),
+    getGachaPoolDefinitionsCache: () => gachaPoolDefinitionsCache,
+    setGachaPoolDefinitionsCache: (v: any) => { gachaPoolDefinitionsCache = v; },
+  });
 
   const getStoredGachaActivePoolTag = createGetStoredGachaActivePoolTag({
     getConfiguredGachaPoolDefinitions: (...a: any[]) => getConfiguredGachaPoolDefinitions(...a),
@@ -11977,22 +11764,11 @@ ${examples}`;
     message: string;
   };
 
-  const getGachaReservedCustomFieldHeaders = (
-    target: GachaRewardTarget,
-    targetColumns?: GachaRewardTargetColumns,
-  ): Set<string> => {
-    const headers = new Set(
-      target === 'equipment'
-        ? ['row_id', '装备名称', '类型', '数量', '品质', '标签', '效果', '状态', '描述']
-        : ['row_id', '物品名称', '类型', '数量', '品质', '标签', '效果', '描述'],
-    );
-    const writtenKeys =
-      target === 'equipment' ? GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS : GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS;
-    getGachaTargetColumnEntries(targetColumns).forEach(([key, headerName]) => {
-      if (writtenKeys.has(key)) headers.add(headerName);
-    });
-    return headers;
-  };
+  const getGachaReservedCustomFieldHeaders = createGetGachaReservedCustomFieldHeaders({
+    getGachaTargetColumnEntries: (...a: any[]) => getGachaTargetColumnEntries(...a),
+    getGACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS: () => GACHA_COMMON_WRITTEN_TARGET_COLUMN_KEYS,
+    getGACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS: () => GACHA_EQUIPMENT_WRITTEN_TARGET_COLUMN_KEYS,
+  });
 
   const buildGachaCustomFieldHeaderMap = (headers: unknown[]): Map<string, number> => {
     const headerMap = new Map<string, number>();
@@ -12530,22 +12306,9 @@ ${examples}`;
     touchGachaActivity: (...a: any[]) => touchGachaActivity(...a),
   });
 
-  const normalizeGachaMessageId = (messageId?: unknown): string => {
-    if (typeof messageId === 'string' || typeof messageId === 'number') {
-      return String(messageId).trim();
-    }
-    if (!messageId || typeof messageId !== 'object') return '';
-    const record = messageId as Record<string, unknown>;
-    const candidateKeys = ['messageId', 'message_id', 'mesid', 'id', 'index'];
-    for (const key of candidateKeys) {
-      const value = record[key];
-      if (typeof value === 'string' || typeof value === 'number') {
-        const normalized = String(value).trim();
-        if (normalized) return normalized;
-      }
-    }
-    return '';
-  };
+  const normalizeGachaMessageId = createNormalizeGachaMessageId({
+
+  });
 
   const getGachaChatMessageText = createGetGachaChatMessageText({
     getDbChatMessages: (...a: any[]) => getDbChatMessages(...a),
