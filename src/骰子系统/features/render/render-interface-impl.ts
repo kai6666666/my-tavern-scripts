@@ -452,17 +452,12 @@ export function createRenderInterfaceImpl(deps: any) {
         });
       });
 
-      // 应用保存的排序
-      if (navSavedOrder.length > 0) {
-        const orderMap = new Map(navSavedOrder.map((k, i) => [k, i]));
-        allNavItems.sort((a, b) => {
-          const aIdx = orderMap.has(a.key) ? orderMap.get(a.key) : a.key === '__dashboard__' ? -1 : 9999;
-          const bIdx = orderMap.has(b.key) ? orderMap.get(b.key) : b.key === '__dashboard__' ? -1 : 9999;
-          return aIdx - bIdx;
-        });
-      }
+      // 应用保存的排序（统一稳定排序：拖拽顺序 → 会话首见 → 中文兜底）
+      const navSortedKeys = deps.getStableTableSort(allNavItems.map(item => item.key));
+      const navOrderMap = new Map(navSortedKeys.map((k, i) => [k, i]));
+      allNavItems.sort((a, b) => (navOrderMap.get(a.key) ?? 9999) - (navOrderMap.get(b.key) ?? 9999));
 
-      // 渲染所有导航项（order 从 1 开始，避免移动端 Grid 布局问题）
+// 渲染所有导航项（order 从 1 开始，避免移动端 Grid 布局问题）
       allNavItems.forEach((item, idx) => {
         const activeClass = item.isActive ? 'active' : '';
         const extraClass = item.extraClass || '';

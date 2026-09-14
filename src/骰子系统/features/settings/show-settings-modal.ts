@@ -77,19 +77,13 @@ export function createShowSettingsModal(deps: any) {
         allItems.push({ key: name, name: name, icon: deps.getIconForTableName(name), isSpecial: false });
       });
 
-      // 应用保存的排序
-      if (savedOrder.length > 0) {
-        const orderMap = new Map(savedOrder.map((k, i) => [k, i]));
-        const getOrderIndex = (item: TableManagerItem): number =>
-          orderMap.get(item.key) ?? (item.key === '__dashboard__' ? -1 : 9999);
-        allItems.sort((a, b) => {
-          const aIdx = getOrderIndex(a);
-          const bIdx = getOrderIndex(b);
-          return aIdx - bIdx;
-        });
-      }
-
-      return allItems
+      // 应用保存的排序（与导航条/审核面板共用同一稳定排序工具：拖拽顺序 → 会话首见 → 中文兜底）
+      const sortedKeys = deps.getStableTableSort(allItems.map(item => item.key));
+      const stableOrderMap = new Map(sortedKeys.map((k, i) => [k, i]));
+      const orderedItems = [...allItems].sort(
+        (a, b) => (stableOrderMap.get(a.key) ?? 9999) - (stableOrderMap.get(b.key) ?? 9999),
+      );
+      return orderedItems
         .map(item => {
           const isHidden = hiddenList.includes(item.key);
           const specialClass = item.isSpecial ? ' acu-special-item' : '';

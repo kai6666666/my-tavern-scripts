@@ -9418,6 +9418,7 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
     getCachedRawData: () => cachedRawData,
     getIsSettingsOpen: () => isSettingsOpen,
     setIsSettingsOpen: (v: any) => { isSettingsOpen = v; },
+    getStableTableSort: (...a: any[]) => getStableTableSort(...a),
   });
 
   // [优化] 渲染防抖：避免短时间内多次渲染导致重复日志
