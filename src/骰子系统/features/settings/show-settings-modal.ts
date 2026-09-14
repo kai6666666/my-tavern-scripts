@@ -77,7 +77,7 @@ export function createShowSettingsModal(deps: any) {
         allItems.push({ key: name, name: name, icon: deps.getIconForTableName(name), isSpecial: false });
       });
 
-      // 应用保存的排序（与导航条/审核面板共用同一稳定排序工具：拖拽顺序 → 会话首见 → 中文兜底）
+      // 应用保存的排序（与导航条/审核面板共用同一稳定排序工具）
       const sortedKeys = deps.getStableTableSort(allItems.map(item => item.key));
       const stableOrderMap = new Map(sortedKeys.map((k, i) => [k, i]));
       const orderedItems = [...allItems].sort(

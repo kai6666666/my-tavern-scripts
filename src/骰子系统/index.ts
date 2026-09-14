@@ -116,6 +116,8 @@ import { createGetTavernHostDocument } from './features/ui/get-tavern-host-docum
 import { createNormalizeCustomTableNameIconKeyPart } from './features/table/normalize-custom-table-name-icon-key-part';
 import { createGetActiveTabState } from './features/table/get-active-tab-state';
 import { createGetSavedTableOrder } from './features/table/get-saved-table-order';
+import { createGetStableTableSort } from './features/table/get-stable-table-sort';
+import { createEnsureCanonicalTableOrder } from './features/table/ensure-canonical-table-order';
 import { createGetCollapsedState } from './features/table/get-collapsed-state';
 import { createGetOptionsCollapsedState } from './features/table/get-options-collapsed-state';
 import { createGetTableHeights } from './features/table/get-table-heights';
@@ -194,8 +196,6 @@ import { createRefreshGachaShardShop } from './features/gacha/refresh-gacha-shar
 import { createRefreshChangesPanel } from './features/changes/refresh-changes-panel';
 import { createReadAdvancedPresetPolicyNumber } from './features/presets/read-advanced-preset-policy-number';
 import { createPatchCrudSheetCellInRecord } from './features/table/patch-crud-sheet-cell-in-record';
-import { createGetStableTableSort } from './features/table/get-stable-table-sort';
-import { createEnsureCanonicalTableOrder } from './features/table/ensure-canonical-table-order';
 import { createParseIsolatedData } from './features/table/parse-isolated-data';
 import { createNormalizeGachaCustomFields } from './features/gacha/normalize-gacha-custom-fields';
 import { createMergeDiceConfigBackupSetArray } from './features/dice/merge-dice-config-backup-set-array';
@@ -5672,6 +5672,14 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
   const saveTableOrder = createSaveTableOrder({
   });
+  const getStableTableSort = createGetStableTableSort({
+    getSavedTableOrder: (...a: any[]) => getSavedTableOrder(...a),
+  });
+  const ensureCanonicalTableOrder = createEnsureCanonicalTableOrder({
+    getStableTableSort: (...a: any[]) => getStableTableSort(...a),
+    getSavedTableOrder: (...a: any[]) => getSavedTableOrder(...a),
+    saveTableOrder: (...a: any[]) => saveTableOrder(...a),
+  });
   const getCollapsedState = createGetCollapsedState({
 
   });
@@ -9762,15 +9770,6 @@ import { DATA_VALIDATION_DEPRECATED_META } from './features/validation/data-vali
   });
 
   // 实际的渲染实现函数
-const getStableTableSort = createGetStableTableSort({
-    getSavedTableOrder: (...a: any[]) => getSavedTableOrder(...a),
-  });
-const ensureCanonicalTableOrder = createEnsureCanonicalTableOrder({
-  getStableTableSort: (...a: any[]) => getStableTableSort(...a),
-  getSavedTableOrder: (...a: any[]) => getSavedTableOrder(...a),
-  saveTableOrder: (...a: any[]) => saveTableOrder(...a),
-});
-
   const _renderInterfaceImpl = createRenderInterfaceImpl({
     applyStoredPanelHeight: (...a: any[]) => applyStoredPanelHeight(...a),
     bindChangesEvents: (...a: any[]) => bindChangesEvents(...a),

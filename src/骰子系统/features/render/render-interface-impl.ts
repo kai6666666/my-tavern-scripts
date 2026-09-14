@@ -190,10 +190,11 @@ export function createRenderInterfaceImpl(deps: any) {
     let orderedNames = Object.keys(tables);
     if (savedOrder)
       orderedNames = savedOrder.filter(n => tables[n]).concat(orderedNames.filter(n => !savedOrder.includes(n)));
-    orderedNames = deps.getStableTableSort(orderedNames);
 
     const hiddenList = deps.getHiddenTables();
     orderedNames = orderedNames.filter(n => !hiddenList.includes(n));
+    // 统一稳定排序：导航盘管理顺序 → 会话首见 → 中文兜底
+    orderedNames = deps.getStableTableSort(orderedNames);
 
     const activeTab = deps.getActiveTabState();
     let currentTabName = activeTab && tables[activeTab] && !hiddenList.includes(activeTab) ? activeTab : null;
@@ -452,13 +453,14 @@ export function createRenderInterfaceImpl(deps: any) {
         });
       });
 
-      // 应用保存的排序（统一稳定排序：拖拽顺序 → 会话首见 → 中文兜底）
+      // 应用保存的排序（统一稳定排序：导航盘管理顺序 → 会话首见 → 中文兜底）
       const navSortedKeys = deps.getStableTableSort(allNavItems.map(item => item.key));
       const navOrderMap = new Map(navSortedKeys.map((k, i) => [k, i]));
       allNavItems.sort((a, b) => (navOrderMap.get(a.key) ?? 9999) - (navOrderMap.get(b.key) ?? 9999));
+      // 将生效顺序回写导航盘管理，使全局永久一致
       deps.ensureCanonicalTableOrder(allNavItems.map(item => item.key));
 
-// 渲染所有导航项（order 从 1 开始，避免移动端 Grid 布局问题）
+      // 渲染所有导航项（order 从 1 开始，避免移动端 Grid 布局问题）
       allNavItems.forEach((item, idx) => {
         const activeClass = item.isActive ? 'active' : '';
         const extraClass = item.extraClass || '';
