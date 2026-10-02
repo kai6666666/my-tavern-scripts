@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * validate-advanced-preset-custom-fields.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AdvancedDicePreset = Record<string, any>;
+type AdvancedPresetValidationIssue = Record<string, any>;
+
 export function createValidateAdvancedPresetCustomFields(deps: any) {
   const validateAdvancedPresetCustomFields = (
     preset: AdvancedDicePreset,
@@ -16,7 +18,7 @@ export function createValidateAdvancedPresetCustomFields(deps: any) {
 
     const allowedTypes = new Set(['number', 'text', 'select', 'toggle']);
     const ids = new Set<string>();
-    preset.customFields.forEach((field, index) => {
+    preset.customFields.forEach((field: any, index) => {
       const path = `customFields[${index}]`;
       if (!deps.isAdvancedPresetRecord(field)) {
         deps.pushAdvancedPresetIssue(issues, path, '必须是对象');

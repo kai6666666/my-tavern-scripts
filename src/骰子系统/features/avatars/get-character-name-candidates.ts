@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * get-character-name-candidates.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -14,7 +13,7 @@ export function createGetCharacterNameCandidates(deps: any) {
       const parsed = parseCharacterName(value);
       deps.pushUniqueNameCandidate(candidates, value);
       deps.pushUniqueNameCandidate(candidates, parsed.displayName);
-      parsed.aliases.forEach(alias => deps.pushUniqueNameCandidate(candidates, alias));
+      parsed.aliases.forEach((alias: any) => deps.pushUniqueNameCandidate(candidates, alias));
     };
 
     addParsedName(rawName);
@@ -30,9 +29,9 @@ export function createGetCharacterNameCandidates(deps: any) {
       addParsedName(replacedDisplayName);
     }
 
-    deps.getAvatarManualAliases(rawName).forEach(alias => addParsedName(alias));
+    deps.getAvatarManualAliases(rawName).forEach((alias: any) => addParsedName(alias));
     if (displayName !== rawName) {
-      deps.getAvatarManualAliases(displayName).forEach(alias => addParsedName(alias));
+      deps.getAvatarManualAliases(displayName).forEach((alias: any) => addParsedName(alias));
     }
 
     if (includeResolved) {

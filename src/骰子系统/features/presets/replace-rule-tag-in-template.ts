@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * replace-rule-tag-in-template.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type RuleTemplateRecord = Record<string, any>;
+type RuleTemplateSheet = Record<string, any>;
+
 export function createReplaceRuleTagInTemplate(deps: any) {
   const replaceRuleTagInTemplate = (
     template: RuleTemplateRecord,

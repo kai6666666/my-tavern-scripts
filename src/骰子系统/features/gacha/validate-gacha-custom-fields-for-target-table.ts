@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * validate-gacha-custom-fields-for-target-table.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type GachaCustomFieldValidationOptions = Record<string, any>;
+type GachaCustomFieldValidationResult = Record<string, any>;
+
 export function createValidateGachaCustomFieldsForTargetTable(deps: any) {
   const validateGachaCustomFieldsForTargetTable = (
     options: GachaCustomFieldValidationOptions,
@@ -24,8 +26,8 @@ export function createValidateGachaCustomFieldsForTargetTable(deps: any) {
 
     availableHeaders.forEach(headerName => {
       if (reservedHeaders.has(headerName)) return;
-      if (!requiredHeaders.has(headerName)) return;
-      if (!providedCustomFieldHeaders.has(headerName)) missingHeaders.push(headerName);
+      if (!(requiredHeaders as any).has(headerName)) return;
+      if (!(providedCustomFieldHeaders as any).has(headerName)) missingHeaders.push(headerName as any);
     });
 
     const message = missingHeaders.length

@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * save-inventory-field-value.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type InventoryEditableField = string;
+type InventoryMetadataRecord = Record<string, any>;
+
 export function createSaveInventoryFieldValue(deps: any) {
   const saveInventoryFieldValue = async (rowIndex: number, fieldKey: InventoryEditableField, nextValue: string) => {
     const context = deps.getInventoryDetailContext(rowIndex);

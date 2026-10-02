@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * start-tutorial-from-button.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。

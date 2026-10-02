@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * features/api/presets.ts
  * Feature-Sliced: 对外 API 的预设读取方法（listPresets/getActivePresetId/getPresetSummary）。

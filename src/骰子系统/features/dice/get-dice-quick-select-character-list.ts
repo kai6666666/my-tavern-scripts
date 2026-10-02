@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * get-dice-quick-select-character-list.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -6,6 +5,9 @@
 import { DASHBOARD_TABLE_CONFIG } from '../../features/dashboard/dashboard-table-config';
 import { findNameColumnIndex } from '../../entities/name-alias';
 import { isNpcTableName } from '../../shared/constants';
+type DiceRawData = Record<string, any>;
+type RelationGraphTableInput = Record<string, any>;
+
 export function createGetDiceQuickSelectCharacterList(deps: any) {
   const getDiceQuickSelectCharacterList = (rawData: DiceRawData | null | undefined): string[] => {
     const list: string[] = [];

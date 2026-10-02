@@ -1,11 +1,10 @@
-// @ts-nocheck
 /**
  * validate-gacha-catalog-import-item-target.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import type { GachaItemDefinition } from '../../entities/gacha-items';
 export function createValidateGachaCatalogImportItemTarget(deps: any) {
-  const validateGachaCatalogImportItemTarget = (rawData, item: GachaItemDefinition, warnings: string[]): boolean => {
+  const validateGachaCatalogImportItemTarget = (rawData: any, item: GachaItemDefinition, warnings: string[]): boolean => {
     try {
       const parsed = deps.getGachaRewardParseResultForItem(rawData, item);
       const sheet = parsed.tableKey && rawData ? rawData[parsed.tableKey] : undefined;

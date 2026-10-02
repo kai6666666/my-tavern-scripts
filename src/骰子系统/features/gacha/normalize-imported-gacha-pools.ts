@@ -1,9 +1,11 @@
-// @ts-nocheck
 /**
  * normalize-imported-gacha-pools.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { GACHA_ALL_POOL_TAG, GACHA_CUSTOM_ONLY_POOL_TAG, normalizeGachaPoolId, normalizeGachaPoolName } from '../../features/gacha/gacha-helpers';
+type NormalizedImportedGachaPools = Record<string, any>;
+
+import type { GachaPoolDefinition } from '../../entities/gacha-items';
 export function createNormalizeImportedGachaPools(deps: any) {
   const normalizeImportedGachaPools = (rawPools: unknown): NormalizedImportedGachaPools => {
     const result: NormalizedImportedGachaPools = { pools: [], tagAliases: {} };

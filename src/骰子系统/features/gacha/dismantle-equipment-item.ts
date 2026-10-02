@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * dismantle-equipment-item.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -15,8 +14,8 @@ export function createDismantleEquipmentItem(deps: any) {
         }
         const parsed = deps.parseEquipmentItems(rawData);
         const item =
-          parsed.items.find(candidate => candidate.tableKey === tableKey && candidate.rowIndex === rowIndex) ||
-          parsed.items.find(candidate => candidate.rowIndex === rowIndex);
+          parsed.items.find((candidate: any) => candidate.tableKey === tableKey && candidate.rowIndex === rowIndex) ||
+          parsed.items.find((candidate: any) => candidate.rowIndex === rowIndex);
         if (!item) {
           if (window.toastr) window.toastr.warning('未找到可拆解的装备');
           return;
@@ -28,7 +27,7 @@ export function createDismantleEquipmentItem(deps: any) {
         }
         const state = deps.touchGachaActivity(deps.getGachaState(rawData, true));
         if (!state) return;
-        const shardGain = deps.addGachaShards(state, rarity, GACHA_SHARD_VALUES[rarity] || 0);
+        const shardGain = deps.addGachaShards(state, rarity, (GACHA_SHARD_VALUES as any)[rarity] || 0);
         const table = rawData[item.tableKey];
         if (table && Array.isArray(table.content)) {
           table.content.splice(item.rowIndex + 1, 1);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * update-gacha-fortune-progress-dom.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -13,18 +12,18 @@ export function createUpdateGachaFortuneProgressDom(deps: any) {
     let didUpdate = false;
 
     const setText = (root: HTMLElement, selector: string, text: string) => {
-      root.querySelectorAll<HTMLElement>(selector).forEach(element => {
+      root.querySelectorAll(selector).forEach((element: any) => {
         element.textContent = text;
       });
     };
     const setProgressWidth = (root: HTMLElement, selector: string, percent: number) => {
-      root.querySelectorAll<HTMLElement>(selector).forEach(element => {
+      root.querySelectorAll(selector).forEach((element: any) => {
         element.style.width = `${String(percent)}%`;
       });
     };
 
-    containers.forEach(container => {
-      const progress = container.querySelector<HTMLElement>('.acu-gacha-fortune-progress');
+    containers.forEach((container: any) => {
+      const progress = container.querySelector('.acu-gacha-fortune-progress');
       if (!progress) return;
 
       setText(container, '.acu-gacha-fortune-amount', String(view.fortune));
@@ -37,7 +36,7 @@ export function createUpdateGachaFortuneProgressDom(deps: any) {
       setText(progress, '.acu-gacha-active-progress-note', view.activeNote);
       setText(progress, '.acu-gacha-last-gain-time', view.lastGainTime);
       setText(progress, '.acu-gacha-last-gain-note', view.lastGainText);
-      progress.querySelectorAll<HTMLElement>('.acu-gacha-active-progress').forEach(element => {
+      progress.querySelectorAll('.acu-gacha-active-progress').forEach((element: any) => {
         element.classList.toggle('is-reward-flash', view.shouldFlashActiveReward);
       });
       didUpdate = true;

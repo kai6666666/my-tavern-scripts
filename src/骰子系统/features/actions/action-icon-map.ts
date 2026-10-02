@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * action-icon-map.ts
  * Feature-Sliced 模块（数据常量）。

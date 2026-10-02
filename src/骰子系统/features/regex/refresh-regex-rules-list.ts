@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * refresh-regex-rules-list.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -15,7 +14,7 @@ export function createRefreshRegexRulesList(deps: any) {
     // 生成新的规则列表HTML
     const rules = deps.RegexTransformationManager.getAllRules();
     const html = rules
-      .map(rule => {
+      .map((rule: any) => {
         const scopeIcon =
           rule.scope.type === 'global' ? 'fa-globe' : rule.scope.type === 'table' ? 'fa-table' : 'fa-columns';
         const scopeText =

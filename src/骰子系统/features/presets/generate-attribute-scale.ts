@@ -1,9 +1,8 @@
-// @ts-nocheck
 /**
  * generate-attribute-scale.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createGenerateAttributeScale(deps: any) {
+export function createGenerateAttributeScale(_deps: any) {
   const generateAttributeScale = (min: number, max: number): string => {
     const range = max - min;
 

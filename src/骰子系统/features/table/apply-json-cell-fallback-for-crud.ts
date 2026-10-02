@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * apply-json-cell-fallback-for-crud.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type CrudExistingRowPatchInput = Record<string, any>;
+
 export function createApplyJsonCellFallbackForCrud(deps: any) {
   const applyJsonCellFallbackForCrud = async (input: CrudExistingRowPatchInput, colIndex: number): Promise<boolean> => {
     const liveData = deps.readRuntimeTableDataReference(input.api);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * features/gacha/gacha-helpers.ts
  * Feature-Sliced: features/gacha 域的纯运行时助手与常量。

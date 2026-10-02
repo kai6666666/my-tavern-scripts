@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * resolve-user-graph-name.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -20,9 +19,9 @@ export function createResolveUserGraphName(deps: any) {
     }
 
     const userAliases = new Set<string>(deps.USER_PLACEHOLDER_KEYS);
-    deps.USER_PLACEHOLDER_KEYS.forEach(key => {
+    deps.USER_PLACEHOLDER_KEYS.forEach((key: any) => {
       const aliases = deps.AvatarManager.load()[key]?.aliases || [];
-      aliases.forEach(alias => {
+      aliases.forEach((alias: any) => {
         if (alias) userAliases.add(alias);
       });
     });
@@ -37,7 +36,7 @@ export function createResolveUserGraphName(deps: any) {
       if (playerName) userAliases.add(getDisplayName(playerName));
     }
 
-    const normalizedUserAliases = [...userAliases].map(alias => alias.toLowerCase());
+    const normalizedUserAliases = [...userAliases].map((alias: any) => alias.toLowerCase());
     const candidates = [displayName, avatarPrimary, deps.NameAliasRegistry.resolve(displayName)]
       .filter(Boolean)
       .map(candidate => candidate.toLowerCase());

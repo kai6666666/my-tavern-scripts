@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * generate-diff-map.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createGenerateDiffMap(deps: any) {
-  const generateDiffMap = currentData => {
+  const generateDiffMap = (currentData: any) => {
     const lastData = deps.loadSnapshot();
     const diffSet = new Set();
     if (!lastData || !currentData) return diffSet;
@@ -18,7 +17,7 @@ export function createGenerateDiffMap(deps: any) {
       if (!oldSheet?.content) {
         // 整个表是新的
         if (newSheet.content) {
-          newSheet.content.forEach((row, rIdx) => {
+          newSheet.content.forEach((_row: any, rIdx: any) => {
             if (rIdx > 0) diffSet.add(`${tableName}-row-${rIdx - 1}`);
           });
         }
@@ -32,7 +31,7 @@ export function createGenerateDiffMap(deps: any) {
       const matcher = deps.createDiffRowMatcher(oldHeaders, oldRows);
 
       // 遍历当前数据
-      newRows.forEach((row, rIdx) => {
+      newRows.forEach((row: any, rIdx: any) => {
         const matched = deps.takeDiffRowMatch(matcher, headers, row, rIdx);
 
         if (!matched) {
@@ -40,7 +39,7 @@ export function createGenerateDiffMap(deps: any) {
           diffSet.add(`${tableName}-row-${rIdx}`);
         } else {
           // 找到匹配，对比每个单元格
-          row.forEach((cell, cIdx) => {
+          row.forEach((cell: any, cIdx: any) => {
             if (cIdx === 0) return; // 跳过索引列
             const oldCell = matched.row[cIdx];
             if (String(cell ?? '') !== String(oldCell ?? '')) {

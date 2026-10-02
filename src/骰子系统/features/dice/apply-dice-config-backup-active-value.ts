@@ -1,9 +1,11 @@
-// @ts-nocheck
 /**
  * apply-dice-config-backup-active-value.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { STORAGE_KEY_ACTIVE_ADVANCED_PRESET, STORAGE_KEY_LAST_PRESET } from '../../shared/storage-keys';
+type DiceConfigBackupPendingActiveWrite = Record<string, any>;
+type DiceConfigBackupApplyStats = Record<string, any>;
+
 export function createApplyDiceConfigBackupActiveValue(deps: any) {
   const applyDiceConfigBackupActiveValue = (
     write: DiceConfigBackupPendingActiveWrite,

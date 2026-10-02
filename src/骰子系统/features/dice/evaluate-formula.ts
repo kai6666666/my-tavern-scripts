@@ -1,11 +1,10 @@
-// @ts-nocheck
 /**
  * evaluate-formula.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { rollDiceExpression } from './dice-engine';
-export function createEvaluateFormula(deps: any) {
-  const evaluateFormula = (formula, context = {}) => {
+export function createEvaluateFormula(_deps: any) {
+  const evaluateFormula = (formula: any, context: Record<string, any> = {}) => {
     if (!formula) return 0;
 
     let expr = String(formula).trim();

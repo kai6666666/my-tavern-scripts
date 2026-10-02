@@ -1,23 +1,24 @@
-// @ts-nocheck
 /**
  * render-gacha-pool-settings-list-html.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { GACHA_ALL_POOL_TAG } from '../../features/gacha/gacha-helpers';
+type GachaPoolTag = string;
+
 export function createRenderGachaPoolSettingsListHtml(deps: any) {
-  const renderGachaPoolSettingsListHtml = (rawData): string => {
+  const renderGachaPoolSettingsListHtml = (rawData: any): string => {
     const itemDefinitions = deps.getAllGachaItemDefinitions(rawData);
     const counts = new Map<GachaPoolTag, number>();
-    itemDefinitions.forEach(item => {
-      item.poolTags.forEach(tag => {
+    itemDefinitions.forEach((item: any) => {
+      item.poolTags.forEach((tag: any) => {
         counts.set(tag, (counts.get(tag) || 0) + 1);
       });
     });
     const allPoolItems = deps.getGachaCatalogItemsForExport(rawData, GACHA_ALL_POOL_TAG);
     return deps.getAllGachaPoolConfigDefinitions(rawData)
-      .map(pool => {
+      .map((pool: any) => {
         const isAllPool = pool.id === GACHA_ALL_POOL_TAG;
-        const poolItems = isAllPool ? allPoolItems : itemDefinitions.filter(item => item.poolTags.includes(pool.id));
+        const poolItems = isAllPool ? allPoolItems : itemDefinitions.filter((item: any) => item.poolTags.includes(pool.id));
         const countText = isAllPool ? `${poolItems.length} 个候选` : `${counts.get(pool.id) || 0} 个物品`;
         const enabled = isAllPool || pool.includeInAll === true;
         const canDeletePool = deps.canDeleteGachaPoolDefinition(pool);

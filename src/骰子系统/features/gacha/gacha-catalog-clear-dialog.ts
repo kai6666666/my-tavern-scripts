@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * gacha-catalog-clear-dialog.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -41,7 +40,7 @@ export function createShowGachaCatalogClearDialog(deps: any) {
     dialog.on('click', '.acu-gacha-catalog-clear-close', closeDialog);
     dialog.on('click', '.acu-gacha-catalog-clear-global', () => {
       closeDialog();
-      void deps.clearGlobalGachaCatalog().catch(error => {
+      void deps.clearGlobalGachaCatalog().catch((error: any) => {
         console.error('[DICE][GACHA]清空全局自定义物品失败:', error);
         if (window.toastr) showActionableErrorToast(`清空失败: ${deps.getJsonLikeErrorMessage(error)}`, { suggestion: 'importExport' });
       });

@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * show-dice-character-profile-prompt.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiceCharacterProfileDetection = Record<string, any>;
+
 export function createShowDiceCharacterProfilePrompt(deps: any) {
   const showDiceCharacterProfilePrompt = (detection: DiceCharacterProfileDetection): Promise<'apply' | 'save' | 'skip'> => {
     const { $ } = deps.getCore();

@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * normalize-dice-config-backup-gacha-catalog-items.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+import type { GachaItemDefinition } from '../../entities/gacha-items';
+type NormalizedGachaCatalogItem = Record<string, any>;
 export function createNormalizeDiceConfigBackupGachaCatalogItems(deps: any) {
   const normalizeDiceConfigBackupGachaCatalogItems = (
     rawItems: unknown,

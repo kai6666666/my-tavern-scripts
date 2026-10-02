@@ -1,9 +1,8 @@
-// @ts-nocheck
 /**
  * build-new-action-preset-rules-jsonc-template.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createBuildNewActionPresetRulesJsoncTemplate(deps: any) {
+export function createBuildNewActionPresetRulesJsoncTemplate(_deps: any) {
   const buildNewActionPresetRulesJsoncTemplate = (): string => `[
   // 这里填写规则数组；每个规则组按表名关键词匹配一类表格。
   {

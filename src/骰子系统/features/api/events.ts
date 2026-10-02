@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * features/api/events.ts
  * Feature-Sliced: 对外 API 的事件总线（on/off/emit）。

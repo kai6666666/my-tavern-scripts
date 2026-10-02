@@ -1,17 +1,16 @@
-// @ts-nocheck
 /**
  * inject-independent-options.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createInjectIndependentOptions(deps: any) {
-  const injectIndependentOptions = htmlContent => {
+  const injectIndependentOptions = (htmlContent: any) => {
     const { $ } = deps.getCore();
     $('.acu-embedded-options-container').remove();
 
     // 复用寻找最新 AI 消息的逻辑
     const getTargetContainer = () => {
       const $allMes = $('#chat .mes');
-      const $aiMes = $allMes.filter(function () {
+      const $aiMes = $allMes.filter(function (this: any) {
         const $this = $(this);
         if ($this.attr('is_user') === 'true' || $this.attr('is_system') === 'true' || $this.hasClass('sys_mes'))
           return false;

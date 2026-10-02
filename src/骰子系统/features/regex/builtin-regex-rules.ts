@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * builtin-regex-rules.ts
  * Feature-Sliced 模块（数据常量）。
  */
+
+type RegexTransformationRule = Record<string, any>;
 
 export const BUILTIN_REGEX_RULES: RegexTransformationRule[] = [
     // 清除极端词

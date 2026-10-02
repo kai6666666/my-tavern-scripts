@@ -1,11 +1,10 @@
-// @ts-nocheck
 /**
  * apply-runtime-data-via-crud.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createApplyRuntimeDataViaCrud(deps: any) {
   const applyRuntimeDataViaCrud = async (
-    tableData,
+    tableData: any,
     modifiedSheetKeys?: string[],
     options?: { commitDeletes?: boolean },
   ) => {

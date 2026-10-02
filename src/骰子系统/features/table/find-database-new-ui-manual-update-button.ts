@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * find-database-new-ui-manual-update-button.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -15,26 +14,26 @@ export function createFindDatabaseNewUiManualUpdateButton(deps: any) {
       if (!targetDocument) continue;
 
       const rawButtons = Array.from(
-        targetDocument.querySelectorAll<HTMLButtonElement>(deps.getACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR()),
+        targetDocument.querySelectorAll(deps.getACU_DATABASE_MANUAL_UPDATE_ACTION_SELECTOR()),
       );
       const candidateButtons = rawButtons.filter(
-        button => deps.isElementVisibleInLayout(button) && deps.isDatabaseManualUpdateActionButton(button),
+        (button: any) => deps.isElementVisibleInLayout(button) && deps.isDatabaseManualUpdateActionButton(button),
       );
 
       const manualButton =
-        candidateButtons.find(button => {
+        candidateButtons.find((button: any) => {
           const text = deps.normalizeDatabaseUiText(button.textContent);
           return !deps.isDatabaseButtonDisabled(button) && text.includes('执行手动填表');
         }) ||
-        candidateButtons.find(button => {
+        candidateButtons.find((button: any) => {
           const text = deps.normalizeDatabaseUiText(button.textContent);
           return !deps.isDatabaseButtonDisabled(button) && text.includes('交火索引已启用');
         }) ||
-        candidateButtons.find(button => !deps.isDatabaseButtonDisabled(button));
+        candidateButtons.find((button: any) => !deps.isDatabaseButtonDisabled(button)) as any;
 
       if (manualButton) return { status: 'found', button: manualButton };
 
-      const disabledButton = candidateButtons.find(button => deps.isDatabaseButtonDisabled(button));
+      const disabledButton = candidateButtons.find((button: any) => deps.isDatabaseButtonDisabled(button)) as any;
       if (disabledButton) {
         const buttonText = deps.normalizeDatabaseUiText(disabledButton.textContent);
         disabledButtonText = buttonText || '执行手动填表';

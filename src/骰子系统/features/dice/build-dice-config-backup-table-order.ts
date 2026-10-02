@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * build-dice-config-backup-table-order.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -14,8 +13,8 @@ export function createBuildDiceConfigBackupTableOrder(deps: any) {
       const resources = tableTemplatePayload?.resources || {};
       const templateMap = resources[resourceKey];
       if (!templateMap || typeof templateMap !== 'object') return [];
-      const tables = [];
-      Object.keys(templateMap).forEach(key => {
+      const tables: any[] = [];
+      Object.keys(templateMap).forEach((key: any) => {
         const entry = templateMap[key];
         if (!entry || typeof entry !== 'object') return;
         const name = typeof entry.name === 'string' ? entry.name.trim() : '';
@@ -27,8 +26,8 @@ export function createBuildDiceConfigBackupTableOrder(deps: any) {
         left.orderNo !== right.orderNo ? left.orderNo - right.orderNo : left.name.localeCompare(right.name, 'zh-CN'),
       );
       const seen = new Set();
-      const result = [];
-      (deps.TABLE_NAV_SPECIAL_KEYS || []).forEach(key => {
+      const result: any[] = [];
+      (deps.TABLE_NAV_SPECIAL_KEYS || []).forEach((key: any) => {
         if (!key || seen.has(key)) return;
         seen.add(key);
         result.push(String(key));

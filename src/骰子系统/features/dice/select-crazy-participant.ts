@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * select-crazy-participant.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -32,7 +31,7 @@ export function createSelectCrazyParticipant(deps: any) {
     // NPC
     if (npcResult) {
       const npcParsed = deps.getDashboardDataParser().parseRows(npcResult, 'npc');
-      npcParsed.forEach(npc => {
+      npcParsed.forEach((npc: any) => {
         if (!npc.name) return;
         const inSceneVal = String(npc.inScene || '').toLowerCase();
         const isInScene = inSceneVal === 'true' || inSceneVal === '在场';

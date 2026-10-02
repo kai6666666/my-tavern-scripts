@@ -1,8 +1,37 @@
-// @ts-nocheck
 /**
  * render-dice-config-backup-module-rows.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiceConfigBackupModuleId =
+  | 'uiLayout'
+  | 'diceConfig'
+  | 'advancedPresets'
+  | 'attributePresets'
+  | 'actionGm'
+  | 'dashboardPresets'
+  | 'renderPresets'
+  | 'tableTemplate'
+  | 'tableTemplateRequirementPresets'
+  | 'validation'
+  | 'regex'
+  | 'avatarMap'
+  | 'customIcons'
+  | 'gachaSettings';
+
+interface DiceConfigBackupModulePayload {
+  storage: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  warnings?: string[];
+}
+interface DiceConfigBackupDocument {
+  format: string;
+  schemaVersion: number;
+  exportedAt: string;
+  scriptVersion: string;
+  presetFormatVersion: string;
+  modules: Partial<Record<string, DiceConfigBackupModulePayload>>;
+}
+
 export function createRenderDiceConfigBackupModuleRows(deps: any) {
   const renderDiceConfigBackupModuleRows = (
     moduleIds: readonly DiceConfigBackupModuleId[],
@@ -26,7 +55,7 @@ export function createRenderDiceConfigBackupModuleRows(deps: any) {
         const warningHtml =
           payload?.warnings && payload.warnings.length > 0
             ? `<div class="acu-config-backup-module-warning">${payload.warnings
-                .map(warning => `<div><i class="fa-solid fa-triangle-exclamation"></i> ${deps.escapeHtml(warning)}</div>`)
+                .map((warning: any) => `<div><i class="fa-solid fa-triangle-exclamation"></i> ${deps.escapeHtml(warning)}</div>`)
                 .join('')}</div>`
             : '';
         return `
