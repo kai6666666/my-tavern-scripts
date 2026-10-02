@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * attribute-quick-select-defaults.ts
  * Feature-Sliced 模块（数据常量）。
  */
+
+type NormalizedAttributeQuickSelectConfig = Record<string, any>;
 
 export const ATTRIBUTE_QUICK_SELECT_DEFAULT: NormalizedAttributeQuickSelectConfig = {
     baseTarget: 'attribute',

@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * build-auto-check-suggestion-guide.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AdvancedDicePreset = Record<string, any>;
+type CheckSuggestionGuide = Record<string, any>;
+
 export function createBuildAutoCheckSuggestionGuide(deps: any) {
   const buildAutoCheckSuggestionGuide = (preset: AdvancedDicePreset): Required<CheckSuggestionGuide> => {
     const supportsContest = deps.AdvancedDicePresetManager.supportsContest(preset);
@@ -12,8 +14,8 @@ export function createBuildAutoCheckSuggestionGuide(deps: any) {
     const hasSkillMod = !!preset.skillMod && !preset.skillMod.hidden;
     const customParamText =
       preset.customFields
-        ?.filter(field => !field.hidden)
-        .map(field => `${field.id}=<${field.label || field.id}>`)
+        ?.filter((field: any) => !field.hidden)
+        .map((field: any) => `${field.id}=<${field.label || field.id}>`)
         .join(' ') || '';
     const paramPieces = [
       hasDc ? 'dc=<目标值>' : '',

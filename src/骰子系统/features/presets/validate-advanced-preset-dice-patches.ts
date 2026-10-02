@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * validate-advanced-preset-dice-patches.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AdvancedDicePreset = Record<string, any>;
+type AdvancedPresetValidationIssue = Record<string, any>;
+
 export function createValidateAdvancedPresetDicePatches(deps: any) {
   const validateAdvancedPresetDicePatches = (
     preset: AdvancedDicePreset,
@@ -16,7 +18,7 @@ export function createValidateAdvancedPresetDicePatches(deps: any) {
 
     const allowedOps = new Set(['append', 'prepend', 'replace']);
     const context = deps.buildAdvancedPresetEvaluationContext(preset);
-    preset.dicePatches.forEach((patch, index) => {
+    preset.dicePatches.forEach((patch: any, index) => {
       const path = `dicePatches[${index}]`;
       if (!deps.isAdvancedPresetRecord(patch)) {
         deps.pushAdvancedPresetIssue(issues, path, '必须是对象');

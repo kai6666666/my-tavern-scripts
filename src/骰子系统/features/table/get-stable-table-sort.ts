@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * get-stable-table-sort.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -15,19 +14,19 @@ export function createGetStableTableSort(deps: any) {
   const firstSeen = new Map();
   // 关键修复：按输入数组顺序“预冻结”，而非在比较器中分配，
   // 否则排序引擎的比较序列会决定首次赋值顺序，造成跨界面不一致。
-  const freezeSeenOrder = list => {
+  const freezeSeenOrder = (list: any) => {
     for (let i = 0; i < list.length; i += 1) {
       const key = String(list[i]);
       if (!firstSeen.has(key)) firstSeen.set(key, firstSeen.size);
     }
   };
-  const getStableTableSort = names => {
-    const list = [...names].map(name => String(name));
+  const getStableTableSort = (names: any) => {
+    const list = [...names].map((name: any) => String(name));
     freezeSeenOrder(list);
-    const saved = (deps.getSavedTableOrder() || []).map(name => String(name));
+    const saved = (deps.getSavedTableOrder() || []).map((name: any) => String(name));
     const savedIndex = new Map();
-    saved.forEach((name, index) => savedIndex.set(name, index));
-    const rankOf = key => {
+    saved.forEach((name: any, index: any) => savedIndex.set(name, index));
+    const rankOf = (key: any) => {
       if (savedIndex.has(key)) return savedIndex.get(key);
       const seen = firstSeen.has(key) ? firstSeen.get(key) : 0;
       return 1000000 + seen;

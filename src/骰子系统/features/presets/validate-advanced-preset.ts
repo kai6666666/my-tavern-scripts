@@ -1,9 +1,12 @@
-// @ts-nocheck
 /**
  * validate-advanced-preset.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { rollComplexDiceExpression } from '../../features/dice/dice-engine';
+type AdvancedDicePreset = Record<string, any>;
+type AdvancedPresetAgentTestCase = Record<string, any>;
+type AdvancedPresetValidationIssue = Record<string, any>;
+
 export function createValidateAdvancedPreset(deps: any) {
   const validateAdvancedPreset = (
     preset: AdvancedDicePreset,

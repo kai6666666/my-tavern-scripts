@@ -1,18 +1,31 @@
-// @ts-nocheck
 /**
  * render-dice-config-backup-restore-body.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+interface DiceConfigBackupModulePayload {
+  storage: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  warnings?: string[];
+}
+interface DiceConfigBackupDocument {
+  format: string;
+  schemaVersion: number;
+  exportedAt: string;
+  scriptVersion: string;
+  presetFormatVersion: string;
+  modules: Partial<Record<string, DiceConfigBackupModulePayload>>;
+}
+
 export function createRenderDiceConfigBackupRestoreBody(deps: any) {
   const renderDiceConfigBackupRestoreBody = (backup: DiceConfigBackupDocument, warnings: readonly string[]): string => {
     const moduleIds = deps.getDiceConfigBackupAvailableModuleIds(backup);
     const allWarnings = deps.getDiceConfigBackupRestoreWarnings(backup, warnings, moduleIds);
     const storageKeyCount = moduleIds.reduce(
-      (count, moduleId) => count + Object.keys(backup.modules[moduleId]?.storage || {}).length,
+      (count: any, moduleId: any) => count + Object.keys(backup.modules[moduleId]?.storage || {}).length,
       0,
     );
     const resourceCount = moduleIds.reduce(
-      (count, moduleId) => count + deps.getDiceConfigBackupModuleResourceCount(backup.modules[moduleId], moduleId),
+      (count: any, moduleId: any) => count + deps.getDiceConfigBackupModuleResourceCount(backup.modules[moduleId], moduleId),
       0,
     );
     const itemCountText =

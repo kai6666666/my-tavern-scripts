@@ -1,8 +1,8 @@
-// @ts-nocheck
 /**
  * render-global-interaction-row-card.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+import type { GlobalInteractionGroup, GlobalInteractionRow, GlobalInteractionSectionKind } from '../../shared/index-local-types';
 export function createRenderGlobalInteractionRowCard(deps: any) {
   const renderGlobalInteractionRowCard = (
     group: GlobalInteractionGroup,
@@ -10,7 +10,7 @@ export function createRenderGlobalInteractionRowCard(deps: any) {
     sectionKind: GlobalInteractionSectionKind,
   ): string => {
     const actionsHtml = row.actions
-      .map((action, actionIndex) => deps.renderGlobalInteractionActionButton(group, row, action, actionIndex))
+      .map((action: any, actionIndex) => deps.renderGlobalInteractionActionButton(group, row, action, actionIndex))
       .join('');
     const displayName = deps.replaceUserPlaceholders(row.title);
     const iconName = row.iconName || row.title;

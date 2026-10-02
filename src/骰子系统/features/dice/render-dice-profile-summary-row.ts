@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * render-dice-profile-summary-row.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiceProfileSummary = Record<string, any>;
+
 export function createRenderDiceProfileSummaryRow(deps: any) {
   const renderDiceProfileSummaryRow = (summary: DiceProfileSummary, options: { current?: boolean } = {}): string => {
     const sourceLabel = deps.getDiceProfileSourceLabel(summary.source);

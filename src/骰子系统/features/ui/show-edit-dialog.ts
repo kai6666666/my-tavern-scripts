@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * show-edit-dialog.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createShowEditDialog(deps: any) {
-  const showEditDialog = (content, onSave, options?: { overlayClass?: string; title?: string }) => {
+  const showEditDialog = (content: any, onSave: any, options?: { overlayClass?: string; title?: string }) => {
     const { $ } = deps.getCore();
     const config = deps.getConfig();
 
@@ -23,11 +22,11 @@ export function createShowEditDialog(deps: any) {
         `);
     $('body').append(dialog);
 
-    const adjustHeight = el => {
+    const adjustHeight = (el: any) => {
       el.style.height = 'auto';
       el.style.height = el.scrollHeight + 2 + 'px';
     };
-    dialog.find('textarea').on('input', function () {
+    dialog.find('textarea').on('input', function (this: any) {
       adjustHeight(this);
     });
 

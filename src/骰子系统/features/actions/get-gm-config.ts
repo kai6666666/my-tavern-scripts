@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * get-gm-config.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -24,9 +23,9 @@ export function createGetGMConfig(deps: any) {
     const activePreset = deps.ActionPresetManager.getActivePreset();
     if (activePreset && activePreset.rules && activePreset.rules.length > 0) {
       // 转换预设格式为 custom_action_groups 格式
-      const customActionGroups = activePreset.rules.map(rule => ({
+      const customActionGroups = activePreset.rules.map((rule: any) => ({
         table_keywords: rule.table_keywords || [],
-        actions: (rule.actions || []).map(action => ({
+        actions: (rule.actions || []).map((action: any) => ({
           label: action.label,
           icon: action.icon || ACTION_ICON_MAP[action.label] || 'fa-circle',
           type: 'prompt',

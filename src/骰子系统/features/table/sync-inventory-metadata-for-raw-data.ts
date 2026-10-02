@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * sync-inventory-metadata-for-raw-data.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createSyncInventoryMetadataForRawData(deps: any) {
-  const syncInventoryMetadataForRawData = rawData => {
+  const syncInventoryMetadataForRawData = (rawData: any) => {
     const inventoryResult = deps.getInventoryResult(rawData);
     if (!inventoryResult?.data) return;
 
@@ -16,10 +15,10 @@ export function createSyncInventoryMetadataForRawData(deps: any) {
     }
 
     const scope = root[scopeKey];
-    const existingNames = new Set(parsed.items.map(item => item.name).filter(Boolean));
+    const existingNames = new Set(parsed.items.map((item: any) => item.name).filter(Boolean));
     const { currentDetailLocation, currentTime } = deps.getInventoryGlobalContext(rawData);
 
-    parsed.items.forEach(item => {
+    parsed.items.forEach((item: any) => {
       if (scope[item.name]) return;
       scope[item.name] = {
         acquiredAt: currentTime,

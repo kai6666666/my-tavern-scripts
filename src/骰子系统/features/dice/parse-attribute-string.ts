@@ -1,10 +1,11 @@
-// @ts-nocheck
 /**
  * parse-attribute-string.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createParseAttributeString(deps: any) {
-  const parseAttributeString = str => {
+type CharacterAttributeEntry = Record<string, any>;
+
+export function createParseAttributeString(_deps: any) {
+  const parseAttributeString = (str: any) => {
     if (!str) return [];
     const results: CharacterAttributeEntry[] = [];
     const rawStr = String(str).trim();

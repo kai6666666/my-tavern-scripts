@@ -1,9 +1,8 @@
-// @ts-nocheck
 /**
  * default-quick-check-exclude-keywords.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createDefaultQuickCheckExcludeKeywords(deps: any) {
+export function createDefaultQuickCheckExcludeKeywords(_deps: any) {
   const DEFAULT_QUICK_CHECK_EXCLUDE_KEYWORDS = [
     '时间',
     '地点',

@@ -1,12 +1,11 @@
-// @ts-nocheck
 /**
  * sanitize-runtime-table-data.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createSanitizeRuntimeTableData(deps: any) {
-  const sanitizeRuntimeTableData = (tableData, modifiedSheetKeys?: string[], commitDeletes = false) => {
+  const sanitizeRuntimeTableData = (tableData: any, modifiedSheetKeys?: string[], commitDeletes = false) => {
     const sourceData = tableData && typeof tableData === 'object' ? tableData : {};
-    const dataToSave = {
+    const dataToSave: Record<string, any> = {
       mate: sourceData.mate ? deps.cloneRuntimeDataValue(sourceData.mate) : { type: 'chatSheets', version: 1 },
     };
 
@@ -23,8 +22,8 @@ export function createSanitizeRuntimeTableData(deps: any) {
       Object.keys(deletions).forEach(key => {
         if (dataToSave[key]?.content) {
           deletions[key]
-            .sort((left, right) => right - left)
-            .forEach(index => {
+            .sort((left: any, right: any) => right - left)
+            .forEach((index: any) => {
               if (dataToSave[key].content[index + 1]) dataToSave[key].content.splice(index + 1, 1);
             });
         }

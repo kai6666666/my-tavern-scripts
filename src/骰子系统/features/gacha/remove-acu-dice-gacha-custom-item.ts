@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * remove-acu-dice-gacha-custom-item.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -8,21 +7,21 @@ export function createRemoveAcuDiceGachaCustomItem(deps: any) {
   const removeAcuDiceGachaCustomItem = async (itemId: unknown, options: { silent?: boolean } = {}) => {
     const id = String(itemId || '').trim();
     if (!id) throw new Error('[AcuDice][Gacha] removeCustomItem() 需要物品 id');
-    let result: { removed: boolean; item: ReturnType<typeof deps.serializeAcuDiceGachaItem> | null } | null = null;
+    let result: any = null;
 
     await deps.runInSaveQueue(async () => {
       const rawData = deps.getRuntimeGachaRawData();
       await deps.ensureGachaCatalogLoaded(rawData);
       const customItems = deps.getCustomGachaItemDefinitions(rawData);
-      const item = customItems.find(candidate => candidate.id === id) || null;
+      const item = customItems.find((candidate: any) => candidate.id === id) || null;
       if (!item) {
-        if (GACHA_ITEM_DEFINITIONS.some(candidate => candidate.id === id)) {
+        if (GACHA_ITEM_DEFINITIONS.some((candidate: any) => candidate.id === id)) {
           throw new Error('内置物品不能通过 API 删除，只能在商店设置里禁用');
         }
         result = { removed: false, item: null };
         return;
       }
-      const nextItems = customItems.filter(candidate => candidate.id !== id);
+      const nextItems = customItems.filter((candidate: any) => candidate.id !== id);
       const saved = await deps.saveStoredGachaCatalog(nextItems);
       if (!saved) throw new Error('自定义物品删除保存失败');
       deps.deleteGachaItemSetting(id);

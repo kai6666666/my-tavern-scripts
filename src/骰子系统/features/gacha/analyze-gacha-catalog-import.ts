@@ -1,11 +1,10 @@
-// @ts-nocheck
 /**
  * analyze-gacha-catalog-import.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import type { GachaCatalogImportAnalysis, NormalizedGachaCatalogItem } from '../../features/gacha/gacha-types';
 export function createAnalyzeGachaCatalogImport(deps: any) {
-  const analyzeGachaCatalogImport = (jsonString: string, rawData): GachaCatalogImportAnalysis | null => {
+  const analyzeGachaCatalogImport = (jsonString: string, rawData: any): GachaCatalogImportAnalysis | null => {
     let data: unknown;
     try {
       data = deps.parseJsoncValue(jsonString);
@@ -20,9 +19,9 @@ export function createAnalyzeGachaCatalogImport(deps: any) {
 
     const errors: string[] = [];
     const items = rawItems
-      .map((item, index) => deps.normalizeImportedGachaItem(item, index, errors, importedPools.tagAliases))
+      .map((item: any, index) => deps.normalizeImportedGachaItem(item, index, errors, importedPools.tagAliases))
       .filter((item): item is NormalizedGachaCatalogItem => Boolean(item));
-    const existingIds = new Set(deps.getAllGachaItemDefinitions(rawData).map(item => item.id));
+    const existingIds = new Set(deps.getAllGachaItemDefinitions(rawData).map((item: any) => item.id));
     const seenImportIds = new Set<string>();
     const duplicateIds = new Set<string>();
     items.forEach(item => {

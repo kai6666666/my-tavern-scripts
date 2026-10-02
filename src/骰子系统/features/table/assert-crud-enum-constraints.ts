@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * assert-crud-enum-constraints.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -6,9 +5,9 @@
 export function createAssertCrudEnumConstraints(deps: any) {
   const assertCrudEnumConstraints = (
     tableName: string,
-    headers,
-    row,
-    sheet,
+    headers: any,
+    row: any,
+    sheet: any,
     rowIndex: number,
     changedColumns?: Set<number>,
     columnAliasMap = deps.buildCrudColumnAliasMap(sheet),

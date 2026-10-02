@@ -1,9 +1,8 @@
-// @ts-nocheck
 /**
  * format-output-template.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createFormatOutputTemplate(deps: any) {
+export function createFormatOutputTemplate(_deps: any) {
   const formatOutputTemplate = (template: string, context: Record<string, string | number | undefined>): string => {
     const missingKeys = new Set<string>();
 

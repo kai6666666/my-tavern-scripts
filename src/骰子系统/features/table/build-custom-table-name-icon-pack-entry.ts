@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * build-custom-table-name-icon-pack-entry.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type CustomTableNameIconEntry = Record<string, any>;
+type CustomTableNameIconPackEntry = Record<string, any>;
+
 export function createBuildCustomTableNameIconPackEntry(deps: any) {
   const buildCustomTableNameIconPackEntry = (entry: CustomTableNameIconEntry): CustomTableNameIconPackEntry | null => {
     if (!deps.isCustomTableNameIconContextAllowed(entry)) return null;

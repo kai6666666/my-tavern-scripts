@@ -1,11 +1,12 @@
-// @ts-nocheck
 /**
  * validate-advanced-preset-field-config.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AdvancedPresetValidationIssue = Record<string, any>;
+
 export function createValidateAdvancedPresetFieldConfig(deps: any) {
   const validateAdvancedPresetFieldConfig = (
-    field: unknown,
+    field: any,
     path: string,
     issues: AdvancedPresetValidationIssue[],
     options: { allowKey?: boolean } = {},

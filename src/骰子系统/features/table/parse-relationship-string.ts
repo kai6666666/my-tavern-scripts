@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * parse-relationship-string.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createParseRelationshipString(deps: any) {
-  const parseRelationshipString = str => {
+export function createParseRelationshipString(_deps: any) {
+  const parseRelationshipString = (str: any) => {
     if (!str) return [];
     const results = [];
     const rawStr = String(str).trim();

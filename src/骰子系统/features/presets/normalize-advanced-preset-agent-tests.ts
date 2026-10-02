@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * normalize-advanced-preset-agent-tests.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AdvancedPresetAgentTestCase = Record<string, any>;
+
 export function createNormalizeAdvancedPresetAgentTests(deps: any) {
   const normalizeAdvancedPresetAgentTests = (rawTests: unknown): AdvancedPresetAgentTestCase[] => {
     if (rawTests === undefined) return [];

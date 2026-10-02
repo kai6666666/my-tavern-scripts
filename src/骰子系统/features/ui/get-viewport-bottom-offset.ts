@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * get-viewport-bottom-offset.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -13,7 +12,7 @@ export function createGetViewportBottomOffset(deps: any) {
       visualViewport?.height || targetWindow.innerHeight || targetDocument.documentElement.clientHeight || 0;
     const viewportBottom = viewportTop + viewportHeight;
     const candidates = deps.getViewportBottomAnchorElements(targetDocument)
-      .filter((el): el is HTMLElement => {
+      .filter((el: any): el is HTMLElement => {
         const style = targetWindow.getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden') return false;
         const rect = el.getBoundingClientRect();
@@ -29,11 +28,11 @@ export function createGetViewportBottomOffset(deps: any) {
         if (rect.height > maxHeight) return false;
         return true;
       })
-      .map(el => el.getBoundingClientRect());
+      .map((el: any) => el.getBoundingClientRect());
 
     if (candidates.length === 0 || viewportHeight <= 0) return 12;
 
-    const top = Math.min(...candidates.map(rect => rect.top));
+    const top = Math.min(...candidates.map((rect: any) => rect.top));
     const offset = viewportBottom - top + 8;
     const maxOffset = Math.max(12, Math.round(viewportHeight * 0.65));
     return Math.min(maxOffset, Math.max(12, Math.round(offset)));

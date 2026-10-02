@@ -1,11 +1,13 @@
-// @ts-nocheck
 /**
  * unwrap-advanced-preset-document.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AdvancedPresetAgentTestCase = Record<string, any>;
+type AdvancedPresetAgentDocument = Record<string, any>;
+
 export function createUnwrapAdvancedPresetDocument(deps: any) {
   const unwrapAdvancedPresetDocument = (
-    parsed: unknown,
+    parsed: any,
   ): {
     presetData: Record<string, unknown>;
     tests: AdvancedPresetAgentTestCase[];

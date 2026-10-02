@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * patch-crud-sheet-cell-in-message.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DbChatMessage = Record<string, any>;
+
 export function createPatchCrudSheetCellInMessage(deps: any) {
   const patchCrudSheetCellInMessage = (
     msg: DbChatMessage,

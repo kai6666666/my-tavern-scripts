@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * features/api/history.ts
  * Feature-Sliced: 对外 API 的历史记录读取（getLatestCheck/getLatestContest/getHistory）。

@@ -1,14 +1,16 @@
-// @ts-nocheck
 /**
  * collect-dashboard-npc-entries-from-relationship-sources.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type RelationGraphTableInput = Record<string, any>;
+type DashboardRelationshipGraphSourceConfig = Record<string, any>;
+
 export function createCollectDashboardNpcEntriesFromRelationshipSources(deps: any) {
   const collectDashboardNpcEntriesFromRelationshipSources = (
     allTables: Record<string, RelationGraphTableInput>,
     sources: DashboardRelationshipGraphSourceConfig[],
   ) => {
-    const entries = [];
+    const entries: any[] = [];
     const matchedTableKeys = new Set<string>();
     const usedSources: string[] = [];
 
@@ -23,7 +25,7 @@ export function createCollectDashboardNpcEntriesFromRelationshipSources(deps: an
         return;
       }
 
-      sourceTableResults.forEach(tableResult => {
+      sourceTableResults.forEach((tableResult: any) => {
         const tableKey = String(tableResult.table.key || tableResult.tableName || '');
         if (tableKey && matchedTableKeys.has(tableKey)) return;
 

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * migrate-gacha-catalog-records-to-global-scope.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -29,7 +28,7 @@ export function createMigrateGachaCatalogRecordsToGlobalScope(deps: any) {
       items: deps.cloneGachaCatalogItems(mergedRecord.items),
       updatedAt: Date.now(),
     };
-    const replaced = await GachaCatalogDB.replaceAll([migratedRecord]);
+    const replaced = await GachaCatalogDB.replaceAll([migratedRecord as any]);
     if (!replaced) throw new Error('自定义物品目录全局迁移失败');
     const legacyCount = normalizedRecords.filter(record => record.scopeKey !== deps.GACHA_CATALOG_GLOBAL_SCOPE_KEY).length;
     if (legacyCount > 0) {
