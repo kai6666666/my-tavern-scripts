@@ -1,8 +1,12 @@
-// @ts-nocheck
 /**
  * prepare-crud-row-id-for-update-cell.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type CrudExistingRowPatchInput = Record<string, any>;
+type CrudRowIdPreparation = Record<string, any> | null;
+type CrudRowIdPatch = Record<string, any>;
+type DiffRow = unknown[];
+
 export function createPrepareCrudRowIdForUpdateCell(deps: any) {
   const prepareCrudRowIdForUpdateCell = (input: CrudExistingRowPatchInput, colIndex: number): CrudRowIdPreparation => {
     const liveData = deps.readRuntimeTableDataReference(input.api);

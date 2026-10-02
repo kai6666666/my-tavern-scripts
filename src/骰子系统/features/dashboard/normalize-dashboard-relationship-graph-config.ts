@@ -1,8 +1,11 @@
-// @ts-nocheck
 /**
  * normalize-dashboard-relationship-graph-config.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DashboardPresetModuleConfig = Record<string, any>;
+type DashboardRelationshipGraphSourceMode = string;
+type DashboardRelationshipGraphSourceConfig = Record<string, any>;
+
 export function createNormalizeDashboardRelationshipGraphConfig(deps: any) {
   const normalizeDashboardRelationshipGraphConfig = (
     rawModule: Record<string, unknown>,

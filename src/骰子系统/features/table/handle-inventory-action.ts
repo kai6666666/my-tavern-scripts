@@ -1,11 +1,10 @@
-// @ts-nocheck
 /**
  * handle-inventory-action.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { Store } from '../../shared/storage/store';
 export function createHandleInventoryAction(deps: any) {
-  const handleInventoryAction = (rowIndex, action, target: 'inventory' | 'equipment' = 'inventory') => {
+  const handleInventoryAction = (rowIndex: any, action: any, target: 'inventory' | 'equipment' = 'inventory') => {
     const { $ } = deps.getCore();
     const item = deps.findInventoryItemByRow(rowIndex, target);
     if (!item && action !== 'detail') return;

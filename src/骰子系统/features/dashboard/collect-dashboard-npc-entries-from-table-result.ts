@@ -1,16 +1,15 @@
-// @ts-nocheck
 /**
  * collect-dashboard-npc-entries-from-table-result.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createCollectDashboardNpcEntriesFromTableResult(deps: any) {
-  const collectDashboardNpcEntriesFromTableResult = (entries, tableResult, source = null): number => {
+  const collectDashboardNpcEntriesFromTableResult = (entries: any, tableResult: any, source: any = null): number => {
     const table = tableResult?.table || tableResult?.data;
     if (!table) return 0;
 
     const tableName = String(tableResult.tableName || tableResult.name || '');
     const tableKey = String(table.key || tableResult.key || '');
-    const headers = (table.headers || []).map(header => String(header || ''));
+    const headers = (table.headers || []).map((header: any) => String(header || ''));
     const rows = table.rows || [];
     const nameIdx = deps.findDashboardNpcNameColumnIndex(headers, source);
 
@@ -29,11 +28,11 @@ export function createCollectDashboardNpcEntriesFromTableResult(deps: any) {
     const positionIdx = deps.DashboardDataParser.findColumnIndex(headers, 'position', npcConfig);
     let inSceneIdx = deps.DashboardDataParser.findColumnIndex(headers, 'inScene', npcConfig);
     if (inSceneIdx < 0 || inSceneIdx >= headers.length) {
-      inSceneIdx = headers.findIndex(header => header.includes('在场') || header.includes('离场'));
+      inSceneIdx = headers.findIndex((header: any) => header.includes('在场') || header.includes('离场'));
     }
 
     const beforeCount = entries.length;
-    rows.forEach((row, rowIndex) => {
+    rows.forEach((row: any, rowIndex: any) => {
       const rawName = String(row?.[nameIdx] || '').trim();
       if (!rawName) return;
       deps.pushDashboardNpcEntry(entries, {

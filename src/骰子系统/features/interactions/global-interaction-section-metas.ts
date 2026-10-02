@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * global-interaction-section-metas.ts
  * Feature-Sliced 模块（数据常量）。
  */
+
+import type { GlobalInteractionSectionMeta } from '../../shared/index-local-types';
 
 export const GLOBAL_INTERACTION_SECTION_METAS: GlobalInteractionSectionMeta[] = [
     {

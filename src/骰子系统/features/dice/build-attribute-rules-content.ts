@@ -1,9 +1,11 @@
-// @ts-nocheck
 /**
  * build-attribute-rules-content.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { DEFAULT_SPECIAL_ATTR_TEMPLATE } from '../../shared/defaults-config';
+type AttributeRulePresetConfig = Record<string, any>;
+type GeneratedAttributeRules = Record<string, any>;
+
 export function createBuildAttributeRulesContent(deps: any) {
   const buildAttributeRulesContent = (
     presetId: string | null | undefined,

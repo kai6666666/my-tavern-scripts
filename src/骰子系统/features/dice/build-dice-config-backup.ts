@@ -1,9 +1,38 @@
-// @ts-nocheck
 /**
  * build-dice-config-backup.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { PRESET_FORMAT_VERSION, SCRIPT_VERSION } from '../../shared/constants';
+type DiceConfigBackupModuleId =
+  | 'uiLayout'
+  | 'diceConfig'
+  | 'advancedPresets'
+  | 'attributePresets'
+  | 'actionGm'
+  | 'dashboardPresets'
+  | 'renderPresets'
+  | 'tableTemplate'
+  | 'tableTemplateRequirementPresets'
+  | 'validation'
+  | 'regex'
+  | 'avatarMap'
+  | 'customIcons'
+  | 'gachaSettings';
+
+interface DiceConfigBackupModulePayload {
+  storage: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  warnings?: string[];
+}
+interface DiceConfigBackupDocument {
+  format: string;
+  schemaVersion: number;
+  exportedAt: string;
+  scriptVersion: string;
+  presetFormatVersion: string;
+  modules: Partial<Record<string, DiceConfigBackupModulePayload>>;
+}
+
 export function createBuildDiceConfigBackup(deps: any) {
   const buildDiceConfigBackup = async (
     selectedModuleIds: readonly DiceConfigBackupModuleId[],
@@ -18,7 +47,7 @@ export function createBuildDiceConfigBackup(deps: any) {
       const definition = deps.getDiceConfigBackupModuleDefinition(moduleId);
       if (!definition) continue;
       const storage: Record<string, unknown> = {};
-      definition.storageKeys.forEach(key => {
+      definition.storageKeys.forEach((key: any) => {
         const value = deps.sanitizeDiceConfigBackupStoredValue(key, deps.getDiceConfigBackupStoredValue(key));
         if (value !== undefined) storage[key] = deps.cloneDiceConfigBackupValue(value);
       });
@@ -39,7 +68,7 @@ export function createBuildDiceConfigBackup(deps: any) {
       }
       const warnings = [...deps.getDiceConfigBackupModuleWarnings(moduleId, storage, resources), ...extraWarnings];
       if (Object.keys(storage).length === 0 && Object.keys(resources).length === 0 && warnings.length === 0) continue;
-      modules[moduleId] = {
+      (modules as any)[moduleId] = {
         storage,
         ...(Object.keys(resources).length > 0 ? { resources: deps.cloneDiceConfigBackupValue(resources) } : {}),
         ...(warnings.length > 0 ? { warnings } : {}),

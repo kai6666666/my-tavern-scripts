@@ -1,10 +1,12 @@
-// @ts-nocheck
 /**
  * parse-inventory-items.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type GachaRewardParseOptions = Record<string, any>;
+type InventoryParsedItem = Record<string, any>;
+
 export function createParseInventoryItems(deps: any) {
-  const parseInventoryItems = (rawData, options: GachaRewardParseOptions = {}) => {
+  const parseInventoryItems = (rawData: any, options: GachaRewardParseOptions = {}) => {
     const inventoryResult = deps.getInventoryResult(rawData, options);
     if (!inventoryResult?.data) {
       return {
@@ -23,7 +25,7 @@ export function createParseInventoryItems(deps: any) {
     if (options.requireNameColumn) deps.assertGachaRewardNameColumn(tableName, headers, colMap);
 
     const items = rows
-      .map((row, rowIndex) => {
+      .map((row: any, rowIndex: any) => {
         const name = String(row[colMap.name] ?? '').trim();
         if (!name) return null;
         const rawRowIndex = Number((row as Record<string, unknown>)[deps.GACHA_CATALOG_RAW_ROW_INDEX_PROP]);
@@ -50,7 +52,7 @@ export function createParseInventoryItems(deps: any) {
           isChanged: isNew || quantityChanged,
         };
       })
-      .filter((item): item is InventoryParsedItem => Boolean(item));
+      .filter((item: any): item is InventoryParsedItem => Boolean(item));
 
     return { tableName, tableKey: inventoryResult.key || '', headers, items, colMap };
   };

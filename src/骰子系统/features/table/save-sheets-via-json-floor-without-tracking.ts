@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * save-sheets-via-json-floor-without-tracking.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createSaveSheetsViaJsonFloorWithoutTracking(deps: any) {
-  const saveSheetsViaJsonFloorWithoutTracking = async (tableData, modifiedSheetKeys?: string[]) => {
+  const saveSheetsViaJsonFloorWithoutTracking = async (tableData: any, modifiedSheetKeys?: string[]) => {
     const api = deps.assertRuntimeCrudApi();
     const { dataToSave, sheetKeysToSave } = deps.sanitizeRuntimeTableData(tableData, modifiedSheetKeys, false);
     if (sheetKeysToSave.length === 0) {

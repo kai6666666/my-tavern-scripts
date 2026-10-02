@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * merge-dice-config-backup-gacha-catalog-items.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiceConfigBackupApplyStats = Record<string, any>;
+
+import type { GachaItemDefinition } from '../../entities/gacha-items';
 export function createMergeDiceConfigBackupGachaCatalogItems(deps: any) {
   const mergeDiceConfigBackupGachaCatalogItems = (
     currentItems: readonly GachaItemDefinition[],
@@ -13,7 +15,7 @@ export function createMergeDiceConfigBackupGachaCatalogItems(deps: any) {
     const result = deps.cloneGachaCatalogItems(currentItems);
     const indexById = new Map<string, number>();
     const indexByName = new Map<string, number>();
-    result.forEach((item, index) => {
+    result.forEach((item: any, index: any) => {
       const id = String(item.id || '').trim();
       const nameKey = deps.getDiceConfigBackupGachaItemNameKey(item);
       if (id) indexById.set(id, index);

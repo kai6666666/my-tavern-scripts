@@ -1,9 +1,11 @@
-// @ts-nocheck
 /**
  * get-gacha-fortune-progress-view.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { GACHA_ACTIVE_SECONDS_PER_FORTUNE, GACHA_CHARS_PER_FORTUNE, GACHA_MESSAGE_REWARD } from '../../entities/gacha-items';
+type GachaFortuneProgressView = Record<string, any>;
+
+import type { GachaState } from './gacha-types';
 export function createGetGachaFortuneProgressView(deps: any) {
   const getGachaFortuneProgressView = (
     state: GachaState,

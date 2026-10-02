@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * render-global-interactions-panel.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -7,9 +6,9 @@ export function createRenderGlobalInteractionsPanel(deps: any) {
   const renderGlobalInteractionsPanel = (rawData: unknown): string => {
     const groups = deps.buildGlobalInteractionGroups(rawData);
     const sections = deps.createGlobalInteractionSections(groups);
-    const rowCount = groups.reduce((count, group) => count + group.rows.length, 0);
+    const rowCount = groups.reduce((count: any, group: any) => count + group.rows.length, 0);
     const actionCount = groups.reduce(
-      (count, group) => count + group.rows.reduce((groupCount, row) => groupCount + row.actions.length, 0),
+      (count: any, group: any) => count + group.rows.reduce((groupCount: any, row: any) => groupCount + row.actions.length, 0),
       0,
     );
     deps.debugGlobalInteraction('renderPanel', {
@@ -17,11 +16,11 @@ export function createRenderGlobalInteractionsPanel(deps: any) {
       sectionCount: sections.length,
       rowCount,
       actionCount,
-      sections: sections.map(section => ({ kind: section.kind, groupCount: section.groups.length })),
+      sections: sections.map((section: any) => ({ kind: section.kind, groupCount: section.groups.length })),
     });
     const contentHtml =
       groups.length > 0
-        ? sections.map(section => deps.renderGlobalInteractionsSection(section)).join('')
+        ? sections.map((section: any) => deps.renderGlobalInteractionsSection(section)).join('')
         : `
                     <div class="acu-empty-hint acu-global-interaction-empty">
                         <i class="fa-solid fa-hand-pointer"></i>

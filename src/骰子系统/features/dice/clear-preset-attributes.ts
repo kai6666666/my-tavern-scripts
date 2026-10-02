@@ -1,11 +1,12 @@
-// @ts-nocheck
 /**
  * clear-preset-attributes.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { showActionableErrorToast } from '../../shared/actionable-error-toast';
+type DiceRawData = Record<string, any>;
+
 export function createClearPresetAttributesForCharacter(deps: any) {
-  const clearPresetAttributesForCharacter = async charName => {
+  const clearPresetAttributesForCharacter = async (charName: any) => {
     const rawData = deps.getCachedRawData() || deps.getTableData();
     if (!rawData) {
       console.error('[DICE]ACU clearPresetAttributesForCharacter: 无法获取表格数据');

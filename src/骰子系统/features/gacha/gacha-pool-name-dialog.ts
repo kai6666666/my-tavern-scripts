@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * gacha-pool-name-dialog.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -42,7 +41,7 @@ export function createShowGachaPoolNameDialog(deps: any) {
       $('body').append(overlay);
       deps.setupOverlayClose(overlay, 'acu-gacha-name-dialog-overlay', () => finish(null));
       overlay.on('click', '.acu-gacha-name-cancel', () => finish(null));
-      overlay.on('submit', '.acu-gacha-name-dialog', event => {
+      overlay.on('submit', '.acu-gacha-name-dialog', (event: any) => {
         event.preventDefault();
         finish(String(overlay.find('.acu-gacha-name-input').val() || '').trim());
       });

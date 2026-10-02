@@ -1,17 +1,19 @@
-// @ts-nocheck
 /**
  * get-dice-stats-context.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createGetDiceStatsContext(deps: any) {
+type DiceStatsContext = Record<string, any>;
+
+export function createGetDiceStatsContext(_deps: any) {
   const getDiceStatsContext = (): DiceStatsContext => {
     const ST = SillyTavern;
     let chatId = 'unknown_chat';
     let characterId = 'unknown_character';
 
     try {
-      if (typeof getCurrentChatId === 'function') {
-        const directChatId = getCurrentChatId();
+      const gcc = (globalThis as any).getCurrentChatId;
+      if (typeof gcc === 'function') {
+        const directChatId = gcc();
         if (directChatId !== null && directChatId !== undefined) {
           const parsed = String(directChatId).trim();
           if (parsed) chatId = parsed;
@@ -29,8 +31,8 @@ export function createGetDiceStatsContext(deps: any) {
     }
 
     try {
-      if (typeof getCharData === 'function') {
-        const currentChar = getCharData('current', true);
+      if (typeof (globalThis as any).getCharData === 'function') {
+        const currentChar = ((globalThis as any).getCharData)('current', true);
         const avatarId = String(currentChar?.avatar || '').trim();
         if (avatarId) {
           characterId = avatarId;

@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * intercept-textarea-value.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type AcuDiceTextareaElement = any;
+
 export function createInterceptTextareaValue(deps: any) {
   const interceptTextareaValue = () => {
     const { $ } = deps.getCore();
