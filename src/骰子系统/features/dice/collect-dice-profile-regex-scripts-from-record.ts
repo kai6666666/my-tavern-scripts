@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * collect-dice-profile-regex-scripts-from-record.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 export function createCollectDiceProfileRegexScriptsFromRecord(deps: any) {
-  const collectDiceProfileRegexScriptsFromRecord = (record: Record<string, unknown>): unknown[] => {
+  const collectDiceProfileRegexScriptsFromRecord = (record: Record<string, any>): unknown[] => {
     const scripts: unknown[] = [];
     const pushScripts = (value: unknown): void => {
       if (Array.isArray(value)) scripts.push(...value);

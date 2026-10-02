@@ -1,8 +1,31 @@
-// @ts-nocheck
 /**
  * restore-dice-config-backup-module-resources.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiceConfigBackupApplyStats = Record<string, any>;
+
+type DiceConfigBackupModuleId =
+  | 'uiLayout'
+  | 'diceConfig'
+  | 'advancedPresets'
+  | 'attributePresets'
+  | 'actionGm'
+  | 'dashboardPresets'
+  | 'renderPresets'
+  | 'tableTemplate'
+  | 'tableTemplateRequirementPresets'
+  | 'validation'
+  | 'regex'
+  | 'avatarMap'
+  | 'customIcons'
+  | 'gachaSettings';
+
+interface DiceConfigBackupModulePayload {
+  storage: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  warnings?: string[];
+}
+
 export function createRestoreDiceConfigBackupModuleResources(deps: any) {
   const restoreDiceConfigBackupModuleResources = async (
     moduleId: DiceConfigBackupModuleId,

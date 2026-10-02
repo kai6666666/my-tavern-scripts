@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * refresh-dice-panel-presets.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -13,15 +12,15 @@ export function createRefreshDicePanelPresets(deps: any) {
 
     // 重新生成预设按钮HTML
     const presets = deps.AdvancedDicePresetManager.getAllPresets()
-      .filter(p => p.visible !== false)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
+      .filter((p: any) => p.visible !== false)
+      .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
 
     const activePresetId = Store.get(STORAGE_KEY_ACTIVE_ADVANCED_PRESET, null) as string | null;
     const lastPresetId = localStorage.getItem(STORAGE_KEY_LAST_PRESET);
     const activeButtonId = activePresetId || lastPresetId || '__custom__';
 
     let html = `<button type="button" class="acu-dice-quick-preset-btn${activeButtonId === '__custom__' ? ' active' : ''}" data-id="__custom__">自定义</button>`;
-    presets.forEach(p => {
+    presets.forEach((p: any) => {
       const activeClass = p.id === activeButtonId ? ' active' : '';
       html += `<button type="button" class="acu-dice-quick-preset-btn${activeClass}" data-id="${deps.escapeHtml(p.id)}">${deps.escapeHtml(p.name)}</button>`;
     });

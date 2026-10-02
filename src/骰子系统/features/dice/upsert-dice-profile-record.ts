@@ -1,9 +1,10 @@
-// @ts-nocheck
 /**
  * upsert-dice-profile-record.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { getAcuDiceProfileSourceKey } from '../../features/profiles/profile-packages';
+type DiceProfileRecord = { id: string; [key: string]: any };
+
 export function createUpsertDiceProfileRecord(deps: any) {
   const upsertDiceProfileRecord = async (record: DiceProfileRecord): Promise<DiceProfileRecord> => {
     const records = await deps.getDiceProfileRecords();
@@ -12,7 +13,7 @@ export function createUpsertDiceProfileRecord(deps: any) {
       record.source?.type === 'character' || record.source?.type === 'character_card';
     const existing = shouldUpdateSameSource
       ? records.find(
-          item => item.fingerprint === record.fingerprint && getAcuDiceProfileSourceKey(item.source) === sourceKey,
+          (item: any) => item.fingerprint === record.fingerprint && getAcuDiceProfileSourceKey(item.source) === sourceKey,
         )
       : null;
     const now = new Date().toISOString();

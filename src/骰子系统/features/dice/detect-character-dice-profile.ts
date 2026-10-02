@@ -1,10 +1,11 @@
-// @ts-nocheck
 /**
  * detect-character-dice-profile.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { decodeAcuDiceProfileMarkerPayload, extractAcuDiceProfileMarkerPayloads } from '../../features/profiles/profile-packages';
 import type { AcuDiceProfileSource } from '../../features/profiles/profile-packages';
+type DiceCharacterProfileDetection = Record<string, any>;
+
 export function createDetectCharacterDiceProfile(deps: any) {
   const detectCharacterDiceProfile = async (options: { includeSkipped?: boolean } = {}): Promise<DiceCharacterProfileDetection | null> => {
     const context = deps.getDiceProfileCharacterContext();

@@ -1,9 +1,9 @@
-// @ts-nocheck
 /**
  * get-gacha-item-custom-table-name-icon-context.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import type { GachaItemDefinition, GachaRewardTarget } from '../../entities/gacha-items';
+import type { CustomTableNameIconContext } from '../../shared/index-local-types';
 export function createGetGachaItemCustomTableNameIconContext(deps: any) {
   const getGachaItemCustomTableNameIconContext = (
     item: Pick<GachaItemDefinition, 'name' | 'rewardTarget' | 'targetTable' | 'targetColumns'>,

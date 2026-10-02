@@ -1,8 +1,11 @@
-// @ts-nocheck
 /**
  * take-diff-row-match.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiffRow = unknown[];
+type DiffRowMatch = Record<string, any>;
+type DiffRowMatcher = Record<string, any>;
+
 export function createTakeDiffRowMatch(deps: any) {
   const takeDiffRowMatch = (
     matcher: DiffRowMatcher,

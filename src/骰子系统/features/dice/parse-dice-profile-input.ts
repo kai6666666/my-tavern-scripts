@@ -1,10 +1,11 @@
-// @ts-nocheck
 /**
  * parse-dice-profile-input.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { decodeAcuDiceProfileMarkerPayload, extractAcuDiceProfileMarkerPayloads } from '../../features/profiles/profile-packages';
 import type { NormalizeAcuDiceProfileOptions } from '../../features/profiles/profile-packages';
+type DiceProfileRecord = { id: string; [key: string]: any };
+
 export function createParseDiceProfileInput(deps: any) {
   const parseDiceProfileInput = (
     input: unknown,
@@ -21,7 +22,7 @@ export function createParseDiceProfileInput(deps: any) {
       text,
       emptyMessage: '配置方案文件内容为空',
       invalidJsonMessage: '配置方案文件不是有效的 JSON/JSONC',
-      validate: value => {
+      validate: (value: any) => {
         if (!deps.isDiceConfigBackupRecord(value)) throw new Error('配置方案文件结构无效');
         return value;
       },

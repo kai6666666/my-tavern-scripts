@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * pick-gacha-item-definition.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -13,14 +12,14 @@ export function createPickGachaItemDefinition(deps: any) {
     rawData = deps.getRuntimeGachaRawData(),
     availableTargets?: ReadonlySet<GachaRewardTarget>,
   ): GachaItemDefinition | null => {
-    const candidates = deps.getGachaPoolDefinitions(poolTag, rawData).filter(item => {
+    const candidates = deps.getGachaPoolDefinitions(poolTag, rawData).filter((item: any) => {
       if (item.quality !== rarity) return false;
       if (rewardTarget && item.rewardTarget !== rewardTarget) return false;
       if (availableTargets && !availableTargets.has(item.rewardTarget)) return false;
       return true;
     });
     return deps.pickWeightedValue(
-      candidates.map(item => ({
+      candidates.map((item: any) => ({
         value: item,
         weight:
           (Number(item.weight || 0) > 0 ? Number(item.weight || 0) : 1) *

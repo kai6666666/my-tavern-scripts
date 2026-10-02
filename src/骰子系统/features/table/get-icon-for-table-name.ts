@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * get-icon-for-table-name.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createGetIconForTableName(deps: any) {
-  const getIconForTableName = name => {
+export function createGetIconForTableName(_deps: any) {
+  const getIconForTableName = (name: any) => {
     if (!name) return 'fa-table';
     const n = name.toLowerCase();
     if (n.includes('主角') || n.includes('角色')) return 'fa-user-circle';

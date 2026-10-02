@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * features/api/roll.ts
  * Feature-Sliced: 对外 API 的便捷掷骰（roll）方法。

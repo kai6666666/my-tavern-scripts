@@ -1,12 +1,13 @@
-// @ts-nocheck
 /**
  * resolve-gacha-target-table-override.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import { DASHBOARD_TABLE_CONFIG } from '../../features/dashboard/dashboard-table-config';
 import type { GachaRewardTarget } from '../../entities/gacha-items';
+type GachaRewardParseOptions = Record<string, any>;
+
 export function createResolveGachaTargetTableOverride(deps: any) {
-  const resolveGachaTargetTableOverride = (rawData, target: GachaRewardTarget, options: GachaRewardParseOptions) => {
+  const resolveGachaTargetTableOverride = (rawData: any, target: GachaRewardTarget, options: GachaRewardParseOptions) => {
     const targetTable = deps.normalizeGachaTargetTable(options.targetTable);
     if (!targetTable) return null;
     const matches = deps.getGachaTargetTableMatches(rawData, targetTable);

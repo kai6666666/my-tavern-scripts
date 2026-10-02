@@ -1,8 +1,11 @@
-// @ts-nocheck
 /**
  * create-custom-table-name-icon-manager-candidate.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type CustomTableNameIconManagerCandidateSource = string;
+type CustomTableNameIconManagerCandidate = Record<string, any>;
+
+import type { CustomTableNameIconContext } from '../../shared/index-local-types';
 export function createCreateCustomTableNameIconManagerCandidate(deps: any) {
   const createCustomTableNameIconManagerCandidate = (
     context: CustomTableNameIconContext,

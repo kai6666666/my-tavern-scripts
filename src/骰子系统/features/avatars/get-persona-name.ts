@@ -1,9 +1,8 @@
-// @ts-nocheck
 /**
  * get-persona-name.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
-export function createGetPersonaName(deps: any) {
+export function createGetPersonaName(_deps: any) {
   const getPersonaName = () => {
     try {
       // 方法1: SillyTavern 标准 API
@@ -13,8 +12,9 @@ export function createGetPersonaName(deps: any) {
         if (ctx?.name1) return ctx.name1;
       }
       // 方法2: 直接访问全局变量
-      if (typeof name1 !== 'undefined' && name1) return name1;
-      if (w.name1) return w.name1;
+      const gName1 = (globalThis as any).name1;
+      if (typeof gName1 !== 'undefined' && gName1) return gName1;
+      if ((w as any).name1) return (w as any).name1;
       // 方法3: 从 DOM 中查找
       const $ = w.jQuery || window.jQuery;
       if ($) {

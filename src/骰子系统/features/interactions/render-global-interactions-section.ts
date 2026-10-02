@@ -1,21 +1,21 @@
-// @ts-nocheck
 /**
  * render-global-interactions-section.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+import type { GlobalInteractionSection } from '../../shared/index-local-types';
 export function createRenderGlobalInteractionsSection(deps: any) {
   const renderGlobalInteractionsSection = (section: GlobalInteractionSection): string => {
     const collapsedSections = deps.getGlobalInteractionCollapsedSections();
     const isCollapsed = collapsedSections.includes(section.kind);
-    const rowCount = section.groups.reduce((count, group) => count + group.rows.length, 0);
+    const rowCount = section.groups.reduce((count: any, group) => count + group.rows.length, 0);
     const actionCount = section.groups.reduce(
-      (count, group) => count + group.rows.reduce((rowCountSum, row) => rowCountSum + row.actions.length, 0),
+      (count: any, group) => count + group.rows.reduce((rowCountSum: any, row) => rowCountSum + row.actions.length, 0),
       0,
     );
     const sectionSearchText = section.groups
-      .map(group => `${group.tableName} ${group.rows.map(row => row.searchText).join(' ')}`)
+      .map((group: any) => `${group.tableName} ${group.rows.map((row: any) => row.searchText).join(' ')}`)
       .join(' ');
-    const groupsHtml = section.groups.map(group => deps.renderGlobalInteractionsTableGroup(group, section.kind)).join('');
+    const groupsHtml = section.groups.map((group: any) => deps.renderGlobalInteractionsTableGroup(group, section.kind)).join('');
 
     return `
                 <div class="acu-global-interaction-section acu-global-interaction-section-${section.kind} ${isCollapsed ? 'collapsed' : ''}" data-section-kind="${section.kind}" data-search-text="${deps.safeEncodeURIComponent(String(sectionSearchText))}">

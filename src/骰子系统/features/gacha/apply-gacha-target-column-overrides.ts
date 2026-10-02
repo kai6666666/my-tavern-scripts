@@ -1,9 +1,10 @@
-// @ts-nocheck
 /**
  * apply-gacha-target-column-overrides.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import type { GachaRewardTargetColumns } from '../../entities/gacha-items';
+type GachaRewardColumnMap = Record<string, any>;
+
 export function createApplyGachaTargetColumnOverrides(deps: any) {
   const applyGachaTargetColumnOverrides = (
     colMap: GachaRewardColumnMap,
@@ -15,7 +16,7 @@ export function createApplyGachaTargetColumnOverrides(deps: any) {
     const entries = deps.getGachaTargetColumnEntries(targetColumns);
     if (entries.length === 0) return colMap;
     const nextMap: GachaRewardColumnMap = { ...colMap };
-    entries.forEach(([key, headerName]) => {
+    entries.forEach(([key, headerName]: any) => {
       const columnIndex = deps.findGachaTargetColumnIndex(headers, headerName, sheet);
       if (columnIndex < 0) {
         throw new Error(

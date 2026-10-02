@@ -1,14 +1,15 @@
-// @ts-nocheck
 /**
  * apply-gacha-custom-fields-to-row.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import type { GachaItemDefinition } from '../../entities/gacha-items';
+type GachaCustomFieldApplyOptions = Record<string, any>;
+
 export function createApplyGachaCustomFieldsToRow(deps: any) {
   const applyGachaCustomFieldsToRow = (
     row: unknown[],
     headers: unknown[],
-    item: Pick<GachaItemDefinition, 'customFields'>,
+    item: Pick<GachaItemDefinition, 'customFields' | 'targetColumns' | 'rewardTarget'>,
     options: GachaCustomFieldApplyOptions,
   ): void => {
     if (!Array.isArray(row) || !Array.isArray(headers) || !deps.hasGachaCustomFields(item)) return;

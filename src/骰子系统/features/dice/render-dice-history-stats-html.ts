@@ -1,8 +1,10 @@
-// @ts-nocheck
 /**
  * render-dice-history-stats-html.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type DiceStatsScope = string;
+type DiceHistoryStatsSummary = Record<string, any>;
+
 export function createRenderDiceHistoryStatsHtml(deps: any) {
   const renderDiceHistoryStatsHtml = (
     allStats: Record<DiceStatsScope, DiceHistoryStatsSummary>,

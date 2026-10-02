@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * get-dice-config-backup-known-preset-ids.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -8,7 +7,7 @@ import { Store } from '../../shared/storage/store';
 import { normalizeTableTemplateRequirementPreset } from '../../features/table/table-template-requirements';
 export function createGetDiceConfigBackupKnownPresetIds(deps: any) {
   const getDiceConfigBackupKnownPresetIds = (presetKey: string): Set<string> => {
-    const result = new Set(deps.getDiceConfigBackupBuiltinPresetIds(presetKey));
+    const result = new Set<string>(deps.getDiceConfigBackupBuiltinPresetIds(presetKey));
     const stored = Store.get(presetKey, []);
     if (Array.isArray(stored)) {
       stored.forEach(item => {

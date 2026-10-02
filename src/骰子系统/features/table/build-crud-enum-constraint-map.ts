@@ -1,8 +1,9 @@
-// @ts-nocheck
 /**
  * build-crud-enum-constraint-map.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
+type RuntimeCrudEnumConstraint = Record<string, any>;
+
 export function createBuildCrudEnumConstraintMap(deps: any) {
   const buildCrudEnumConstraintMap = (sheet: unknown): Record<string, RuntimeCrudEnumConstraint> => {
     const ddl = deps.stripCrudSqlComments(deps.getCrudSheetDdl(sheet));

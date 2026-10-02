@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * remove-acu-dice-gacha-custom-pool.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
@@ -13,7 +12,7 @@ export function createRemoveAcuDiceGachaCustomPool(deps: any) {
     await deps.runInSaveQueue(async () => {
       const rawData = deps.getRuntimeGachaRawData();
       await deps.ensureGachaCatalogLoaded(rawData);
-      const pool = deps.getConfiguredGachaPoolDefinitions().find(candidate => candidate.id === id);
+      const pool = deps.getConfiguredGachaPoolDefinitions().find((candidate: any) => candidate.id === id);
       if (pool && !deps.canDeleteGachaPoolDefinition(pool)) {
         throw new Error('内置卡池不能通过 API 删除，只能调整是否参与全部池');
       }

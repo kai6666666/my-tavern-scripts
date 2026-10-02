@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * get-gacha-item-definition-fingerprint.ts
  * Feature-Sliced 模块（工厂版，DI 注入依赖）。
  */
 import type { GachaItemDefinition } from '../../entities/gacha-items';
-export function createGetGachaItemDefinitionFingerprint(deps: any) {
+export function createGetGachaItemDefinitionFingerprint(_deps: any) {
   const getGachaItemDefinitionFingerprint = (item: GachaItemDefinition | null | undefined): string => {
     if (!item) return '';
     const comparable = {
